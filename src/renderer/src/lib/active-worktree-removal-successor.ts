@@ -86,6 +86,7 @@ export function pickActiveWorktreeSuccessor(
   const repoById = getRepoMapFromState(state)
   const siblings = (state.worktreesByRepo[removed.repoId] ?? []).filter(
     (worktree) =>
+      !worktree.isArchived &&
       !getDeleteStateForWorktreeHost(worktree, state.deleteStateByWorktreeId)?.isDeleting &&
       !isHostedOnRuntimeOwnedSshTarget(worktree, repoById)
   )

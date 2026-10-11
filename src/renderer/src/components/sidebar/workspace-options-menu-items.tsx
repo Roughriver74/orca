@@ -23,6 +23,7 @@ import {
   shouldShowHostScopeControls,
   type SidebarHostOption
 } from './sidebar-host-options'
+import SidebarArchivedWorkspacesMenuSection from './SidebarArchivedWorkspacesMenuSection'
 import { useSidebarHostScopeOptions } from './use-sidebar-host-scope-options'
 import { SidebarHostScopeMenuSection } from './SidebarHostScopeMenuSection'
 import { PROJECT_ORDER_OPTIONS, SORT_OPTIONS } from './sidebar-workspace-option-items'
@@ -311,6 +312,9 @@ export function WorkspaceOptionsMenuItems({
           })}
         </Fragment>
       ))}
+      <SidebarArchivedWorkspacesMenuSection
+        preserveWorkspaceBoardOpen={preserveWorkspaceBoardOpen}
+      />
     </>
   )
 }
