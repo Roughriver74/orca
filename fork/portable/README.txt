@@ -6,7 +6,7 @@ Orca Portable
 
 Что внутри
   app\       Orca (своя сборка, автообновление выключено)
-  bin\       claude.exe, codex.exe и PortableGit (распаковывается в git\ при первом запуске)
+  bin\       claude.exe, codex\codex.exe и PortableGit (распаковывается в git\ при первом запуске)
   home\      домашняя папка для Orca и агентов: логин Codex, настройки Claude, хуки
   data\      настройки и проекты Orca (появляется после первого запуска)
   secrets\   токен подписки Claude

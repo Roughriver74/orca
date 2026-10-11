@@ -28,7 +28,7 @@ set "USERPROFILE=%PHOME%"
 set "HOME=%PHOME%"
 set "APPDATA=%PHOME%\AppData\Roaming"
 set "LOCALAPPDATA=%PHOME%\AppData\Local"
-set "PATH=%ROOT%\bin;%PATH%"
+set "PATH=%ROOT%\bin;%ROOT%\bin\codex;%PATH%"
 if exist "%ROOT%\secrets\claude-token.txt" set /p CLAUDE_CODE_OAUTH_TOKEN=<"%ROOT%\secrets\claude-token.txt"
 
 start "" "%ROOT%\app\Orca.exe" --user-data-dir="%ROOT%\data"
