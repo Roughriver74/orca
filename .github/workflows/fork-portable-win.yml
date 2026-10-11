@@ -1,0 +1,98 @@
+name: Fork Portable Windows Build
+
+# Fork-only: builds the unpacked Windows app that fork/orca-portable-pack turns into
+# OrcaPortable.zip. Only the app is built here; agent CLIs and the user's subscription
+# tokens are added on the user's Mac so secrets never reach CI.
+#
+#   git push origin custom:refs/tags/portable-<sha>   (fork/orca-portable-pack --build does this)
+
+on:
+  push:
+    tags:
+      - 'portable-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-portable-win-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.repository == 'Roughriver74/orca'
+    # Why windows-2022: the upstream Windows legs pin it; windows-latest broke node-gyp's VS detection.
+    runs-on: windows-2022
+    timeout-minutes: 90
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/setup@v2
+        with:
+          install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            mobile/pnpm-lock.yaml
+
+      - name: Cache electron-builder downloads
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: electron-builder-win-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            electron-builder-win-
+
+      # Why retried: electron's postinstall pulls its binary from a CDN that returns transient 504s.
+      - name: Install dependencies
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: pnpm install --frozen-lockfile
+
+      - uses: ./.github/actions/install-mobile-dependencies
+
+      - name: Build Windows process-table addon for the relay
+        shell: bash
+        run: node config/scripts/build-windows-process-tree-relay-addon.mjs --arch=x64
+
+      - name: Build app
+        shell: bash
+        run: pnpm build:release
+
+      # Why a `-local.` version: isSelfBuiltApp() keys on it, so the official update feed never replaces this build.
+      - name: Package unpacked Windows app
+        shell: bash
+        run: |
+          set -euo pipefail
+          commit="${GITHUB_SHA::12}"
+          version="$(node -p "require('./package.json').version")-local.$(date +%s)000.${commit}"
+          node config/scripts/ensure-native-runtime.mjs --runtime=electron
+          ORCA_BUILD_COMMIT="$commit" ORCA_LOCAL_BUILD_VERSION="$version" \
+            pnpm exec electron-builder --config config/electron-builder.config.cjs --win dir --x64 --publish never
+          test -f dist/win-unpacked/Orca.exe
+          printf '%s\n' "$version" > dist/win-unpacked/orca-portable-version.txt
+          echo "Packaged $version"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: OrcaPortable-app-win-x64
+          path: dist/win-unpacked
+          retention-days: 14
+          if-no-files-found: error
