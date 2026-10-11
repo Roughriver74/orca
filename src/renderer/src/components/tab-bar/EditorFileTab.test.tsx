@@ -65,6 +65,9 @@ vi.mock('lucide-react', () => ({
   ArrowDown: function ArrowDown(props: Record<string, unknown>) {
     return { type: 'ArrowDown', props }
   },
+  AppWindow: function AppWindow(props: Record<string, unknown>) {
+    return { type: 'AppWindow', props }
+  },
   ArrowLeft: function ArrowLeft(props: Record<string, unknown>) {
     return { type: 'ArrowLeft', props }
   },

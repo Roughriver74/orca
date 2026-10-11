@@ -32,6 +32,9 @@ const NON_IMAGE_BINARY_EXTENSIONS = [
   // Documents
   '.doc',
   '.docx',
+  '.key',
+  '.numbers',
+  '.pages',
   '.pdf',
   '.ppt',
   '.pptx',

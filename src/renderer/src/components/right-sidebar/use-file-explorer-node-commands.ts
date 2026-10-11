@@ -41,7 +41,7 @@ type UseFileExplorerNodeCommandsParams = {
   requestDelete: (node: TreeNode) => void
   requestDeleteAll: (nodes: TreeNode[]) => void
   refreshDir: (dirPath: string) => Promise<void>
-  handleClick: (node: TreeNode, dirToggle?: DirToggleTiming) => void
+  handleClick: (node: TreeNode, dirToggle?: DirToggleTiming, isKeyboardActivation?: boolean) => void
   toggleDir: (worktreeId: string, dirPath: string) => void
   scrollToIndex: (index: number) => void
 }
@@ -135,7 +135,12 @@ export function useFileExplorerNodeCommands({
         fromRenameHotspot: isRenameHotspotTarget(event.target),
         clickCount: event.detail
       })
-      selectRowWithModifiers(node, event, (target) => handleClick(target, dirToggle))
+      // Why: a native <button> fires `click` with detail 0 for Enter/Space, so this is
+      // keyboard activation rather than a mouse click.
+      const isKeyboardActivation = event.detail === 0
+      selectRowWithModifiers(node, event, (target) =>
+        handleClick(target, dirToggle, isKeyboardActivation)
+      )
     },
     [handleClick, selectRowWithModifiers]
   )

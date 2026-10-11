@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react'
 import {
+  AppWindow,
   Copy,
   Download,
   ExternalLink,
@@ -33,6 +34,8 @@ import {
   isRevealInFileManagerBlocked,
   revealInFileManager
 } from '@/lib/reveal-in-file-manager'
+import { openWithDefaultApp } from '@/lib/open-with-default-app'
+import { isLocalPathOpenBlocked } from '@/lib/local-path-open-guard'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import type { FileExplorerRowProps } from './FileExplorerRow'
 import {
@@ -125,6 +128,15 @@ export function FileExplorerRowContextMenu({
       runtimeEnvironmentId: getRuntimeEnvironmentIdForWorktree(s, s.activeWorktreeId)
     })
   )
+  const openExternalBlocked = useAppStore((s) =>
+    isLocalPathOpenBlocked(s.settings, {
+      connectionId,
+      runtimeEnvironmentId: getRuntimeEnvironmentIdForWorktree(s, s.activeWorktreeId)
+    })
+  )
+  const handleOpenWithDefaultApp = useCallback(() => {
+    void openWithDefaultApp(node.path, openExternalBlocked)
+  }, [node.path, openExternalBlocked])
   const handleOpenInOrcaBrowser = useCallback(() => {
     if (!activeWorktreeId) {
       return
@@ -271,6 +283,16 @@ export function FileExplorerRowContextMenu({
           {findInFolderShortcutLabel !== 'Unassigned' ? (
             <ContextMenuShortcut>{findInFolderShortcutLabel}</ContextMenuShortcut>
           ) : null}
+        </ContextMenuItem>
+      )}
+      {!node.isDirectory && (
+        <ContextMenuItem disabled={openExternalBlocked} onSelect={handleOpenWithDefaultApp}>
+          <AppWindow />
+          {translate(
+            'auto.components.right.sidebar.file.explorer.row.context.menu.d3c4badefc',
+            'Open with Default App'
+          )}
+          {openExternalBlocked ? <LocalOnlyMenuHint /> : null}
         </ContextMenuItem>
       )}
       <ContextMenuItem

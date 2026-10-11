@@ -22,6 +22,7 @@ import type { FileContent } from './editor-panel-content-types'
 import { ExternalFileChangeBanner } from './ExternalFileChangeBanner'
 import type { useMarkdownDocuments } from './useMarkdownDocuments'
 import { EditorMarkdownFileSurface } from './EditorMarkdownFileSurface'
+import { BinaryFileUnsupportedView } from './BinaryFileUnsupportedView'
 import type { MarkdownRenderState } from './markdown-render-mode'
 
 const noopEditorContentChange = (_content: string): void => {}
@@ -154,12 +155,14 @@ export function EditorEditFileSurface({
       )
     }
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {translate(
-          'auto.components.editor.EditorContent.b9de81ba52',
-          'Binary file — cannot display'
-        )}
-      </div>
+      <BinaryFileUnsupportedView
+        filePath={activeFile.filePath}
+        canOpenLocally={
+          !activeFile.externalSshTargetId &&
+          !activeFile.runtimeEnvironmentId &&
+          getConnectionIdForFile(activeFile.worktreeId, activeFile.filePath) === null
+        }
+      />
     )
   }
 

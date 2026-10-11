@@ -252,6 +252,7 @@ export function useFileExplorerTreePaneState({
     runtimeEnvironmentId: activeRuntimeEnvironmentId,
     openFile,
     makePreviewFilePermanent,
+    closeFile,
     toggleDir: hasNameFilter ? handleToggleNameFilterDir : toggleDir,
     loadDir,
     statPath,

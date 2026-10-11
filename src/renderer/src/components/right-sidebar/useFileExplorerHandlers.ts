@@ -3,6 +3,11 @@ import type React from 'react'
 import type { RefObject } from 'react'
 import { detectLanguage } from '@/lib/language-detect'
 import { toast } from 'sonner'
+import { useAppStore } from '@/store'
+import { getConnectionIdForFile } from '@/lib/connection-context'
+import { isLocalPathOpenBlocked } from '@/lib/local-path-open-guard'
+import { openWithDefaultApp } from '@/lib/open-with-default-app'
+import { shouldOpenWithDefaultApp } from '../../../../shared/external-open-classifier'
 import type { TreeNode } from './file-explorer-types'
 import { FILE_EXPLORER_DRAGGABLE_SELECTOR } from './file-explorer-drag-scroll-marker'
 import type { DirToggleTiming } from './file-explorer-dir-toggle-timing'
@@ -31,6 +36,7 @@ type UseFileExplorerHandlersParams = {
     }
   ) => void
   makePreviewFilePermanent: (filePath: string) => void
+  closeFile: (fileId: string) => void
   toggleDir: (worktreeId: string, dirPath: string) => void
   canToggleDirectories?: boolean
   loadDir: (
@@ -45,7 +51,7 @@ type UseFileExplorerHandlersParams = {
 }
 
 type UseFileExplorerHandlersReturn = {
-  handleClick: (node: TreeNode, dirToggle?: DirToggleTiming) => void
+  handleClick: (node: TreeNode, dirToggle?: DirToggleTiming, isKeyboardActivation?: boolean) => void
   handleDoubleClick: (node: TreeNode) => void
   handleWheelCapture: (e: React.WheelEvent<HTMLDivElement>) => void
 }
@@ -166,6 +172,7 @@ export function useFileExplorerHandlers({
   runtimeEnvironmentId,
   openFile,
   makePreviewFilePermanent,
+  closeFile,
   toggleDir,
   canToggleDirectories = true,
   loadDir,
@@ -175,11 +182,29 @@ export function useFileExplorerHandlers({
   scrollRef
 }: UseFileExplorerHandlersParams): UseFileExplorerHandlersReturn {
   const handleClick = useCallback(
-    (node: TreeNode, dirToggle: DirToggleTiming = 'immediate') => {
+    (node: TreeNode, dirToggle: DirToggleTiming = 'immediate', isKeyboardActivation = false) => {
       if (dirToggle === 'skip' && (node.isDirectory || node.isSymlink)) {
         // Why: rename owns this click. Symlink rows stay file-shaped until
         // activation, so isDirectory alone would stat and toggle again.
         setSelectedPath(node.path)
+        return
+      }
+      if (
+        isKeyboardActivation &&
+        activeWorktreeId &&
+        !node.isDirectory &&
+        shouldOpenWithDefaultApp(node.path)
+      ) {
+        // Why: Enter is the keyboard equivalent of double-click for files Orca can't
+        // render; unlike double-click, no preview tab has opened yet here to close.
+        setSelectedPath(node.path)
+        void openWithDefaultApp(
+          node.path,
+          isLocalPathOpenBlocked(useAppStore.getState().settings, {
+            connectionId: getConnectionIdForFile(activeWorktreeId, node.path),
+            runtimeEnvironmentId
+          })
+        )
         return
       }
       void activateFileExplorerNode({
@@ -213,9 +238,23 @@ export function useFileExplorerHandlers({
       if (!activeWorktreeId || node.isDirectory) {
         return
       }
+      if (shouldOpenWithDefaultApp(node.path)) {
+        // Why: the click that preceded this double-click already opened a preview tab
+        // Orca can only render as "Binary file — cannot display"; replace it with the
+        // OS default app instead of promoting an unusable tab.
+        closeFile(node.path)
+        void openWithDefaultApp(
+          node.path,
+          isLocalPathOpenBlocked(useAppStore.getState().settings, {
+            connectionId: getConnectionIdForFile(activeWorktreeId, node.path),
+            runtimeEnvironmentId
+          })
+        )
+        return
+      }
       makePreviewFilePermanent(node.path)
     },
-    [activeWorktreeId, makePreviewFilePermanent]
+    [activeWorktreeId, makePreviewFilePermanent, closeFile, runtimeEnvironmentId]
   )
 
   const handleWheelCapture = useCallback(
