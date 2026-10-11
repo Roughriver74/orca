@@ -114,4 +114,316 @@
   --git-decoration-added: var(--ctp-green);
   --git-decoration-modified: var(--ctp-yellow);
   --git-decoration-deleted: var(--ctp-red);
+  --destructive: var(--ctp-red);
+  --destructive-foreground: var(--ctp-base);
+}
+
+/* Additional palettes below share one generic `--itp-*` role namespace (kept
+   separate from `--ctp-*` above) so every theme only needs to declare its raw
+   colors once; the shared mapping block at the bottom wires them to tokens. */
+
+/* Tokyo Night: https://github.com/enkia/tokyo-night-vscode-theme */
+.dark.ui-dark-tokyo-night {
+  --itp-base: #1a1b26;
+  --itp-mantle: #16161e;
+  --itp-text: #c0caf5;
+  --itp-subtext: #a9b1d6;
+  --itp-surface0: #292e42;
+  --itp-surface1: #414868;
+  --itp-overlay0: #565f89;
+  --itp-accent: #bb9af7;
+  --itp-blue: #7aa2f7;
+  --itp-red: #f7768e;
+  --itp-green: #9ece6a;
+  --itp-yellow: #e0af68;
+}
+
+/* Dracula: https://draculatheme.com/contribute */
+.dark.ui-dark-dracula {
+  --itp-base: #282a36;
+  --itp-mantle: #21222c;
+  --itp-text: #f8f8f2;
+  /* Comment (#6272a4) reads below AA against this background; blended 25%
+     toward foreground to clear 4.5:1 while staying in the same hue family. */
+  --itp-subtext: #8894b8;
+  --itp-surface0: #44475a;
+  --itp-surface1: #5f6271;
+  --itp-overlay0: #6272a4;
+  --itp-accent: #bd93f9;
+  --itp-blue: #8be9fd;
+  --itp-red: #ff5555;
+  --itp-green: #50fa7b;
+  --itp-yellow: #f1fa8c;
+}
+
+/* Nord: https://www.nordtheme.com/docs/colors-and-palettes */
+.dark.ui-dark-nord {
+  --itp-base: #2e3440;
+  --itp-mantle: #3b4252;
+  --itp-text: #eceff4;
+  --itp-subtext: #d8dee9;
+  --itp-surface0: #434c5e;
+  --itp-surface1: #4c566a;
+  --itp-overlay0: #4c566a;
+  --itp-accent: #b48ead;
+  --itp-blue: #81a1c1;
+  --itp-red: #bf616a;
+  --itp-green: #a3be8c;
+  --itp-yellow: #ebcb8b;
+}
+
+/* Gruvbox Dark: https://github.com/morhetz/gruvbox#palette */
+.dark.ui-dark-gruvbox-dark {
+  --itp-base: #282828;
+  --itp-mantle: #1d2021;
+  --itp-text: #ebdbb2;
+  --itp-subtext: #a89984;
+  --itp-surface0: #3c3836;
+  --itp-surface1: #504945;
+  --itp-overlay0: #665c54;
+  --itp-accent: #d3869b;
+  --itp-blue: #83a598;
+  --itp-red: #fb4934;
+  --itp-green: #b8bb26;
+  --itp-yellow: #fabd2f;
+}
+
+/* One Dark (Atom): https://github.com/atom/one-dark-ui */
+.dark.ui-dark-one-dark {
+  --itp-base: #282c34;
+  --itp-mantle: #21252b;
+  --itp-text: #abb2bf;
+  /* Comment gray (#5c6370) reads below AA against this background; blended
+     65% toward foreground to clear 4.5:1 while staying desaturated. */
+  --itp-subtext: #8f96a3;
+  --itp-surface0: #2c313c;
+  --itp-surface1: #3b4048;
+  --itp-overlay0: #5c6370;
+  --itp-accent: #c678dd;
+  --itp-blue: #61afef;
+  --itp-red: #e06c75;
+  --itp-green: #98c379;
+  --itp-yellow: #e5c07b;
+}
+
+/* Rosé Pine: https://rosepinetheme.com/palette */
+.dark.ui-dark-rose-pine {
+  --itp-base: #191724;
+  --itp-mantle: #1f1d2e;
+  --itp-text: #e0def4;
+  --itp-subtext: #908caa;
+  --itp-surface0: #26233a;
+  --itp-surface1: #403d52;
+  --itp-overlay0: #524f67;
+  --itp-accent: #c4a7e7;
+  --itp-blue: #31748f;
+  --itp-red: #eb6f92;
+  --itp-green: #9ccfd8;
+  --itp-yellow: #f6c177;
+}
+
+/* Kanagawa (Wave): https://github.com/rebelot/kanagawa.nvim */
+.dark.ui-dark-kanagawa {
+  --itp-base: #1f1f28;
+  --itp-mantle: #181820;
+  --itp-text: #dcd7ba;
+  --itp-subtext: #c8c093;
+  --itp-surface0: #2a2a37;
+  --itp-surface1: #363646;
+  --itp-overlay0: #54546d;
+  --itp-accent: #957fb8;
+  --itp-blue: #7e9cd8;
+  --itp-red: #c34043;
+  --itp-green: #98bb6c;
+  --itp-yellow: #e6c384;
+}
+
+/* Everforest Dark (medium contrast): https://github.com/sainnhe/everforest/blob/master/palette.md */
+.dark.ui-dark-everforest-dark {
+  --itp-base: #2d353b;
+  --itp-mantle: #232a2e;
+  --itp-text: #d3c6aa;
+  --itp-subtext: #9da9a0;
+  --itp-surface0: #343f44;
+  --itp-surface1: #3d484d;
+  --itp-overlay0: #475258;
+  --itp-accent: #d699b6;
+  --itp-blue: #7fbbb3;
+  --itp-red: #e67e80;
+  --itp-green: #a7c080;
+  --itp-yellow: #dbbc7f;
+}
+
+/* Solarized Dark: https://ethanschoonover.com/solarized */
+.dark.ui-dark-solarized-dark {
+  --itp-base: #002b36;
+  --itp-mantle: #073642;
+  --itp-text: #93a1a1;
+  --itp-subtext: #839496;
+  --itp-surface0: #073642;
+  --itp-surface1: #586e75;
+  --itp-overlay0: #657b83;
+  --itp-accent: #6c71c4;
+  --itp-blue: #268bd2;
+  --itp-red: #dc322f;
+  --itp-green: #859900;
+  --itp-yellow: #b58900;
+}
+
+/* GitHub Dark: https://github.com/primer/primitives */
+.dark.ui-dark-github-dark {
+  --itp-base: #0d1117;
+  --itp-mantle: #161b22;
+  --itp-text: #c9d1d9;
+  --itp-subtext: #8b949e;
+  --itp-surface0: #21262d;
+  --itp-surface1: #30363d;
+  --itp-overlay0: #6e7681;
+  --itp-accent: #a371f7;
+  --itp-blue: #58a6ff;
+  --itp-red: #f85149;
+  --itp-green: #3fb950;
+  --itp-yellow: #d29922;
+}
+
+/* Solarized Light: https://ethanschoonover.com/solarized */
+.light.ui-light-solarized-light {
+  --itp-base: #fdf6e3;
+  --itp-mantle: #eee8d5;
+  --itp-text: #073642;
+  --itp-subtext: #586e75;
+  --itp-surface0: #eee8d5;
+  --itp-surface1: #93a1a1;
+  --itp-overlay0: #839496;
+  --itp-accent: #6c71c4;
+  --itp-blue: #268bd2;
+  --itp-red: #dc322f;
+  --itp-green: #859900;
+  --itp-yellow: #b58900;
+}
+
+/* Gruvbox Light: https://github.com/morhetz/gruvbox#palette */
+.light.ui-light-gruvbox-light {
+  --itp-base: #fbf1c7;
+  --itp-mantle: #f2e5bc;
+  --itp-text: #3c3836;
+  --itp-subtext: #665c54;
+  --itp-surface0: #ebdbb2;
+  --itp-surface1: #d5c4a1;
+  --itp-overlay0: #bdae93;
+  --itp-accent: #8f3f71;
+  --itp-blue: #076678;
+  --itp-red: #9d0006;
+  --itp-green: #79740e;
+  --itp-yellow: #b57614;
+}
+
+/* Rosé Pine Dawn: https://rosepinetheme.com/palette */
+.light.ui-light-rose-pine-dawn {
+  --itp-base: #faf4ed;
+  --itp-mantle: #fffaf3;
+  --itp-text: #575279;
+  /* Subtle (#797593) reads below AA against this background; blended 25%
+     toward foreground to clear 4.5:1. */
+  --itp-subtext: #706c8c;
+  --itp-surface0: #f2e9e1;
+  --itp-surface1: #dfdad9;
+  --itp-overlay0: #cecacd;
+  --itp-accent: #907aa9;
+  --itp-blue: #286983;
+  --itp-red: #b4637a;
+  --itp-green: #56949f;
+  --itp-yellow: #ea9d34;
+}
+
+/* GitHub Light: https://github.com/primer/primitives */
+.light.ui-light-github-light {
+  --itp-base: #ffffff;
+  --itp-mantle: #f6f8fa;
+  --itp-text: #1f2328;
+  --itp-subtext: #656d76;
+  --itp-surface0: #eaeef2;
+  --itp-surface1: #d0d7de;
+  --itp-overlay0: #8c959f;
+  --itp-accent: #8250df;
+  --itp-blue: #0969da;
+  --itp-red: #d1242f;
+  --itp-green: #1a7f37;
+  --itp-yellow: #9a6700;
+}
+
+/* Everforest Light (medium contrast): https://github.com/sainnhe/everforest/blob/master/palette.md */
+.light.ui-light-everforest-light {
+  --itp-base: #fdf6e3;
+  --itp-mantle: #efebd4;
+  --itp-text: #5c6a72;
+  /* Grey1 (#939f91) reads below AA against this background; blended 85%
+     toward foreground to clear 4.5:1. */
+  --itp-subtext: #647277;
+  --itp-surface0: #f4f0d9;
+  --itp-surface1: #e6e2cc;
+  --itp-overlay0: #e0dcc7;
+  --itp-accent: #df69ba;
+  --itp-blue: #3a94c5;
+  --itp-red: #f85552;
+  --itp-green: #8da101;
+  --itp-yellow: #dfa000;
+}
+
+/* Why: one role mapping shared by every `--itp-*` palette above, so each
+   theme only declares colors once (mirrors the Catppuccin block above). */
+.dark.ui-dark-tokyo-night,
+.dark.ui-dark-dracula,
+.dark.ui-dark-nord,
+.dark.ui-dark-gruvbox-dark,
+.dark.ui-dark-one-dark,
+.dark.ui-dark-rose-pine,
+.dark.ui-dark-kanagawa,
+.dark.ui-dark-everforest-dark,
+.dark.ui-dark-solarized-dark,
+.dark.ui-dark-github-dark,
+.light.ui-light-solarized-light,
+.light.ui-light-gruvbox-light,
+.light.ui-light-rose-pine-dawn,
+.light.ui-light-github-light,
+.light.ui-light-everforest-light {
+  --background: var(--itp-base);
+  --editor-surface: var(--itp-base);
+  --foreground: var(--itp-text);
+  --card: var(--itp-mantle);
+  --card-foreground: var(--itp-text);
+  --popover: var(--itp-mantle);
+  --popover-foreground: var(--itp-text);
+  --primary: var(--itp-accent);
+  --primary-foreground: var(--itp-base);
+  --secondary: var(--itp-surface0);
+  --secondary-foreground: var(--itp-text);
+  --muted: var(--itp-surface0);
+  --muted-foreground: var(--itp-subtext);
+  --accent: var(--itp-surface1);
+  --accent-foreground: var(--itp-text);
+  --border: var(--itp-surface0);
+  --input: var(--itp-surface1);
+  --ring: var(--itp-overlay0);
+  --sidebar: var(--itp-mantle);
+  --sidebar-foreground: var(--itp-text);
+  --sidebar-primary: var(--itp-blue);
+  --sidebar-primary-foreground: var(--itp-base);
+  --sidebar-accent: var(--itp-surface0);
+  --sidebar-accent-foreground: var(--itp-text);
+  --sidebar-border: var(--itp-surface0);
+  --sidebar-ring: var(--itp-overlay0);
+  --worktree-sidebar: var(--itp-mantle);
+  --worktree-sidebar-foreground: var(--itp-text);
+  --worktree-sidebar-accent: var(--itp-surface0);
+  --worktree-sidebar-accent-foreground: var(--itp-text);
+  --worktree-sidebar-border: var(--itp-surface0);
+  --worktree-sidebar-ring: var(--itp-overlay0);
+  --status-success: var(--itp-green);
+  --status-warning: var(--itp-yellow);
+  --git-decoration-added: var(--itp-green);
+  --git-decoration-modified: var(--itp-yellow);
+  --git-decoration-deleted: var(--itp-red);
+  --destructive: var(--itp-red);
+  --destructive-foreground: var(--itp-base);
 }

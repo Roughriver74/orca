@@ -73,9 +73,16 @@ function InterfaceThemeRow({
           <SelectContent>
             {options.map((option) => (
               <SelectItem key={option.id} value={option.id}>
-                {option.id === DEFAULT_INTERFACE_THEME_ID
-                  ? translate('settings.appearance.interfaceTheme.default', 'Default')
-                  : option.label}
+                <span className="flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="size-2.5 shrink-0 rounded-full border border-black/10"
+                    style={{ backgroundColor: option.swatch }}
+                  />
+                  {option.id === DEFAULT_INTERFACE_THEME_ID
+                    ? translate('settings.appearance.interfaceTheme.default', 'Default')
+                    : option.label}
+                </span>
               </SelectItem>
             ))}
           </SelectContent>
