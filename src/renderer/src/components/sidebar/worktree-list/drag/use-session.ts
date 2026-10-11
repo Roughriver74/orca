@@ -23,6 +23,7 @@ import {
   type WorktreeSidebarDropPreview
 } from '../../worktree-sidebar-drop-preview'
 import { getWorktreeDragGroups, getWorktreeDragIndexes } from './groups'
+import { getFolderWorkspaceDragGroups } from './folder-workspace-drag-groups'
 import type { WorktreeItemRow } from '../listing/renderable-rows'
 import { getNaturalWorktreeIds } from '../../natural-worktree-ids'
 import {
@@ -55,6 +56,14 @@ export function useWorktreeDragSession(args: {
 
   const worktreeDragGroups = useMemo(() => getWorktreeDragGroups(rows), [rows])
   const worktreeDragUnitGroups = useMemo(() => getWorktreeDragUnitGroups(rows), [rows])
+  const folderWorkspaceDrag = useMemo(() => getFolderWorkspaceDragGroups(rows), [rows])
+  const folderWorkspaceDragGroups = folderWorkspaceDrag.groups
+  // Why: folder groups join only the session's geometry lookups; manual-order and
+  // status writes keep reading the worktree-only groups so their neighbours don't shift.
+  const sessionDragGroups = useMemo(
+    () => [...worktreeDragUnitGroups, ...folderWorkspaceDragGroups],
+    [folderWorkspaceDragGroups, worktreeDragUnitGroups]
+  )
   const naturalDragWorktreeIds = useMemo(() => getNaturalWorktreeIds(rows), [rows])
   const worktreeLineageDragRows = useMemo(
     () =>
@@ -93,7 +102,7 @@ export function useWorktreeDragSession(args: {
   )
   const getReorderUnitDraggedIds = useCallback(
     (sourceGroupKey: string, reorderDraggedIds: readonly string[]) => {
-      const group = worktreeDragUnitGroups.find((candidate) => candidate.key === sourceGroupKey)
+      const group = sessionDragGroups.find((candidate) => candidate.key === sourceGroupKey)
       if (!group) {
         return reorderDraggedIds
       }
@@ -101,12 +110,18 @@ export function useWorktreeDragSession(args: {
       const filtered = reorderDraggedIds.filter((worktreeId) => unitIds.has(worktreeId))
       return filtered.length > 0 ? filtered : reorderDraggedIds
     },
-    [worktreeDragUnitGroups]
+    [sessionDragGroups]
   )
-  const { groupKeyByRowKey, groupIndexByRowKey } = useMemo(
-    () => getWorktreeDragIndexes(rows),
-    [rows]
-  )
+  const { groupKeyByRowKey, groupIndexByRowKey } = useMemo(() => {
+    const indexes = getWorktreeDragIndexes(rows)
+    for (const [rowKey, groupKey] of folderWorkspaceDrag.groupKeyByRowKey) {
+      indexes.groupKeyByRowKey.set(rowKey, groupKey)
+    }
+    for (const [rowKey, groupIndex] of folderWorkspaceDrag.groupIndexByRowKey) {
+      indexes.groupIndexByRowKey.set(rowKey, groupIndex)
+    }
+    return indexes
+  }, [folderWorkspaceDrag, rows])
   const refreshWorktreeDragSession = useCallback((): boolean => {
     const session = worktreeDragSessionRef.current
     const container = scrollRef.current
@@ -116,13 +131,13 @@ export function useWorktreeDragSession(args: {
 
     const refreshedSession = refreshWorktreeSidebarDragSession({
       session,
-      groups: worktreeDragGroups,
-      unitGroups: worktreeDragUnitGroups,
+      groups: [...worktreeDragGroups, ...folderWorkspaceDragGroups],
+      unitGroups: sessionDragGroups,
       rects: getWorktreeSidebarDragRectsForGroup(container, session.sourceGroupKey)
     })
     worktreeDragSessionRef.current = refreshedSession
     return refreshedSession !== null
-  }, [scrollRef, worktreeDragGroups, worktreeDragUnitGroups])
+  }, [folderWorkspaceDragGroups, scrollRef, sessionDragGroups, worktreeDragGroups])
   const computeWorktreeDropForGroup = useCallback(
     (dropArgs: {
       pointerY: number
@@ -137,7 +152,7 @@ export function useWorktreeDragSession(args: {
       if (!container) {
         return null
       }
-      const group = worktreeDragUnitGroups.find((candidate) => candidate.key === dropArgs.groupKey)
+      const group = sessionDragGroups.find((candidate) => candidate.key === dropArgs.groupKey)
       if (!group) {
         return null
       }
@@ -155,7 +170,7 @@ export function useWorktreeDragSession(args: {
         anchor: dropArgs.anchor
       })
     },
-    [scrollRef, worktreeDragUnitGroups]
+    [scrollRef, sessionDragGroups]
   )
   const computeWorktreeDrop = useCallback(
     (pointerY: number): WorktreeSidebarDropPreview | null => {
@@ -239,6 +254,7 @@ export function useWorktreeDragSession(args: {
       statusDropAnchorsRef,
       worktreeDragGroups,
       worktreeDragUnitGroups,
+      folderWorkspaceDragGroups,
       groupKeyByRowKey,
       groupIndexByRowKey,
       getReorderDraggedIds,
@@ -252,6 +268,7 @@ export function useWorktreeDragSession(args: {
       computeWorktreeDrop,
       computeWorktreeStatusDrop,
       getReorderDraggedCopies,
+      folderWorkspaceDragGroups,
       getReorderDraggedIds,
       getReorderUnitDraggedIds,
       groupIndexByRowKey,

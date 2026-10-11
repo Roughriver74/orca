@@ -14,6 +14,7 @@ import {
 } from '../../../../../../shared/execution-host'
 import { getHostDisplayLabelOverrides } from '../../../../../../shared/host-setting-overrides'
 import { planSidebarRows } from '../../../../../../shared/sidebar-list/sidebar-row-plan'
+import type { SortBy } from '../../../../../../shared/sidebar-list/smart-sort'
 import { createSidebarPRGroupReader } from '../grouping/pr-group-key'
 import { useEffectiveCollapsedGroups } from './use-collapsed-groups'
 import type { ProjectGroupingModel } from '../../../../../../shared/project-section-grouping'
@@ -43,6 +44,7 @@ import { selectPendingWorktreeCreationKeys } from './pending-worktree-creation-k
 type SectionRowsArgs = {
   agentSendTargetWorktreeId?: string | null
   groupBy: WorktreeGroupBy
+  sortBy: SortBy
   projectOrderBy: ProjectOrderBy
   pinnedDisplayPolicy: PinnedWorktreeDisplayPolicy
   defaultHostId: ExecutionHostId
@@ -173,10 +175,12 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
         hostLabelById,
         defaultHostId,
         pinnedDisplayPolicy: args.pinnedDisplayPolicy,
-        filterRepoIds: args.filterRepoIds
+        filterRepoIds: args.filterRepoIds,
+        sortBy: args.sortBy
       }),
     [
       args.groupBy,
+      args.sortBy,
       worktrees,
       repoMap,
       args.prCache,

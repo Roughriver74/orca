@@ -34,9 +34,10 @@ import {
   buildPendingCreationRow
 } from './row-builders'
 import {
-  compareFolderWorkspacesForDisplay,
+  buildFolderWorkspaceComparator,
   getRenderableFolderWorkspaces
 } from './folder-workspace-lanes'
+import type { SortBy } from './smart-sort'
 import type {
   ImportedWorktreesCardCandidate,
   NewExternalWorktreesInboxCandidate,
@@ -55,6 +56,7 @@ type SidebarOccurrenceSection = WorktreeOccurrenceSection<Worktree> & { group: W
 /** Everything the row builder reads. Pure data: no store, clock or client-specific state. */
 export type SidebarRowPlanInputs = {
   groupBy: WorktreeGroupBy
+  sortBy: SortBy
   /** Visible worktrees in the frozen sort order. */
   worktrees: Worktree[]
   repoMap: Map<string, Repo>
@@ -82,6 +84,7 @@ export type SidebarRowPlanInputs = {
 export function planSidebarRows(inputs: SidebarRowPlanInputs) {
   const {
     groupBy,
+    sortBy,
     worktrees,
     repoMap,
     prGroupOf,
@@ -107,6 +110,7 @@ export function planSidebarRows(inputs: SidebarRowPlanInputs) {
   // Membership is decided once, above the groupBy switch: every mode renders the
   // same set of folder workspaces and only chooses where they land (#15362).
   const renderableFolderWorkspaces = getRenderableFolderWorkspaces(folderWorkspaces, projectGroups)
+  const compareFolderWorkspaces = buildFolderWorkspaceComparator(sortBy, Date.now())
   const pendingByRepo = new Map<string, PendingCreationRef[]>()
   for (const creation of pendingCreations) {
     const list = pendingByRepo.get(creation.repoId) ?? []
@@ -144,7 +148,8 @@ export function planSidebarRows(inputs: SidebarRowPlanInputs) {
               pendingByRepo,
               repoOrder,
               projectOrderBy,
-              folderWorkspaces: renderableFolderWorkspaces
+              folderWorkspaces: renderableFolderWorkspaces,
+              compareFolderWorkspaces
             })
       if (pinned.length > 0) {
         groups.unshift([PINNED_GROUP_KEY, { label: '', items: pinned, repoIds: new Set() }])
@@ -253,7 +258,7 @@ export function planSidebarRows(inputs: SidebarRowPlanInputs) {
             hostContextLabelByWorktreeIdentity: mixedWorktreeHostContextLabels
           })
           for (const pair of [...renderableFolderWorkspaces].sort((left, right) =>
-            compareFolderWorkspacesForDisplay(left.folderWorkspace, right.folderWorkspace)
+            compareFolderWorkspaces(left.folderWorkspace, right.folderWorkspace)
           )) {
             result.push(buildFolderWorkspaceRow(pair, 0))
           }
@@ -291,6 +296,7 @@ export function planSidebarRows(inputs: SidebarRowPlanInputs) {
       orderedGroups,
       projectGroups,
       folderWorkspaces: renderableFolderWorkspaces,
+      compareFolderWorkspaces,
       projectOrderBy,
       repoOrder
     })

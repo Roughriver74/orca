@@ -62,6 +62,7 @@ function setup() {
       workspaceStatuses: [],
       worktreeDragGroups: [],
       worktreeDragUnitGroups: [],
+      folderWorkspaceDragGroups: [],
       refreshWorktreeDragSession: () => true,
       getEligibleLineageDropTarget: () => target,
       computeWorktreeDrop: () => ({

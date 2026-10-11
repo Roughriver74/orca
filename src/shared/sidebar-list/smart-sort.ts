@@ -27,7 +27,10 @@ export type SortBy = WorkspaceSortBy
 export { CREATE_GRACE_MS } from '../workspace-view/workspace-row-sort'
 
 /** Recent-sort rank: `lastActivityAt`, floored at `createdAt + CREATE_GRACE_MS` while that window is open. */
-export function effectiveRecentActivity(worktree: Worktree, now: number): number {
+export function effectiveRecentActivity(
+  worktree: Pick<Worktree, 'lastActivityAt' | 'createdAt'>,
+  now: number
+): number {
   return recentActivityWithCreateGrace(worktree.lastActivityAt, worktree.createdAt, now)
 }
 

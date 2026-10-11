@@ -21,6 +21,7 @@ import type {
   WorktreeGroupBy
 } from '../../../../../../shared/sidebar-list/row-types'
 import { planSidebarRows } from '../../../../../../shared/sidebar-list/sidebar-row-plan'
+import type { SortBy } from '../../../../../../shared/sidebar-list/smart-sort'
 import type { PRCacheView } from '../../../../../../shared/sidebar-list/workspace-review-facts'
 import { createSidebarPRGroupReader } from './pr-group-key'
 
@@ -51,10 +52,12 @@ export function buildSidebarRowPlan(
   hostLabelById?: ReadonlyMap<string, string>,
   defaultHostId: ExecutionHostId = LOCAL_EXECUTION_HOST_ID,
   pinnedDisplayPolicy: PinnedWorktreeDisplayPolicy = getPinnedWorktreeDisplayPolicy(settings),
-  filterRepoIds: readonly string[] = []
+  filterRepoIds: readonly string[] = [],
+  sortBy: SortBy = 'manual'
 ) {
   return planSidebarRows({
     groupBy,
+    sortBy,
     worktrees,
     repoMap,
     prGroupOf: createSidebarPRGroupReader(repoMap, prCache),

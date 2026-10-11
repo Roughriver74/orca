@@ -54,6 +54,7 @@ function sections(
   return renderHook(() =>
     useSidebarSectionRows({
       groupBy,
+      sortBy: 'manual',
       projectOrderBy: 'manual',
       pinnedDisplayPolicy: 'single-location',
       defaultHostId: 'local',

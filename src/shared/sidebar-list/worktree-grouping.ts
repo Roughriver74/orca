@@ -4,8 +4,8 @@ import type { WorkspaceStatusDefinition, Worktree } from '../worktree/types'
 import { getWorktreeHostIdentity } from '../worktree/host-qualified-identity'
 import { getWorkspaceStatus, getWorkspaceStatusGroupKey } from '../workspace-statuses'
 import {
-  compareFolderWorkspacesForDisplay,
   getFolderWorkspaceLaneKey,
+  type FolderWorkspaceComparator,
   type RenderableFolderWorkspace
 } from './folder-workspace-lanes'
 import { PR_GROUP_ORDER, getPRLaneKey } from './group-keys'
@@ -36,6 +36,7 @@ export function buildOrderedGroups(args: {
   repoOrder: Map<string, number> | undefined
   projectOrderBy: ProjectOrderBy
   folderWorkspaces?: readonly RenderableFolderWorkspace[]
+  compareFolderWorkspaces: FolderWorkspaceComparator
 }): OrderedGroupEntry[] {
   const {
     groupBy,
@@ -51,7 +52,8 @@ export function buildOrderedGroups(args: {
     pendingByRepo,
     repoOrder,
     projectOrderBy,
-    folderWorkspaces = []
+    folderWorkspaces = [],
+    compareFolderWorkspaces
   } = args
 
   if (groupBy === 'repo') {
@@ -111,7 +113,7 @@ export function buildOrderedGroups(args: {
   }
   for (const group of grouped.values()) {
     group.folderWorkspaces?.sort((left, right) =>
-      compareFolderWorkspacesForDisplay(left.folderWorkspace, right.folderWorkspace)
+      compareFolderWorkspaces(left.folderWorkspace, right.folderWorkspace)
     )
   }
   const orderedGroups: OrderedGroupEntry[] = []

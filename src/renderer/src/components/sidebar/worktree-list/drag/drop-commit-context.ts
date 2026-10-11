@@ -40,6 +40,7 @@ export type WorktreeDropCommitContext = {
   workspaceStatuses: readonly WorkspaceStatusDefinition[]
   worktreeDragGroups: readonly WorktreeDragGroup[]
   worktreeDragUnitGroups: readonly WorktreeDragUnitGroup[]
+  folderWorkspaceDragGroups: readonly WorktreeDragGroup[]
   computeWorktreeDrop: (pointerY: number) => WorktreeSidebarDropPreview | null
   computeWorktreeStatusDrop: (
     request: WorktreeStatusDropRequest

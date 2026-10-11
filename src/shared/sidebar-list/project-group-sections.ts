@@ -1,8 +1,5 @@
 import type { OccurrenceSectionPath } from '../worktree-occurrence-plan'
-import {
-  compareFolderWorkspacesForDisplay,
-  type RenderableFolderWorkspace
-} from './folder-workspace-lanes'
+import type { FolderWorkspaceComparator, RenderableFolderWorkspace } from './folder-workspace-lanes'
 import type { ProjectGroup } from '../project-group-types'
 import type { ProjectOrderBy } from '../ui-chrome-types'
 import { getDistinctProjectGroups, getEffectiveProjectGroupManualRank } from '../project-groups'
@@ -24,11 +21,19 @@ export function appendProjectGroupSections(
     orderedGroups: OrderedGroupEntry[]
     projectGroups: readonly ProjectGroup[]
     folderWorkspaces: readonly RenderableFolderWorkspace[]
+    compareFolderWorkspaces: FolderWorkspaceComparator
     projectOrderBy: ProjectOrderBy
     repoOrder: Map<string, number> | undefined
   }
 ): void {
-  const { orderedGroups, projectGroups, folderWorkspaces, projectOrderBy, repoOrder } = args
+  const {
+    orderedGroups,
+    projectGroups,
+    folderWorkspaces,
+    compareFolderWorkspaces,
+    projectOrderBy,
+    repoOrder
+  } = args
   const { result, collapsedGroups } = ctx
 
   const groupByProjectGroupId = new Map<string | null, OrderedGroupEntry[]>()
@@ -71,9 +76,7 @@ export function appendProjectGroupSections(
     folderWorkspacesByProjectGroupId.set(groupId, list)
   }
   for (const list of folderWorkspacesByProjectGroupId.values()) {
-    list.sort((left, right) =>
-      compareFolderWorkspacesForDisplay(left.folderWorkspace, right.folderWorkspace)
-    )
+    list.sort((left, right) => compareFolderWorkspaces(left.folderWorkspace, right.folderWorkspace))
   }
   const childGroupsByParentId = new Map<string | null, ProjectGroup[]>()
   // Why distinct: membership is id-keyed, so a same-id copy's header would sit empty (#30045).
