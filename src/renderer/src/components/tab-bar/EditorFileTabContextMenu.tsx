@@ -1,4 +1,5 @@
 import {
+  AppWindow,
   Copy,
   CopyX,
   ExternalLink,
@@ -29,7 +30,8 @@ import {
   getWorkspaceFileRevealOwner,
   revealInFileManager
 } from '@/lib/reveal-in-file-manager'
-import { isRevealOrEditorOpenBlocked } from '@/lib/local-path-open-guard'
+import { openWithDefaultApp } from '@/lib/open-with-default-app'
+import { isRevealOrEditorOpenBlocked, isLocalPathOpenBlocked } from '@/lib/local-path-open-guard'
 import { TabWorkspaceLayoutMenuSection } from './TabWorkspaceLayoutMenuSection'
 import { TAB_CONTEXT_MENU_CONTENT_CLASS } from './tab-context-menu-sizing'
 import { CopyTabIdMenuItem } from './CopyTabIdMenuItem'
@@ -112,6 +114,12 @@ export function EditorFileTabContextMenu({
     })
   )
   const revealBlocked = isRevealOrEditorOpenBlocked(revealOwner)
+  const openExternalBlocked = useAppStore((s) =>
+    isLocalPathOpenBlocked(s.settings, {
+      connectionId: file.externalSshTargetId ?? repoConnectionId,
+      runtimeEnvironmentId: file.runtimeEnvironmentId
+    })
+  )
 
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
@@ -250,6 +258,17 @@ export function EditorFileTabContextMenu({
               )}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={openExternalBlocked}
+              onSelect={() => void openWithDefaultApp(file.filePath, openExternalBlocked)}
+            >
+              <AppWindow className="size-3.5" />
+              {translate(
+                'auto.components.tab.bar.EditorFileTabContextMenu.874d02ebf3',
+                'Open with Default App'
+              )}
+              {openExternalBlocked ? <LocalOnlyMenuHint /> : null}
+            </DropdownMenuItem>
             <DropdownMenuItem
               disabled={revealBlocked}
               onSelect={() => void revealInFileManager(file.filePath, revealOwner)}

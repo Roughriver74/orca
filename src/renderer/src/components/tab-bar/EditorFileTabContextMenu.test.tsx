@@ -50,6 +50,9 @@ vi.mock('lucide-react', () => ({
   ArrowUp: function ArrowUp(props: Record<string, unknown>) {
     return { type: 'ArrowUp', props }
   },
+  AppWindow: function AppWindow(props: Record<string, unknown>) {
+    return { type: 'AppWindow', props }
+  },
   Copy: function Copy(props: Record<string, unknown>) {
     return { type: 'Copy', props }
   },

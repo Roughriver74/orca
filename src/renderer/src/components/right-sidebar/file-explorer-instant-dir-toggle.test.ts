@@ -50,6 +50,7 @@ function createHandlerParams(toggleDir: (worktreeId: string, dirPath: string) =>
     activeWorktreeId: 'wt-1',
     openFile: vi.fn(),
     makePreviewFilePermanent: vi.fn(),
+    closeFile: vi.fn(),
     toggleDir,
     loadDir: vi.fn().mockResolvedValue(true),
     statPath: vi.fn().mockResolvedValue({ isDirectory: true }),

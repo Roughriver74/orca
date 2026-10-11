@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react'
 import {
+  AppWindow,
   Copy,
   Download,
   ExternalLink,
@@ -33,8 +34,12 @@ import {
   getWorkspaceFileRevealOwner,
   revealInFileManager
 } from '@/lib/reveal-in-file-manager'
-import { isRevealOrEditorOpenBlocked } from '@/lib/local-path-open-guard'
-import { runtimeEnvironmentIdWithLegacyFallbackUnlessTwin } from '@/lib/worktree-runtime-owner'
+import { openWithDefaultApp } from '@/lib/open-with-default-app'
+import { isRevealOrEditorOpenBlocked, isLocalPathOpenBlocked } from '@/lib/local-path-open-guard'
+import {
+  getRuntimeEnvironmentIdForWorktree,
+  runtimeEnvironmentIdWithLegacyFallbackUnlessTwin
+} from '@/lib/worktree-runtime-owner'
 import type { FileExplorerRowProps } from './FileExplorerRow'
 import {
   shouldShowCollapseFolderAction,
@@ -127,6 +132,15 @@ export function FileExplorerRowContextMenu({
     })
   )
   const revealBlocked = isRevealOrEditorOpenBlocked(revealOwner)
+  const openExternalBlocked = useAppStore((s) =>
+    isLocalPathOpenBlocked(s.settings, {
+      connectionId,
+      runtimeEnvironmentId: getRuntimeEnvironmentIdForWorktree(s, s.activeWorktreeId)
+    })
+  )
+  const handleOpenWithDefaultApp = useCallback(() => {
+    void openWithDefaultApp(node.path, openExternalBlocked)
+  }, [node.path, openExternalBlocked])
   const handleOpenInOrcaBrowser = useCallback(() => {
     if (!activeWorktreeId) {
       return
@@ -273,6 +287,16 @@ export function FileExplorerRowContextMenu({
           {findInFolderShortcutLabel !== 'Unassigned' ? (
             <ContextMenuShortcut>{findInFolderShortcutLabel}</ContextMenuShortcut>
           ) : null}
+        </ContextMenuItem>
+      )}
+      {!node.isDirectory && (
+        <ContextMenuItem disabled={openExternalBlocked} onSelect={handleOpenWithDefaultApp}>
+          <AppWindow />
+          {translate(
+            'auto.components.right.sidebar.file.explorer.row.context.menu.d3c4badefc',
+            'Open with Default App'
+          )}
+          {openExternalBlocked ? <LocalOnlyMenuHint /> : null}
         </ContextMenuItem>
       )}
       <ContextMenuItem
