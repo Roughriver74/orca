@@ -78,6 +78,7 @@ export type KeybindingActionId =
   | 'tab.previousTerminal'
   | 'tab.selectByIndex'
   | 'tab.openQuickCommandsMenu'
+  | 'promptLibrary.insert'
   | 'browser.find'
   | 'chat.find'
   | 'browser.back'

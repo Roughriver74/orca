@@ -28,6 +28,9 @@ import type { OnboardingGate } from './use-onboarding-and-feature-tips'
 
 const QuickOpen = lazy(() => import('../components/QuickOpen'))
 const WorktreeJumpPalette = lazy(() => import('../components/WorktreeJumpPalette'))
+const PromptLibraryInsertModal = lazy(
+  () => import('../components/prompt-library/PromptLibraryInsertModal')
+)
 const WorkspaceCleanupDialog = lazy(
   () => import('../components/workspace-cleanup/WorkspaceCleanupDialog')
 )
@@ -244,6 +247,14 @@ export function AppRootSurfaces(props: {
             resetKey={activeModal === 'worktree-palette'}
           >
             <WorktreeJumpPalette />
+          </ModalBoundary>
+        ) : null}
+        {mountedLazyModalIds.has('prompt-library') ? (
+          <ModalBoundary
+            boundaryId="modal.prompt-library"
+            resetKey={activeModal === 'prompt-library'}
+          >
+            <PromptLibraryInsertModal />
           </ModalBoundary>
         ) : null}
         {mountedLazyModalIds.has('setup-guide') ? (

@@ -106,6 +106,7 @@ describe('useIpcEvents updater integration', () => {
           onToggleFloatingTerminal: () => () => {},
           onOpenQuickOpen: () => () => {},
           onToggleQuickCommandsMenu: () => () => {},
+          onOpenPromptLibrary: () => () => {},
           onOpenNewWorkspace: () => () => {},
           onOpenTasks: () => () => {},
           onJumpToWorktreeIndex: () => () => {},

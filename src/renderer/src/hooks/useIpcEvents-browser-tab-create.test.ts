@@ -155,6 +155,7 @@ describe('useIpcEvents browser tab create routing', () => {
           onToggleFloatingTerminal: () => () => {},
           onOpenQuickOpen: () => () => {},
           onToggleQuickCommandsMenu: () => () => {},
+          onOpenPromptLibrary: () => () => {},
           onOpenNewWorkspace: () => () => {},
           onOpenTasks: () => () => {},
           onJumpToWorktreeIndex: () => () => {},

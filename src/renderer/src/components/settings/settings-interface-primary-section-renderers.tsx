@@ -2,6 +2,7 @@ import { BrowserPane } from './BrowserPane'
 import { FloatingWorkspacePane } from './FloatingWorkspacePane'
 import { MobileEmulatorSettingsPane } from './MobileEmulatorSettingsPane'
 import { QuickCommandsPane } from './QuickCommandsPane'
+import { PromptLibraryPane } from './PromptLibraryPane'
 import { TerminalPane } from './TerminalPane'
 import { SettingsSection } from './SettingsSection'
 import { translate } from '@/i18n/i18n'
@@ -56,6 +57,27 @@ export function renderQuickCommandsSettingsSection(
           settings={model.settings}
           addCommandIntentSignal={model.quickCommandAddIntentSignal}
         />
+      ) : null}
+    </SettingsSection>
+  )
+}
+
+export function renderPromptLibrarySettingsSection(
+  context: SettingsRenderContext
+): React.JSX.Element {
+  const { model, navigation, view } = context
+  return (
+    <SettingsSection
+      id="prompt-library"
+      title={translate('promptLibrary.settings.title', 'Prompt Library')}
+      description={translate(
+        'promptLibrary.settings.description',
+        'Saved prompt snippets with variables, insertable from the command palette or a shortcut.'
+      )}
+      searchEntries={navigation.getSectionSearchEntries('prompt-library')}
+    >
+      {view.isSectionMounted('prompt-library') ? (
+        <PromptLibraryPane settings={model.settings} />
       ) : null}
     </SettingsSection>
   )
