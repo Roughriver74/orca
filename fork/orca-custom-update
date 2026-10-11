@@ -198,7 +198,7 @@ build() {
     codesign --force --deep --sign - "$STAGED" >>"$LOG" 2>&1
   else
     rm -rf dist/linux-unpacked
-    ORCA_BUILD_COMMIT="$commit" ORCA_LOCAL_BUILD_VERSION="$version" \
+    ORCA_BUILD_COMMIT="$commit" ORCA_LOCAL_BUILD_VERSION="$version" ORCA_SELF_BUILD_SKIP_GLIBC_FLOOR=1 \
       pnpm exec electron-builder --config config/electron-builder.config.cjs --linux dir --x64 --publish never >>"$LOG" 2>&1
     rm -rf "$STAGED"
     cp -a dist/linux-unpacked "$STAGED"

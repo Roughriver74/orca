@@ -475,7 +475,10 @@ module.exports = {
       // Why the arch is passed: symbol-version checks pass happily on a wrong-architecture binary,
       // so a cross-built slice could ship the host's pty.node and only fail at runtime.
       finalizePackagedWaylandClipboard(resourcesDir)
-      verifyLinuxGlibcFloor(context.appOutDir, { targetArch })
+      // Fork-only: a self-build runs only on the machine that built it, so the distro floor is moot.
+      if (process.env.ORCA_SELF_BUILD_SKIP_GLIBC_FLOOR !== '1') {
+        verifyLinuxGlibcFloor(context.appOutDir, { targetArch })
+      }
     }
     verifyPackagedMainRuntimeDeps(resourcesDir)
     // Why: boot the packaged daemon-entry under plain Node, but only for the
