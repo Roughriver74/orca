@@ -23,6 +23,7 @@ type RepositoryUpdates = Partial<
     | 'repoIcon'
     | 'upstream'
     | 'hookSettings'
+    | 'checkCommand'
     | 'worktreeBaseRef'
     | 'worktreeBasePath'
     | 'kind'

@@ -51,6 +51,7 @@ import { createRemoteServerUpdatesSlice } from './remote-server-updates'
 import { createTerminalQuickCommandHostsSlice } from './terminal-quick-command-hosts'
 import { createStructuredSessionLaunchDirectorySlice } from './structured-session-launch-directories'
 import { createOverlapRadarSlice } from './overlap-radar'
+import { createWorkspaceCheckStateSlice } from './workspace-check-state'
 import '@/i18n/i18n'
 import { makeWorktree, TEST_REPO } from './worktrees-slice-test-fixtures'
 export { makeWorktree, TEST_REPO } from './worktrees-slice-test-fixtures'
@@ -111,7 +112,8 @@ export function createTestStore() {
     ...createRemoteServerUpdatesSlice(...a),
     ...createTerminalQuickCommandHostsSlice(...a),
     ...createStructuredSessionLaunchDirectorySlice(...a),
-    ...createOverlapRadarSlice(...a)
+    ...createOverlapRadarSlice(...a),
+    ...createWorkspaceCheckStateSlice(...a)
   }))
 }
 

@@ -150,6 +150,22 @@ export function NotificationsPane({
 
       <NotificationSettingToggle
         icon={<Siren className="size-4" />}
+        label={translate('auto.components.settings.NotificationsPane.checkFailed', 'Check Failed')}
+        description={translate(
+          'auto.components.settings.NotificationsPane.checkFailedDescription',
+          "A workspace's automatic check command fails."
+        )}
+        checked={notificationSettings.checkFailed !== false}
+        disabled={!notificationSettings.enabled}
+        onToggle={() =>
+          void updateNotificationSettings({
+            checkFailed: notificationSettings.checkFailed === false
+          })
+        }
+      />
+
+      <NotificationSettingToggle
+        icon={<Siren className="size-4" />}
         label={translate('auto.components.settings.NotificationsPane.591fe605b9', 'Terminal Bell')}
         description={translate(
           'auto.components.settings.NotificationsPane.b6fc369244',

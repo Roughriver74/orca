@@ -69,6 +69,9 @@ export type Repo = {
   /** Optional repo-scoped workspace root override. Relative paths resolve from `path`. */
   worktreeBasePath?: string
   hookSettings?: RepoHookSettings
+  /** Shell command verifying an agent's work, run in the workspace once every agent pane there
+   *  leaves `working`. Empty/absent disables the feature. */
+  checkCommand?: string
   /** SSH target ID for remote repos. null/undefined = local. */
   connectionId?: string | null
   /**

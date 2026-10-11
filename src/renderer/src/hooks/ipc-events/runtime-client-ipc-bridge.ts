@@ -93,6 +93,10 @@ export function registerRuntimeClientIpcBridge(
       applyHostWorktreeTerminalSleepState(environmentId, event)
       return
     }
+    if (event.type === 'workspaceCheckChanged') {
+      useAppStore.getState().setWorkspaceCheckState(event.worktreeId, event.state)
+      return
+    }
     if (event.type === 'terminalSideEffects') {
       dispatchTerminalSideEffectBatch({
         ...event.batch,

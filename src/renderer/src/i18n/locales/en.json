@@ -6730,6 +6730,23 @@
         },
         "ProjectGroupMoveSubmenu": {
           "5f1e73c267": "Top level"
+        },
+        "WorkspaceCheckOutputDialog": {
+          "failedWithCode": "Failed (exit {{value0}})",
+          "passed": "Passed",
+          "runCheck": "Run check",
+          "running": "Running",
+          "stderr": "stderr",
+          "stdout": "stdout",
+          "title": "Check Command",
+          "truncated": "… truncated"
+        },
+        "WorkspaceCheckStatusBadge": {
+          "failed": "Failed",
+          "passed": "Passed",
+          "running": "Running",
+          "tooltip": "{{value0}} · {{value1}}",
+          "tooltipFailed": "{{value0}} · {{value1}} · exit {{value2}}"
         }
       },
       "shared": {
@@ -8071,7 +8088,9 @@
           "274af61bc0": "system",
           "6e6df3a09a": "Choose Custom File",
           "76e02467b8": "Change Custom File",
-          "d3756cf5bc": "disabled"
+          "d3756cf5bc": "disabled",
+          "checkFailed": "Check Failed",
+          "checkFailedDescription": "A workspace's automatic check command fails."
         },
         "OpenAiTranscriptionKeyDialog": {
           "fa83512e48": "Save Key",
@@ -10801,7 +10820,14 @@
             "wsl": "wsl",
             "distro": "distro",
             "agentRuntime": "agent runtime",
-            "skillRuntime": "skill runtime"
+            "skillRuntime": "skill runtime",
+            "checkCommand": "Check Command",
+            "checkCommandDescription": "Shell command that verifies an agent's work.",
+            "checkCommandKeywordCheck": "check",
+            "checkCommandKeywordPostAgent": "post-agent",
+            "checkCommandKeywordTest": "test",
+            "checkCommandKeywordTypecheck": "typecheck",
+            "checkCommandKeywordVerify": "verify"
           }
         },
         "runtime": {
@@ -12770,6 +12796,16 @@
           "offCount": "{{count}} off",
           "machines": "Machines",
           "machinesDescription": "Choose which machines can show notifications on this computer. A paired server’s switch also covers work reached through it."
+        },
+        "RepositoryCheckCommandSection": {
+          "description": "Shell command that verifies an agent's work. Runs automatically in this workspace once an agent finishes. Leave blank to disable.",
+          "keywordCheck": "check",
+          "keywordPostAgent": "post-agent",
+          "keywordTest": "test",
+          "keywordTypecheck": "typecheck",
+          "keywordVerify": "verify",
+          "placeholder": "pnpm tc && pnpm test",
+          "title": "Check Command"
         }
       },
       "right": {

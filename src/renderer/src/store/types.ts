@@ -48,6 +48,7 @@ import type { RemoteServerUpdatesSlice } from './slices/remote-server-updates'
 import type { TerminalQuickCommandHostsSlice } from './slices/terminal-quick-command-hosts'
 import type { StructuredSessionLaunchDirectorySlice } from './slices/structured-session-launch-directories'
 import type { OverlapRadarSlice } from './slices/overlap-radar'
+import type { WorkspaceCheckStateSlice } from './slices/workspace-check-state'
 
 export type AppState = RepoSlice &
   SparsePresetsSlice &
@@ -96,4 +97,5 @@ export type AppState = RepoSlice &
   RemoteServerUpdatesSlice &
   TerminalQuickCommandHostsSlice &
   StructuredSessionLaunchDirectorySlice &
-  OverlapRadarSlice
+  OverlapRadarSlice &
+  WorkspaceCheckStateSlice

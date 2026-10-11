@@ -207,4 +207,7 @@ export function configureRuntimeServices(runtime: OrcaRuntimeService): void {
     prepareForCodexLaunch: prepareCodexRuntimeHomeForLaunch,
     prepareForClaudeLaunch: (target) => state.claudeRuntimeAuth!.prepareForClaudeLaunch(target)
   })
+  if (state.workspaceCheckService) {
+    runtime.setWorkspaceCheckService(state.workspaceCheckService)
+  }
 }

@@ -89,7 +89,8 @@ export function createNotificationDeliveryService(
       const desktopAllowed =
         settings.enabled &&
         (request.source !== 'agent-task-complete' || settings.agentTaskComplete) &&
-        (request.source !== 'terminal-bell' || settings.terminalBell)
+        (request.source !== 'terminal-bell' || settings.terminalBell) &&
+        (request.source !== 'check-failed' || settings.checkFailed !== false)
 
       const notificationOptions = buildNotificationOptions(request, translateMain)
 

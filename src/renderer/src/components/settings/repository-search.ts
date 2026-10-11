@@ -43,6 +43,36 @@ export function getRepositoryPaneSearchEntries(
       ]
     },
     {
+      title: translate('auto.components.settings.repository.search.checkCommand', 'Check Command'),
+      description: translate(
+        'auto.components.settings.repository.search.checkCommandDescription',
+        "Shell command that verifies an agent's work."
+      ),
+      keywords: [
+        repo.displayName,
+        ...translateSearchKeyword(
+          'auto.components.settings.repository.search.checkCommandKeywordCheck',
+          'check'
+        ),
+        ...translateSearchKeyword(
+          'auto.components.settings.repository.search.checkCommandKeywordVerify',
+          'verify'
+        ),
+        ...translateSearchKeyword(
+          'auto.components.settings.repository.search.checkCommandKeywordTest',
+          'test'
+        ),
+        ...translateSearchKeyword(
+          'auto.components.settings.repository.search.checkCommandKeywordTypecheck',
+          'typecheck'
+        ),
+        ...translateSearchKeyword(
+          'auto.components.settings.repository.search.checkCommandKeywordPostAgent',
+          'post-agent'
+        )
+      ]
+    },
+    {
       title: translate('auto.components.settings.repository.search.b24f00294a', 'Project Icon'),
       description: translate(
         'auto.components.settings.repository.search.a1f3a2bd47',

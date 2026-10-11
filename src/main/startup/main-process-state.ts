@@ -19,6 +19,7 @@ import type { StarNagService } from '../star-nag/service'
 import type { AgentAwakeService } from '../agent-awake-service'
 import type { CrashReportStore } from '../crash-reporting/crash-report-store'
 import type { AutomationService } from '../automations/service'
+import type { WorkspaceCheckService } from '../workspace-check/workspace-check-service'
 import type { PluginService } from '../plugins/plugin-service'
 import type { PluginKillListService } from '../plugins/plugin-kill-list-service'
 import type { PluginMarketplaceService } from '../plugins/plugin-marketplace-service'
@@ -95,6 +96,10 @@ export const mainProcessState = {
   headlessBrowserDisplayAvailable: false,
   starNag: null as StarNagService | null,
   agentAwakeService: null as AgentAwakeService | null,
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: nullable service ref, same `null as T | null` init pattern as every sibling field in this object literal.
+  workspaceCheckService: null as WorkspaceCheckService | null,
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: nullable unsubscribe callback, same `null as T | null` init pattern as every sibling field in this object literal.
+  unsubscribeWorkspaceCheckStatusChanges: null as (() => void) | null,
   uninstallRepoMaintenanceIdleGate: null as (() => Promise<void>) | null,
   repoMaintenanceShutdown: Promise.resolve() as Promise<void>,
   crashReports: null as CrashReportStore | null,

@@ -21,6 +21,8 @@ import { CodexUsageStore } from '../codex-usage/store'
 import { OpenCodeUsageStore } from '../opencode-usage/store'
 import { MuseUsageStore } from '../muse-usage/store'
 import { installRepoMaintenanceIdleGate } from '../repo-maintenance-idle-gate'
+import { WorkspaceCheckService } from '../workspace-check/workspace-check-service'
+import { getNotificationDeliveryService } from '../ipc/notifications'
 import { mainProcessState as state } from './main-process-state'
 
 export function initializeMainProcessObservers(): void {
@@ -52,6 +54,18 @@ export function initializeMainProcessObservers(): void {
     agentHookServer,
     () => state.runtime
   )
+  state.workspaceCheckService = new WorkspaceCheckService({
+    getStore: () => state.store ?? null,
+    getRuntime: () => state.runtime ?? null,
+    getNotificationDeliveryService,
+    getStatusSnapshot: () => agentHookServer.getStatusSnapshot(),
+    emitClientEvent: (worktreeId, checkState) =>
+      state.runtime?.publishWorkspaceCheckChanged(worktreeId, checkState)
+  })
+  const unsubscribeWorkspaceCheckStatusChanges = agentHookServer.subscribeStatusChanges(
+    (statuses) => state.workspaceCheckService?.handleStatusChanges(statuses)
+  )
+  state.unsubscribeWorkspaceCheckStatusChanges = unsubscribeWorkspaceCheckStatusChanges
   state.unsubscribeAgentAwakeStatusChanges = () => {
     unsubscribeStatusChanges()
     unsubscribeStatusFreshness()
