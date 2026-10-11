@@ -286,6 +286,12 @@ sync() {
     return 0
   fi
   log "sync: $current -> $latest"
+  # Why: REPO is also the dev checkout; a dirty tree makes rebase refuse without leaving a rebase dir.
+  if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+    log "sync: working tree has uncommitted changes; retrying later"
+    notify "Orca: обновление $latest отложено" "Закоммитьте или уберите изменения в $REPO"
+    return 1
+  fi
   git checkout -q custom
   local drops
   drops=$(merged_patch_commits "$current" "$latest" | tr '\n' ' ')
@@ -313,7 +319,13 @@ for sha in ${=ORCA_DROP_SHAS}; do perl -0pi -e "s/^pick (${sha:0:7}[0-9a-f]*) /d
       return 1
     fi
   fi
+  if ! git merge-base --is-ancestor "$latest" custom; then
+    log "sync: rebase onto $latest did not land; custom unchanged"
+    notify "Orca: нужна ручная правка" "Патчи не перенесены на $latest — сборка не обновлена"
+    return 1
+  fi
   git push -q --force-with-lease origin custom >>"$LOG" 2>&1 || log "sync: push to fork failed (non-fatal)"
+  git push -q -f origin "$latest^{commit}:refs/heads/release-base" >>"$LOG" 2>&1 || log "sync: release-base push failed (non-fatal)"
   build
   notify "Orca $latest собрана" "Закройте Orca полностью — новая сборка установится сама"
   install_staged
