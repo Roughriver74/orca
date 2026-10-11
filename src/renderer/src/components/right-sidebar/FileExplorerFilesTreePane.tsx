@@ -75,7 +75,8 @@ export function FileExplorerFilesTreePane({
     rowScrolling,
     handlers,
     nodeCommands,
-    fileDropOwnerRef
+    fileDropOwnerRef,
+    pasteFilesFromClipboard
   } = paneState
   const { inlineInput, inlineInputIndex, startNew, dismissInlineInput, handleInlineSubmit } =
     inlineInputState
@@ -209,6 +210,7 @@ export function FileExplorerFilesTreePane({
           onContextMenuSelect={preserveSelectionForContextMenu}
           onCopyPaths={copyPathsForNode}
           onStartNew={startNew}
+          onPasteFiles={(dir) => void pasteFilesFromClipboard(dir)}
           onStartRename={handleStartRename}
           onDuplicate={handleDuplicate}
           onAddFolderAsProject={handleAddFolderAsProject}

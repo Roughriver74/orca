@@ -27,14 +27,14 @@ const clearDrag = vi.fn()
 const setSelected = vi.fn()
 
 function Explorer({ scope, rows }: { scope: Scope; rows: Row[] }): React.JSX.Element {
-  const ownerRef = useFileExplorerImport({
+  const { fileDropOwnerRef } = useFileExplorerImport({
     ...scope,
     refreshDir,
     clearNativeDragState: clearDrag,
     setSelectedPath: setSelected
   })
   return (
-    <div ref={ownerRef} data-testid="tree">
+    <div ref={fileDropOwnerRef} data-testid="tree">
       {rows.map((row) => (
         <button key={row.path} data-testid={row.path} data-file-explorer-drop-dir={row.dropDir}>
           <span data-testid={`${row.path}:label`} />
@@ -174,13 +174,13 @@ describe('file explorer OS file drops', () => {
   it('refuses while the files view is hidden', () => {
     const hidden = { worktreeId: 'wt-b', worktreePath: null, displayRootPath: '/repo/app' }
     function HiddenExplorer(): React.JSX.Element {
-      const ownerRef = useFileExplorerImport({
+      const { fileDropOwnerRef } = useFileExplorerImport({
         ...hidden,
         refreshDir,
         clearNativeDragState: clearDrag,
         setSelectedPath: setSelected
       })
-      return <div ref={ownerRef} data-testid="tree" />
+      return <div ref={fileDropOwnerRef} data-testid="tree" />
     }
     const view = render(<HiddenExplorer />)
     expect(drag(view.getByTestId('tree'), 'dragover').dropEffect).toBe('none')
@@ -212,14 +212,14 @@ describe('internal explorer row drags under the OS-drop owner', () => {
     )
   }
   function ExplorerWithRow({ onMoveDrop }: { onMoveDrop: (source: string, dir: string) => void }) {
-    const ownerRef = useFileExplorerImport({
+    const { fileDropOwnerRef } = useFileExplorerImport({
       ...SCOPE_B,
       refreshDir,
       clearNativeDragState: clearDrag,
       setSelectedPath: setSelected
     })
     return (
-      <div ref={ownerRef}>
+      <div ref={fileDropOwnerRef}>
         <DraggableRow onMoveDrop={onMoveDrop} />
       </div>
     )

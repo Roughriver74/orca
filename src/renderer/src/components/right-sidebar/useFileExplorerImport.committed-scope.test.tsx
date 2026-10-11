@@ -48,7 +48,7 @@ it('keeps native drops on committed scope when a new scope render suspends', asy
   })
 
   function Probe({ scope, suspend = false }: { scope: string; suspend?: boolean }) {
-    const ownerRef = useFileExplorerImport({
+    const { fileDropOwnerRef } = useFileExplorerImport({
       worktreeId: 'wt',
       worktreePath: '/repo',
       displayRootPath: scope,
@@ -60,7 +60,7 @@ it('keeps native drops on committed scope when a new scope render suspends', asy
       throw suspended
     }
     return (
-      <div ref={ownerRef}>
+      <div ref={fileDropOwnerRef}>
         <span data-testid="row" data-file-explorer-drop-dir="/repo/app">
           {scope}
         </span>

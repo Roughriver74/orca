@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react'
 import {
   AppWindow,
+  ClipboardPaste,
   Copy,
   Download,
   ExternalLink,
@@ -76,6 +77,7 @@ type FileExplorerRowContextMenuProps = Pick<
   | 'onViewFile'
   | 'onCopyPaths'
   | 'onStartNew'
+  | 'onPasteFiles'
   | 'onStartRename'
   | 'onDuplicate'
   | 'onAddFolderAsProject'
@@ -101,6 +103,7 @@ export function FileExplorerRowContextMenu({
   onViewFile,
   onCopyPaths,
   onStartNew,
+  onPasteFiles,
   onStartRename,
   onDuplicate,
   onAddFolderAsProject,
@@ -170,6 +173,10 @@ export function FileExplorerRowContextMenu({
       <ContextMenuItem onSelect={() => onStartNew('folder', targetDir, targetDepth)}>
         <FolderPlus />
         {translate('auto.components.right.sidebar.FileExplorerRow.f61af83316', 'New Folder')}
+      </ContextMenuItem>
+      <ContextMenuItem onSelect={() => onPasteFiles(targetDir)}>
+        <ClipboardPaste />
+        {translate('auto.components.right.sidebar.FileExplorerRow.9d3a7c1e42', 'Paste')}
       </ContextMenuItem>
       <ContextMenuSeparator />
       {showCopyFileAction && (

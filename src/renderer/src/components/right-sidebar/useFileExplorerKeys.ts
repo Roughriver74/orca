@@ -3,6 +3,7 @@ import type React from 'react'
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { getShortcutPlatform } from '@/lib/shortcut-platform'
+import { dirname } from '@/lib/path'
 import type { InlineInput } from './file-explorer-inline-input-row'
 import type { TreeNode } from './file-explorer-types'
 import type { FileExplorerRowProjection } from './file-explorer-row-projection'
@@ -51,6 +52,8 @@ export function useFileExplorerKeys(opts: {
   requestDeleteAll: (nodes: TreeNode[]) => void
   scrollToIndex: (index: number) => void
   activeWorktreeId: string | null
+  displayRootPath: string | null
+  pasteFilesFromClipboard: (destinationDir: string) => Promise<void>
 }): void {
   const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
   const rightSidebarTab = useAppStore((s) => s.rightSidebarTab)
@@ -85,6 +88,10 @@ export function useFileExplorerKeys(opts: {
   scrollToIndexRef.current = opts.scrollToIndex
   const activeWorktreeIdRef = useRef(opts.activeWorktreeId)
   activeWorktreeIdRef.current = opts.activeWorktreeId
+  const displayRootPathRef = useRef(opts.displayRootPath)
+  displayRootPathRef.current = opts.displayRootPath
+  const pasteFilesFromClipboardRef = useRef(opts.pasteFilesFromClipboard)
+  pasteFilesFromClipboardRef.current = opts.pasteFilesFromClipboard
 
   useEffect(() => {
     // Find the row index whose button is currently focused. Each virtualized
@@ -244,6 +251,24 @@ export function useFileExplorerKeys(opts: {
       // ── Modifier shortcuts: only when focus is inside the explorer ──
       // Scoped to explorer focus to avoid intercepting editor/terminal shortcuts
       if (!focusInExplorer()) {
+        return
+      }
+      const wantsPaste =
+        e.key.toLowerCase() === 'v' &&
+        !e.shiftKey &&
+        !e.altKey &&
+        (platform === 'darwin' ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey)
+      if (wantsPaste) {
+        e.preventDefault()
+        const node = selectedNodeRef.current
+        const destinationDir = node
+          ? node.isDirectory
+            ? node.path
+            : dirname(node.path)
+          : displayRootPathRef.current
+        if (destinationDir) {
+          void pasteFilesFromClipboardRef.current(destinationDir)
+        }
         return
       }
       const wantsCopyRelativePath = keybindingMatchesAction(

@@ -21,6 +21,7 @@ import { formatTerminalPasteExecutionError } from './terminal-paste-errors'
 import { recordTerminalUserInputForLeaf } from './terminal-input-activity'
 import { scheduleImagePasteWebglAtlasRecovery } from './terminal-webgl-atlas-recovery'
 import { pasteTerminalClipboard } from './terminal-clipboard-paste'
+import { handleTerminalFileDrop } from './terminal-drop-handler'
 import type { ReadClipboardTextOptions } from '../../../../shared/clipboard-text'
 import type { TerminalPaneCloseController } from './use-terminal-pane-close-actions'
 
@@ -36,6 +37,7 @@ export function createTerminalPanePasteExecution(
   shortcutPlatform: NodeJS.Platform
 ) {
   const {
+    cwd,
     forceBracketedMultilineTextPaste,
     managerRef,
     paneTransportsRef,
@@ -130,16 +132,31 @@ export function createTerminalPanePasteExecution(
       worktreeId
     )
     const activeElementAtDispatch = document.activeElement
+    const manager = managerRef.current
     void pasteTerminalClipboard({
       readClipboardText,
+      readClipboardFilePaths: window.api.ui.readClipboardFilePaths,
       saveClipboardImageAsTempFile: window.api.ui.saveClipboardImageAsTempFile,
       connectionId,
       runtimeEnvironmentId,
       forceBracketedMultilineTextPaste,
       pasteText: (text, options) =>
         executePanePasteText(pane, source, activeElementAtDispatch, text, options),
+      pasteFilePaths: manager
+        ? (paths) =>
+            handleTerminalFileDrop({
+              manager,
+              paneTransports: paneTransportsRef.current,
+              worktreeId,
+              tabId,
+              cwd,
+              pane,
+              paths
+            })
+        : undefined,
       onTextPasteError: () =>
         setTerminalError('Paste failed: clipboard text is too large for a safe terminal paste.'),
+      onFilePathsPasteError: () => setTerminalError('Paste failed: could not paste copied files.'),
       onImagePasteError: (error) => setTerminalError(formatClipboardImagePasteError(error))
     }).catch(() => {
       setTerminalError('Paste failed.')
