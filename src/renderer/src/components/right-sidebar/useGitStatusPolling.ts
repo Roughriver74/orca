@@ -14,6 +14,7 @@ import { getRightSidebarWorktreeRuntimeSettings } from './file-explorer-runtime-
 import { useGitStatusFileWatchRefresh } from './git-status-file-watch-refresh'
 import { useGitStatusPushSignalRefresh } from './git-status-push-signal-refresh'
 import { useStaleConflictOperationPolling } from './stale-conflict-operation-poll'
+import { useOverlapRadarPolling } from '../sidebar/overlap-radar/use-overlap-radar-polling'
 import { useGitStatusUpstreamRefWatch } from './use-git-status-upstream-ref-watch'
 import {
   createGitStatusRefreshPacing,
@@ -56,6 +57,7 @@ export function useGitStatusPolling(options: { enabled?: boolean } = {}): void {
   const fetchUpstreamStatus = useAppStore((s) => s.fetchUpstreamStatus)
   const setUpstreamStatus = useAppStore((s) => s.setUpstreamStatus)
   const setConflictOperation = useAppStore((s) => s.setConflictOperation)
+  const setOverlapRadarChangedPaths = useAppStore((s) => s.setOverlapRadarChangedPaths)
   const conflictOperationByWorktree = useAppStore((s) => s.gitConflictOperationByWorktree)
   const sshConnectionStates = useAppStore((s) => s.sshConnectionStates)
   const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
@@ -319,6 +321,15 @@ export function useGitStatusPolling(options: { enabled?: boolean } = {}): void {
     repoMap,
     conflictOperationByWorktree,
     setConflictOperation,
+    isConnectionReady,
+    slowTaskBackoff: SLOW_GIT_POLL_BACKOFF
+  })
+
+  useOverlapRadarPolling({
+    enabled,
+    allWorktrees,
+    repoMap,
+    setOverlapRadarChangedPaths,
     isConnectionReady,
     slowTaskBackoff: SLOW_GIT_POLL_BACKOFF
   })

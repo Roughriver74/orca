@@ -5,6 +5,7 @@ import { DetachedHeadBadge } from '@/components/DetachedHeadBadge'
 import { RepoBadgeMark } from '@/components/repo/RepoBadgeLabel'
 import { Badge } from '@/components/ui/badge'
 import CacheTimer from './CacheTimer'
+import { WorktreeCardOverlapRadarBadge } from './overlap-radar/WorktreeCardOverlapRadarBadge'
 import { WorktreeHostContextBadge } from './WorktreeHostContextBadge'
 import { resolveHostCardTint } from './host-card-tint'
 import { CONFLICT_OPERATION_LABELS } from './WorktreeCardHelpers'
@@ -99,6 +100,8 @@ export function WorktreeCardMetaRow({
             {CONFLICT_OPERATION_LABELS[conflictOperation]}
           </Badge>
         )}
+
+        <WorktreeCardOverlapRadarBadge worktree={worktree} />
 
         {cacheStartedAt != null && <CacheTimer startedAt={cacheStartedAt} ttlMs={cacheTtlMs} />}
       </div>

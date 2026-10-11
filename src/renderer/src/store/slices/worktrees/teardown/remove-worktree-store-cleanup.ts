@@ -130,6 +130,7 @@ export function applyRemoveWorktreeSuccessState(
       gitBranchCompareRequestStatusHeadByWorktree: omitByWorktree(
         s.gitBranchCompareRequestStatusHeadByWorktree
       ),
+      overlapRadarChangedPathsByWorktree: omitByWorktree(s.overlapRadarChangedPathsByWorktree),
       activeFileId: activeFileCleared ? null : s.activeFileId,
       activeBrowserTabId: removedActiveWorktree ? null : s.activeBrowserTabId,
       activeTabType: removedActiveWorktree || activeFileCleared ? 'terminal' : s.activeTabType,
