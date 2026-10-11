@@ -5,6 +5,7 @@ import { SourceControlBranchSection } from '../listing/branch-section'
 import { SourceControlContentStatus } from '../listing/content-status'
 import { SourceControlUncommittedSections } from '../listing/uncommitted-sections'
 import { CompareUnavailable } from '../sync/compare-summary'
+import { SourceControlReviewedChangesSection } from '../review-since/reviewed-changes-section'
 import { SourceControlCommitSurface } from './commit-surface'
 import { SourceControlForkPushNotice } from './fork-push-notice'
 import type { SourceControlPanelReadyProps } from './panel-props'
@@ -44,8 +45,11 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
     hasUncommittedEntries,
     isAbortingOperation,
     isExecutingBulk,
+    isFolder,
     isGitHistoryVisible,
+    isMarkingReviewed,
     loadCommitFiles,
+    markReviewed,
     normalizedFilter,
     openAllDiffs,
     openBranchAllDiffs,
@@ -53,14 +57,18 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
     openCommittedDiff,
     openConflictReview,
     openHistoryCommitDiff,
+    openReviewedAllDiffs,
+    openReviewedDiff,
     refreshActiveGitStatus,
     refreshBranchCompare,
     refreshGitHistory,
+    refreshReviewedChanges,
     repositoryHuge,
     requestDiscardAllInArea,
     requestDiscardEntry,
     requestDiscardPaths,
     revealInExplorer,
+    reviewedChangesState,
     selectedKeySet,
     setBaseRefDialogOpen,
     sourceControlAiActionsVisible,
@@ -209,6 +217,25 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
           activeConnectionId={activeConnectionId}
           openCommittedDiff={openCommittedDiff}
           openBranchAllDiffs={openBranchAllDiffs}
+          diffCommentCountByPath={diffCommentCountByPath}
+        />
+      )}
+
+      {!isFolder && (
+        <SourceControlReviewedChangesSection
+          state={reviewedChangesState}
+          isCollapsed={collapsedSections.has('reviewed')}
+          onToggle={() => toggleSection('reviewed')}
+          onMarkReviewed={() => void markReviewed()}
+          onRefresh={() => void refreshReviewedChanges()}
+          isMarkingReviewed={isMarkingReviewed}
+          currentWorktreeId={currentWorktreeId}
+          worktreePath={worktreePath}
+          fileListScrollElement={fileListScrollElement}
+          revealInExplorer={revealInExplorer}
+          activeConnectionId={activeConnectionId}
+          openReviewedDiff={openReviewedDiff}
+          openReviewedAllDiffs={openReviewedAllDiffs}
           diffCommentCountByPath={diffCommentCountByPath}
         />
       )}

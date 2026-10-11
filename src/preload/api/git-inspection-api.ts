@@ -12,6 +12,10 @@ import type {
 import type { GitPushTarget } from '../../shared/worktree/types'
 import type { GitHistoryOptions, GitHistoryResult } from '../../shared/git-history'
 import type {
+  GitReviewedChangesResult,
+  GitReviewedMarkResult
+} from '../../shared/git-reviewed-types'
+import type {
   CommitMessageAgentCapability,
   CommitMessageModelCapability
 } from '../../shared/commit-message-agent-spec'
@@ -75,6 +79,14 @@ export type GitInspectionApi = {
     commitId: string
     connectionId?: string
   }) => Promise<GitCommitCompareResult>
+  reviewedMark: (args: {
+    worktreePath: string
+    connectionId?: string
+  }) => Promise<GitReviewedMarkResult>
+  reviewedChanges: (args: {
+    worktreePath: string
+    connectionId?: string
+  }) => Promise<GitReviewedChangesResult>
   upstreamStatus: (args: {
     worktreePath: string
     connectionId?: string

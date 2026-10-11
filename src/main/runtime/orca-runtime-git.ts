@@ -3,6 +3,7 @@ import { RuntimeGitGenerationCommands } from './runtime-git-generation-commands'
 import { RuntimeGitStagingCommands } from './runtime-git-staging-commands'
 import { RuntimeGitStatusCommands } from './runtime-git-status-commands'
 import { RuntimeGitSyncCommands } from './runtime-git-sync-commands'
+import { RuntimeGitReviewedCommands } from './runtime-git-reviewed-commands'
 import type { RuntimeGitCommandHost } from './runtime-git-command-target'
 
 export type {
@@ -25,6 +26,8 @@ export class RuntimeGitCommands {
   readonly getRuntimeGitCommitDiff: RuntimeGitDiffCommands['getRuntimeGitCommitDiff']
   readonly getRuntimeGitRemoteFileUrl: RuntimeGitDiffCommands['getRuntimeGitRemoteFileUrl']
   readonly getRuntimeGitRemoteCommitUrl: RuntimeGitDiffCommands['getRuntimeGitRemoteCommitUrl']
+  readonly markRuntimeGitReviewed: RuntimeGitReviewedCommands['markRuntimeGitReviewed']
+  readonly getRuntimeGitReviewedChanges: RuntimeGitReviewedCommands['getRuntimeGitReviewedChanges']
   readonly abortRuntimeGitMerge: RuntimeGitSyncCommands['abortRuntimeGitMerge']
   readonly abortRuntimeGitRebase: RuntimeGitSyncCommands['abortRuntimeGitRebase']
   readonly getRuntimeGitUpstreamStatus: RuntimeGitSyncCommands['getRuntimeGitUpstreamStatus']
@@ -53,6 +56,7 @@ export class RuntimeGitCommands {
     const sync = new RuntimeGitSyncCommands(host)
     const generation = new RuntimeGitGenerationCommands(host)
     const staging = new RuntimeGitStagingCommands(host)
+    const reviewed = new RuntimeGitReviewedCommands(host)
 
     this.getRuntimeGitStatus = status.getRuntimeGitStatus.bind(status)
     this.getRuntimeGitSubmoduleStatus = status.getRuntimeGitSubmoduleStatus.bind(status)
@@ -68,6 +72,8 @@ export class RuntimeGitCommands {
     this.getRuntimeGitCommitDiff = diff.getRuntimeGitCommitDiff.bind(diff)
     this.getRuntimeGitRemoteFileUrl = diff.getRuntimeGitRemoteFileUrl.bind(diff)
     this.getRuntimeGitRemoteCommitUrl = diff.getRuntimeGitRemoteCommitUrl.bind(diff)
+    this.markRuntimeGitReviewed = reviewed.markRuntimeGitReviewed.bind(reviewed)
+    this.getRuntimeGitReviewedChanges = reviewed.getRuntimeGitReviewedChanges.bind(reviewed)
     this.abortRuntimeGitMerge = sync.abortRuntimeGitMerge.bind(sync)
     this.abortRuntimeGitRebase = sync.abortRuntimeGitRebase.bind(sync)
     this.getRuntimeGitUpstreamStatus = sync.getRuntimeGitUpstreamStatus.bind(sync)

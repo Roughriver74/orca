@@ -4,7 +4,9 @@ import {
   getRuntimeGitBranchDiff as getRuntimeGitBranchDiffImplementation,
   getRuntimeGitCommitCompare as getRuntimeGitCommitCompareImplementation,
   getRuntimeGitCommitDiff as getRuntimeGitCommitDiffImplementation,
-  getRuntimeGitDiff as getRuntimeGitDiffImplementation
+  getRuntimeGitDiff as getRuntimeGitDiffImplementation,
+  getRuntimeGitReviewedChanges as getRuntimeGitReviewedChangesImplementation,
+  markRuntimeGitReviewed as markRuntimeGitReviewedImplementation
 } from './runtime-git-diff-client'
 import {
   cancelRuntimeGenerateCommitMessage as cancelRuntimeGenerateCommitMessageImplementation,
@@ -91,3 +93,5 @@ export const bulkDiscardRuntimeGitPaths = bulkDiscardRuntimeGitPathsImplementati
 export const discardRuntimeGitPath = discardRuntimeGitPathImplementation
 export const getRuntimeGitRemoteFileUrl = getRuntimeGitRemoteFileUrlImplementation
 export const getRuntimeGitRemoteCommitUrl = getRuntimeGitRemoteCommitUrlImplementation
+export const getRuntimeGitReviewedChanges = getRuntimeGitReviewedChangesImplementation
+export const markRuntimeGitReviewed = markRuntimeGitReviewedImplementation

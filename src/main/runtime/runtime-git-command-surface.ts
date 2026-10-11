@@ -36,6 +36,8 @@ type RuntimeGitCommandName =
   | 'discardRuntimeGitPath'
   | 'getRuntimeGitRemoteFileUrl'
   | 'getRuntimeGitRemoteCommitUrl'
+  | 'markRuntimeGitReviewed'
+  | 'getRuntimeGitReviewedChanges'
 
 export type RuntimeGitCommandSurface = Pick<RuntimeGitCommands, RuntimeGitCommandName>
 
@@ -79,6 +81,8 @@ export function installRuntimeGitCommandSurface(
     bulkDiscardRuntimeGitPaths: commands.bulkDiscardRuntimeGitPaths.bind(commands),
     discardRuntimeGitPath: commands.discardRuntimeGitPath.bind(commands),
     getRuntimeGitRemoteFileUrl: commands.getRuntimeGitRemoteFileUrl.bind(commands),
-    getRuntimeGitRemoteCommitUrl: commands.getRuntimeGitRemoteCommitUrl.bind(commands)
+    getRuntimeGitRemoteCommitUrl: commands.getRuntimeGitRemoteCommitUrl.bind(commands),
+    markRuntimeGitReviewed: commands.markRuntimeGitReviewed.bind(commands),
+    getRuntimeGitReviewedChanges: commands.getRuntimeGitReviewedChanges.bind(commands)
   } satisfies RuntimeGitCommandSurface)
 }
