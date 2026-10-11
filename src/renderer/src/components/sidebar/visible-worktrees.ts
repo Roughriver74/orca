@@ -28,6 +28,7 @@ import {
   computeRenderedSidebarWorktrees
 } from './rendered-sidebar-worktree-order'
 
+
 /**
  * Module-level cache of the visible worktree IDs as last computed by
  * WorktreeList's render pipeline.

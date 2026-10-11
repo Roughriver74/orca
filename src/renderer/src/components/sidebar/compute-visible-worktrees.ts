@@ -7,6 +7,7 @@ import type { ExecutionHostId, ExecutionHostScope } from '../../../../shared/exe
 import { getIndexedAllWorktrees } from '@/store/worktree-repo-index'
 import { selectVisibleSidebarWorktrees } from '../../../../shared/sidebar-list/visible-worktrees'
 import { buildDesktopWorkspaceRowFactReader } from './desktop-workspace-row-facts'
+import { isHiddenWhileIdle, isOpenHideWhenIdleWorkspace } from './repo-idle-visibility'
 import { sidebarWorkspaceRowFilters } from './sidebar-filter-actions'
 import { getLineageAncestorIndex, getSortedWorktreeRankIndex } from './visible-worktree-indexes'
 
@@ -40,6 +41,8 @@ export type VisibleWorktreeOptions = {
   sortedByHostIdentity?: boolean
   /** Exempt from the sleeping sweep only; unlike forcedVisibleWorktreeIds, every other filter still applies. */
   sleepingSweepExemptWorktreeIds?: ReadonlySet<string>
+  /** Exempts the open workspace from the per-repo "Hide when idle" sweep. */
+  activeWorktreeId?: string | null
 }
 
 export function computeVisibleWorktrees(
@@ -51,12 +54,25 @@ export function computeVisibleWorktrees(
   const keyOf = opts.sortedByHostIdentity
     ? getWorktreeHostIdentity
     : (worktree: Worktree) => worktree.id
+  const allRows = getIndexedAllWorktrees(worktreesByRepo)
+  // Why its own pass, not a shared-filter kind: the per-repo "Hide when idle" sweep (#26708) is
+  // desktop-only, opt-in state, unlike the Workspace options filters every surface shares.
+  const rows = allRows.filter((worktree) => !isHiddenWhileIdle(worktree, opts))
+  const activeWorktree = opts.activeWorktreeId
+    ? allRows.find((worktree) => worktree.id === opts.activeWorktreeId)
+    : undefined
+  // Why: opening an opted-in workspace must not leave it invisible before its first terminal
+  // starts, so it also spares the global "Hide sleeping" sweep, not just the per-repo one above.
+  const sleepingSweepExemptWorktreeIds =
+    activeWorktree && isOpenHideWhenIdleWorkspace(activeWorktree, opts)
+      ? new Set([...(opts.sleepingSweepExemptWorktreeIds ?? []), activeWorktree.id])
+      : opts.sleepingSweepExemptWorktreeIds
   return selectVisibleSidebarWorktrees({
-    rows: getIndexedAllWorktrees(worktreesByRepo),
+    rows,
     ancestorByIdentity: getLineageAncestorIndex(worktreesByRepo),
     rankOf: (worktree) => rankByKey.get(keyOf(worktree)),
     filters: sidebarWorkspaceRowFilters(opts),
-    facts: buildDesktopWorkspaceRowFactReader(opts),
+    facts: buildDesktopWorkspaceRowFactReader({ ...opts, sleepingSweepExemptWorktreeIds }),
     worktreeLineageById: opts.worktreeLineageById,
     filterRepoIds: opts.filterRepoIds,
     injectLineageAncestors: opts.injectLineageAncestors,
