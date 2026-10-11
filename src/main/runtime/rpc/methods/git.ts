@@ -1,5 +1,6 @@
 import { defineMethod } from '../core'
 import { GIT_COMMIT_MESSAGE_GENERATION_METHODS } from './git-commit-message-generation-methods'
+import { GIT_REVIEWED_METHODS } from './git-reviewed-methods'
 import { GIT_DIFF_METHODS } from './git-diff-methods'
 import {
   GitBranchCompare,
@@ -115,6 +116,7 @@ export const GIT_METHODS = [
     handler: async (params, { runtime }) => runtime.listRuntimeGitLocalBranches(params.worktree)
   }),
   ...GIT_DIFF_METHODS,
+  ...GIT_REVIEWED_METHODS,
   defineMethod({
     name: 'git.branchCompare',
     permission: 'workspace',

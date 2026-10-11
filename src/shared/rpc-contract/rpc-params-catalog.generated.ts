@@ -966,6 +966,8 @@ export const RPC_PARAMS_BY_METHOD = {
   'git.rebaseFromBase': GitRebaseFromBase,
   'git.remoteCommitUrl': GitRemoteCommitUrl,
   'git.remoteFileUrl': GitRemoteFileUrl,
+  'git.reviewedChanges': WorktreeSelectorOfGitParams,
+  'git.reviewedMark': WorktreeSelectorOfGitParams,
   'git.stage': GitFilePath,
   'git.status': GitStatusParams,
   'git.submoduleStatus': GitSubmoduleStatus,

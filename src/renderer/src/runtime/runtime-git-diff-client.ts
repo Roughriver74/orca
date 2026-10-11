@@ -3,6 +3,10 @@ import type {
   GitCommitCompareResult,
   GitDiffResult
 } from '../../../shared/git-diff-compare-types'
+import type {
+  GitReviewedChangesResult,
+  GitReviewedMarkResult
+} from '../../../shared/git-reviewed-types'
 import { resolveLocalWorktreePath, type RuntimeGitContext } from './runtime-git-client-context'
 import { callRuntimeRpc } from './runtime-rpc-client'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
@@ -125,6 +129,42 @@ export async function getRuntimeGitCommitDiff(
     target,
     'git.commitDiff',
     { worktree: toRuntimeWorktreeSelector(context.worktreeId), ...args },
+    { timeoutMs: 15_000 }
+  )
+}
+
+export async function markRuntimeGitReviewed(
+  context: RuntimeGitContext
+): Promise<GitReviewedMarkResult> {
+  const target = context.target
+  if (target.kind === 'local' || !context.worktreeId) {
+    return window.api.git.reviewedMark({
+      worktreePath: resolveLocalWorktreePath(context),
+      connectionId: context.connectionId
+    })
+  }
+  return callRuntimeRpc<GitReviewedMarkResult>(
+    target,
+    'git.reviewedMark',
+    { worktree: toRuntimeWorktreeSelector(context.worktreeId) },
+    { timeoutMs: 15_000 }
+  )
+}
+
+export async function getRuntimeGitReviewedChanges(
+  context: RuntimeGitContext
+): Promise<GitReviewedChangesResult> {
+  const target = context.target
+  if (target.kind === 'local' || !context.worktreeId) {
+    return window.api.git.reviewedChanges({
+      worktreePath: resolveLocalWorktreePath(context),
+      connectionId: context.connectionId
+    })
+  }
+  return callRuntimeRpc<GitReviewedChangesResult>(
+    target,
+    'git.reviewedChanges',
+    { worktree: toRuntimeWorktreeSelector(context.worktreeId) },
     { timeoutMs: 15_000 }
   )
 }

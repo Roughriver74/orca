@@ -38,7 +38,9 @@ const RPC_TO_RUNTIME_COMMAND = {
   'git.discard': 'discardRuntimeGitPath',
   'git.bulkDiscard': 'bulkDiscardRuntimeGitPaths',
   'git.remoteFileUrl': 'getRuntimeGitRemoteFileUrl',
-  'git.remoteCommitUrl': 'getRuntimeGitRemoteCommitUrl'
+  'git.remoteCommitUrl': 'getRuntimeGitRemoteCommitUrl',
+  'git.reviewedMark': 'markRuntimeGitReviewed',
+  'git.reviewedChanges': 'getRuntimeGitReviewedChanges'
 } as const satisfies Record<string, keyof RuntimeGitCommands>
 
 describe('runtime Git API contract', () => {

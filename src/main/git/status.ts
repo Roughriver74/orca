@@ -46,3 +46,10 @@ export {
   discardChanges,
   isWithinWorktree
 } from './source-control/discard-changes'
+export {
+  clearWorkspaceReviewed,
+  getReviewedChanges,
+  markWorkspaceReviewed,
+  reviewedScopeKey
+} from './source-control/reviewed-snapshot'
+export { localReviewedExec } from './source-control/reviewed-local-exec'

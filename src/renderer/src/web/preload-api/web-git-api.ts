@@ -1,10 +1,11 @@
 import type { PreloadApi } from '../../../../preload/api-types'
 import { callAbortableRuntimeEnvironment } from '../../runtime/abortable-runtime-environment-call'
 import { toRuntimeWorktreeSelector } from '../../runtime/runtime-worktree-selector'
-import { translate } from '@/i18n/i18n'
+import { webGitCommitMessageUnavailableApi } from './web-git-commit-message-unavailable-api'
 import { callRuntimeResult } from './web-runtime-calls'
 import { requireGitStageWorktreeScopeReceipt } from '../../../../shared/git-stage-worktree-scope'
 import { requireActiveEnvironment, updateEnvironmentFromResponse } from './web-runtime-session'
+import { webGitReviewedApi } from './web-git-reviewed-api'
 import {
   resolveRuntimeFilePath,
   resolveRuntimeWorktreeByPath
@@ -138,6 +139,7 @@ export function createGitApi(): NonNullable<Partial<PreloadApi>['git']> {
         commitId
       })
     },
+    ...webGitReviewedApi,
     upstreamStatus: async ({ worktreePath, pushTarget }) => {
       const worktree = await resolveRuntimeWorktreeByPath(worktreePath)
       return callRuntimeResult('git.upstreamStatus', {
@@ -218,29 +220,7 @@ export function createGitApi(): NonNullable<Partial<PreloadApi>['git']> {
         message
       })
     },
-    generateCommitMessage: async () => ({
-      success: false,
-      error: translate(
-        'auto.web.web.preload.api.9fc90740b6',
-        'Commit message generation is unavailable in the web client.'
-      )
-    }),
-    discoverCommitMessageModels: async () => ({
-      success: false,
-      error: translate(
-        'auto.web.web.preload.api.e57c82d276',
-        'Commit message model discovery is unavailable in the web client.'
-      )
-    }),
-    cancelGenerateCommitMessage: () => Promise.resolve(),
-    generatePullRequestFields: async () => ({
-      success: false,
-      error: translate(
-        'auto.web.web.preload.api.b8a1618172',
-        'Pull request detail generation is unavailable in the web client.'
-      )
-    }),
-    cancelGeneratePullRequestFields: () => Promise.resolve(),
+    ...webGitCommitMessageUnavailableApi,
     stage: async ({ worktreePath, filePath }) => mutateGitPath('git.stage', worktreePath, filePath),
     bulkStage: async ({ worktreePath, filePaths, scope }) => {
       if (!scope) {

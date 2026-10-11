@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { openGitHubPRLinkModal } from '../../github-pr-link-modal'
 import { useGitHistoryCommitActions } from '../sync/use-git-history-commit-actions'
 import { useSourceControlCommitFlows } from '../commit/use-commit-flows'
@@ -10,6 +10,7 @@ import { useSourceControlActionModel } from '../review/use-action-model'
 import { useSourceControlCreatePrIntentFlows } from '../review/use-create-pr-intent-flows'
 import { useSourceControlReviewFlows } from '../review/use-review-flows'
 import { useSourceControlUpstreamStatusFetch } from '../sync/use-upstream-status-fetch'
+import { useSourceControlReviewSince } from '../review-since/use-review-since'
 import { useSourceControlPanelFoundation } from './use-panel-foundation'
 
 /**
@@ -27,6 +28,7 @@ export function useSourceControlPanelModel() {
   )
   const {
     activeRepoTarget,
+    activeConnectionId,
     activeWorktree,
     activeWorktreeId,
     branchEntries,
@@ -149,6 +151,22 @@ export function useSourceControlPanelModel() {
     activeRepoTarget,
     resolveSplitTargetGroupId
   })
+  const reviewStatusFingerprint = useMemo(
+    () =>
+      entries
+        .map((e) => `${e.area}:${e.status}:${e.path}:${e.added ?? ''}:${e.removed ?? ''}`)
+        .join('\n'),
+    [entries]
+  )
+  const reviewSince = useSourceControlReviewSince({
+    activeRepoTarget,
+    activeWorktreeId,
+    worktreePath,
+    isFolder,
+    activeConnectionId,
+    statusFingerprint: reviewStatusFingerprint,
+    resolveSplitTargetGroupId
+  })
   const noteOpening = useSourceControlNoteOpening({
     activeWorktreeId,
     worktreePath,
@@ -186,6 +204,7 @@ export function useSourceControlPanelModel() {
     ...actionModel,
     ...actionDispatch,
     ...gitHistoryCommitActions,
+    ...reviewSince,
     ...noteOpening,
     ...entryMutations,
     ...discardConfirmation,

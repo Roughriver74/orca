@@ -15,6 +15,7 @@ import {
   dropRemovedWorktreeProcessState,
   pruneRemovedWorktreeSnapshots
 } from '../../../worktree-removal-process-cleanup'
+import { clearWorkspaceReviewedForRemoval } from '../../../git/source-control/reviewed-cleanup'
 
 export async function stopPtysForDestructiveWorktreeRemoval(
   runtime: OrcaRuntimeService,
@@ -99,6 +100,8 @@ export function removeWorktreeMetadataAndTransientState(
     pruneWorktreePRRefreshAliases(worktreeId)
     // Why: the desktop also hosts browser pages for paired clients; the runtime path closes them too.
     runtime.releaseRemovedWorktreeHostSessions(worktreeId, entryPoint)
+    // Why: the reviewed-snapshot ref is private to this workspace; nothing else ever reads it once the id is gone.
+    clearWorkspaceReviewedForRemoval(store, worktreeId)
   }
   pruneRemovedWorktreeSnapshots(
     store.getProfileStorageDirectory(),
