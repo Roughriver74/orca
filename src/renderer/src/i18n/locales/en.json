@@ -20848,7 +20848,7 @@
       "loadFailed": "Could not load Jira favourites.",
       "clearFailed": "Could not clear the saved filter. Retry after it finishes loading or saving.",
       "applyFailed": "Could not apply the Jira favourite.",
-      "siteMismatch": "Choose a project from the favourite’s Jira site, or clear the project filter.",
+      "siteMismatch": "Choose a project from the favourite's Jira site, or clear the project filter.",
       "label": "Jira favourites",
       "chooseSite": "Choose one connected Jira site to use its favourites.",
       "unsupported": "Update the Jira host to use favourites.",
@@ -20920,5 +20920,54 @@
       "unavailable": "This workspace is protected or unavailable."
     },
     "rowActions": "Actions for {{name}}"
+  },
+  "promptLibrary": {
+    "quickAction": {
+      "title": "Insert Prompt",
+      "description": "Paste a saved prompt into the focused agent terminal or chat.",
+      "verbs": {
+        "insertPrompt": "insert prompt",
+        "promptLibrary": "prompt library",
+        "snippet": "snippet"
+      }
+    },
+    "insert": {
+      "noTarget": "No active agent terminal or chat to insert into.",
+      "title": "Insert Prompt",
+      "description": "Pastes the expanded prompt into the focused agent terminal or chat — it does not submit.",
+      "searchPlaceholder": "Search prompts…",
+      "empty": "No saved prompts match your search.",
+      "previewLabel": "Preview",
+      "missingVariables": "Not available here, left blank: {{value0}}",
+      "noSelection": "Select a prompt to preview it."
+    },
+    "settings": {
+      "deleteTitle": "Delete \"{{value0}}\"?",
+      "delete": "Delete",
+      "addPrompt": "Add Prompt",
+      "empty": "No saved prompts yet.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "edit": "Edit",
+      "dialogTitle": "Prompt",
+      "dialogDescription": "Variables expand when you insert the prompt: {{value0}}.",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Review this file",
+      "bodyLabel": "Prompt",
+      "bodyPlaceholder": "Review {file} on {branch}.",
+      "usesVariables": "Uses: {{value0}}",
+      "cancel": "Cancel",
+      "save": "Save",
+      "title": "Prompt Library",
+      "description": "Saved prompt snippets with variables, insertable from the command palette or a shortcut.",
+      "keywords": {
+        "prompt": "prompt",
+        "prompts": "prompts",
+        "snippet": "snippet",
+        "library": "library",
+        "template": "template",
+        "insert": "insert"
+      }
+    }
   }
 }

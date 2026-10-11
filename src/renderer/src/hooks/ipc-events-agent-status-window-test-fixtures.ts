@@ -42,6 +42,7 @@ export function buildWindowApi(args: {
         onToggleFloatingTerminal: () => () => {},
         onOpenQuickOpen: () => () => {},
         onToggleQuickCommandsMenu: () => () => {},
+        onOpenPromptLibrary: () => () => {},
         onOpenNewWorkspace: () => () => {},
         onOpenTasks: () => () => {},
         onJumpToWorktreeIndex: () => () => {},

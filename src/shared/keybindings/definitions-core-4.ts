@@ -3,6 +3,16 @@ import { platformBindings } from './definitions-support'
 
 export const KEYBINDING_DEFINITION_CORE_4: readonly KeybindingDefinition[] = [
   {
+    id: 'promptLibrary.insert',
+    title: 'Insert Prompt from Library',
+    group: 'Global',
+    scope: 'global',
+    searchKeywords: ['shortcut', 'global', 'prompt', 'library', 'snippet', 'insert', 'template'],
+    defaultBindings: platformBindings(['Mod+Shift+K']),
+    // Why: fires even while an agent terminal owns native focus, like workspace.delete.
+    allowInTerminal: true
+  },
+  {
     id: 'chat.find',
     title: 'Find in chat',
     group: 'Chat',

@@ -1,4 +1,4 @@
-import { FileText, FolderPlus, Globe, Play, SquareTerminal, Trash2 } from 'lucide-react'
+import { FileText, FolderPlus, Globe, Play, Sparkles, SquareTerminal, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { CmdJQuickActionAvailability, CmdJQuickActionContext } from './quick-action-context'
 import {
@@ -192,6 +192,26 @@ export const getCmdJQuickActions = createLocalizedCatalog((): CmdJQuickAction[] 
     isAvailable: () => ({ available: true }),
     run: async (ctx) => {
       ctx.openAddQuickCommand()
+      return { status: 'ok' }
+    }
+  },
+  {
+    id: 'insert-prompt',
+    kind: 'action',
+    title: translate('promptLibrary.quickAction.title', 'Insert Prompt'),
+    description: translate(
+      'promptLibrary.quickAction.description',
+      'Paste a saved prompt into the focused agent terminal or chat.'
+    ),
+    icon: Sparkles,
+    verbKeywords: [
+      translate('promptLibrary.quickAction.verbs.insertPrompt', 'insert prompt'),
+      translate('promptLibrary.quickAction.verbs.promptLibrary', 'prompt library'),
+      translate('promptLibrary.quickAction.verbs.snippet', 'snippet')
+    ],
+    isAvailable: () => ({ available: true }),
+    run: async (ctx) => {
+      ctx.openInsertPromptFromLibrary()
       return { status: 'ok' }
     }
   }

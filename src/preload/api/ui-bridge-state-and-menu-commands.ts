@@ -97,6 +97,11 @@ export const uiStateAndMenuCommandsApi = {
     ipcRenderer.on('ui:toggleQuickCommandsMenu', listener)
     return () => ipcRenderer.removeListener('ui:toggleQuickCommandsMenu', listener)
   },
+  onOpenPromptLibrary: (callback: () => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent) => callback()
+    ipcRenderer.on('ui:openPromptLibrary', listener)
+    return () => ipcRenderer.removeListener('ui:openPromptLibrary', listener)
+  },
   onOpenNewWorkspace: (callback: () => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent) => callback()
     ipcRenderer.on('ui:openNewWorkspace', listener)

@@ -109,7 +109,8 @@ describe('Cmd+J quick action context', () => {
       openNewTerminalTab: async () => {},
       openCreateWorkspace: () => {},
       deleteActiveWorkspace: () => {},
-      openAddQuickCommand: () => {}
+      openAddQuickCommand: () => {},
+      openInsertPromptFromLibrary: () => {}
     } satisfies CmdJQuickActionContext
 
     expect(
@@ -144,7 +145,8 @@ describe('Cmd+J quick action context', () => {
       openNewTerminalTab: async () => {},
       openCreateWorkspace: () => {},
       deleteActiveWorkspace: () => {},
-      openAddQuickCommand: () => {}
+      openAddQuickCommand: () => {},
+      openInsertPromptFromLibrary: () => {}
     } satisfies CmdJQuickActionContext
 
     for (const actionId of workspaceActions) {
@@ -225,7 +227,8 @@ describe('Cmd+J quick action context', () => {
       openNewTerminalTab: async () => {},
       openCreateWorkspace: () => {},
       deleteActiveWorkspace: () => {},
-      openAddQuickCommand: () => {}
+      openAddQuickCommand: () => {},
+      openInsertPromptFromLibrary: () => {}
     })
 
     expect(context.activeGroupId).toBe('first-group')
@@ -252,7 +255,8 @@ describe('Cmd+J quick action context', () => {
       openNewTerminalTab: async () => {},
       openCreateWorkspace: () => {},
       deleteActiveWorkspace: () => {},
-      openAddQuickCommand: () => {}
+      openAddQuickCommand: () => {},
+      openInsertPromptFromLibrary: () => {}
     })
 
     expect(context.isLoading).toBe(true)
@@ -308,7 +312,8 @@ describe('Cmd+J quick action context', () => {
         openNewTerminalTab: async () => {},
         openCreateWorkspace: () => {},
         deleteActiveWorkspace: () => {},
-        openAddQuickCommand: () => {}
+        openAddQuickCommand: () => {},
+        openInsertPromptFromLibrary: () => {}
       })
 
     expect(buildContext('terminal').canSplitActiveChat).toBe(true)
@@ -330,7 +335,8 @@ describe('Cmd+J quick action context', () => {
       },
       openCreateWorkspace: () => {},
       deleteActiveWorkspace: () => {},
-      openAddQuickCommand: () => {}
+      openAddQuickCommand: () => {},
+      openInsertPromptFromLibrary: () => {}
     } satisfies CmdJQuickActionContext
 
     await expect(action?.run(context)).resolves.toEqual({
@@ -362,7 +368,8 @@ describe('Cmd+J quick action context', () => {
       },
       openCreateWorkspace: () => {},
       deleteActiveWorkspace: () => {},
-      openAddQuickCommand: () => {}
+      openAddQuickCommand: () => {},
+      openInsertPromptFromLibrary: () => {}
     } satisfies CmdJQuickActionContext
 
     expect(actions.get('new-browser-tab')?.isAvailable(context)).toEqual({
@@ -395,7 +402,8 @@ describe('Cmd+J quick action context', () => {
       deleteActiveWorkspace: () => {
         calls.push('delete')
       },
-      openAddQuickCommand: () => {}
+      openAddQuickCommand: () => {},
+      openInsertPromptFromLibrary: () => {}
     } satisfies CmdJQuickActionContext
 
     await expect(action?.run(context)).resolves.toEqual({ status: 'ok' })
@@ -416,6 +424,7 @@ describe('Cmd+J quick action context', () => {
       openCreateWorkspace: () => {},
       deleteActiveWorkspace: () => {},
       openAddQuickCommand: () => {},
+      openInsertPromptFromLibrary: () => {},
       canSplitActiveChat: true,
       splitActiveChat: (direction: string) => {
         calls.push(direction)

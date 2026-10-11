@@ -43,6 +43,7 @@ export type UISliceContextual = {
     | 'confirm-sleep-twin'
     | 'add-repo'
     | 'quick-open'
+    | 'prompt-library'
     | 'worktree-palette'
     | 'workspace-cleanup'
     | 'project-added'

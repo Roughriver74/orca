@@ -115,6 +115,9 @@ export function useWorktreeJumpPaletteQuickActions({
     openSettingsTarget({ pane: 'quick-commands', repoId: null, intent: 'add-quick-command' })
     openSettingsPage()
   }, [openSettingsPage, openSettingsTarget])
+  const openInsertPromptFromLibraryAction = useCallback(() => {
+    openModal('prompt-library')
+  }, [openModal])
   const buildQuickActionContext = useCallback(
     () =>
       buildCmdJQuickActionContext({
@@ -126,13 +129,15 @@ export function useWorktreeJumpPaletteQuickActions({
         openNewTerminalTab: openNewTerminalTabInActiveWorkspace,
         openCreateWorkspace: openCreateWorkspaceAction,
         deleteActiveWorkspace: deleteActiveWorkspaceAction,
-        openAddQuickCommand: openAddQuickCommandAction
+        openAddQuickCommand: openAddQuickCommandAction,
+        openInsertPromptFromLibrary: openInsertPromptFromLibraryAction
       }),
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- the controller ref preserves its original stable identity.
     [
       deleteActiveWorkspaceAction,
       openAddQuickCommandAction,
       openBrowserUrlAction,
+      openInsertPromptFromLibraryAction,
       openCreateWorkspaceAction,
       openNewBrowserTabInActiveWorkspace,
       openNewMarkdownInActiveWorkspace,
