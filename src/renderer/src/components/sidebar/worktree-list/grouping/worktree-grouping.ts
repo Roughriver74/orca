@@ -27,6 +27,7 @@ import type {
   WorktreeGroupBy
 } from './row-types'
 import { getManualOrderAnchorRepo, sortProjectEntries } from './section-order'
+import type { ProjectAttentionByWorktree } from './project-attention-rank'
 
 /** Lane label for a lane a folder workspace opened before any worktree did. */
 function getLaneLabelForKey(
@@ -61,6 +62,7 @@ export function buildOrderedGroups(args: {
   projectOrderBy: ProjectOrderBy
   folderWorkspaces?: readonly RenderableFolderWorkspace[]
   compareFolderWorkspaces: FolderWorkspaceComparator
+  projectAttentionByWorktree?: ProjectAttentionByWorktree
 }): OrderedGroupEntry[] {
   const {
     groupBy,
@@ -77,7 +79,8 @@ export function buildOrderedGroups(args: {
     repoOrder,
     projectOrderBy,
     folderWorkspaces = [],
-    compareFolderWorkspaces
+    compareFolderWorkspaces,
+    projectAttentionByWorktree
   } = args
 
   const grouped = new Map<string, WorktreeGroupEntry>()
@@ -235,7 +238,12 @@ export function buildOrderedGroups(args: {
     // Why: project header order is its own user choice (projectOrderBy),
     // decoupled from workspace sortBy. Manual uses the canonical repoOrder so
     // header drag has a stable source of truth; Recent follows activity.
-    const entries = sortProjectEntries(Array.from(grouped.entries()), projectOrderBy, repoOrder)
+    const entries = sortProjectEntries(
+      Array.from(grouped.entries()),
+      projectOrderBy,
+      repoOrder,
+      projectAttentionByWorktree
+    )
     // Why: large imported repo sets can have one group per repo; spreading
     // those entries into push can exceed V8's argument limit.
     for (const entry of entries) {
