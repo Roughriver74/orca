@@ -37,6 +37,7 @@ import { useRuntimeGraphSync } from './app-shell/use-runtime-graph-sync'
 import { useWindowVisibilityEffects } from './app-shell/use-window-visibility-effects'
 import { SpaceWindowStatePublisher } from './components/workspace-space/SpaceWindowStatePublisher'
 import { installActiveWorktreeRemovalSuccessor } from './lib/active-worktree-removal-successor'
+import { useWorkspaceTimelineCapture } from './components/right-sidebar/workspace-timeline/use-workspace-timeline-capture'
 
 function App(): React.JSX.Element {
   const layout = useAppChromeLayout()
@@ -51,6 +52,7 @@ function App(): React.JSX.Element {
   useAppSessionPersistence()
   useRuntimeGraphSync()
   usePersistedUIWriter()
+  useWorkspaceTimelineCapture()
   useDocumentAppearance()
   useDocumentTitle()
   useWindowVisibilityEffects()

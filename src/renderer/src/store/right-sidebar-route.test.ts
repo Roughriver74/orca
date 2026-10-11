@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest'
+import { STATIC_RIGHT_SIDEBAR_TABS } from '../../../shared/rpc-contract/client-ui-params'
 import { normalizeRightSidebarRoute } from './right-sidebar-route'
 
 describe('normalizeRightSidebarRoute', () => {
+  // Why: a tab missing here silently renders Explorer when its activity button is clicked.
+  it.each(STATIC_RIGHT_SIDEBAR_TABS.filter((tab) => tab !== 'search'))(
+    'preserves the %s activity tab',
+    (tab) => {
+      expect(normalizeRightSidebarRoute(tab).rightSidebarTab).toBe(tab)
+    }
+  )
+
   it('preserves the folder-only PR Checks route', () => {
     expect(normalizeRightSidebarRoute('pr-checks')).toEqual({
       rightSidebarTab: 'pr-checks',

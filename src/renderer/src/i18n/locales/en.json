@@ -14231,7 +14231,16 @@
             "fc3095d2ed": "explorer",
             "aiVaultSessionHistory": "Agents",
             "folderWorkspaces": "Attached worktrees",
-            "parentPrChecks": "PR Checks"
+            "parentPrChecks": "PR Checks",
+            "workspaceTimeline": "Timeline"
+          },
+          "workspace": {
+            "timeline": {
+              "WorkspaceTimelinePanel": {
+                "cba5b45cf6": "Select a workspace to see its timeline.",
+                "ddb788cfb5": "No activity yet. Prompts, agent progress and commits will show up here."
+              }
+            }
           },
           "right": {
             "panel": {

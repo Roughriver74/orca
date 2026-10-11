@@ -218,3 +218,4 @@ describe('editorTabDocumentFolderAccess', () => {
     expect(editorTabDocumentFolderAccess(useAppStore.getState(), file)).toBeUndefined()
   })
 })
+
