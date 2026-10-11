@@ -44,6 +44,7 @@ function renderShell(file: OpenFile, isCombinedDiff = false): string {
     isMermaid: false,
     isCsv: false,
     isNotebook: false,
+    isExcalidraw: false,
     hasEditorToggle: false,
     availableEditorToggleModes: [],
     effectiveToggleValue: 'edit',

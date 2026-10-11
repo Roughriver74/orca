@@ -15300,9 +15300,13 @@
         "EditorPanelShell": {
           "e2c4dec350": "편집기 로드 중..."
         },
+        "ExcalidrawViewer": {
+          "4b306c693f": "이 Excalidraw 파일을 표시할 수 없습니다: {{value0}}"
+        },
         "EditorViewToggle": {
           "b3410cd5e0": "노트북",
           "e408aa9cd5": "테이블",
+          "67c9a72313": "다이어그램",
           "167f45888c": "commit 되지 않은 변경 사항",
           "4837f3f578": "변경 사항",
           "ac3bb87913": "편집",

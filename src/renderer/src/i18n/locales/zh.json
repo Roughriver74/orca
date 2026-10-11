@@ -15300,9 +15300,13 @@
         "EditorPanelShell": {
           "e2c4dec350": "正在加载编辑器..."
         },
+        "ExcalidrawViewer": {
+          "4b306c693f": "无法显示此 Excalidraw 文件：{{value0}}"
+        },
         "EditorViewToggle": {
           "b3410cd5e0": "笔记本",
           "e408aa9cd5": "桌子",
+          "67c9a72313": "图表",
           "167f45888c": "未提交的更改",
           "4837f3f578": "更改",
           "ac3bb87913": "编辑",

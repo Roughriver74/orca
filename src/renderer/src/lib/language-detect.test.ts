@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectLanguage } from './language-detect'
+import { detectLanguage, toMonacoLanguage } from './language-detect'
 
 describe('detectLanguage', () => {
   it('maps .vue files to the custom vue language id', () => {
@@ -18,6 +18,12 @@ describe('detectLanguage', () => {
     expect(detectLanguage('src/main.nim')).toBe('nim')
     expect(detectLanguage('tasks/build.nims')).toBe('nim')
     expect(detectLanguage('packages/app.nimble')).toBe('nim')
+  })
+
+  it('maps .excalidraw files to the excalidraw viewer and edits their source as JSON', () => {
+    const language = detectLanguage('docs/Схема процесса.Excalidraw')
+    expect(language).toBe('excalidraw')
+    expect(toMonacoLanguage(language)).toBe('json')
   })
 
   it.each([

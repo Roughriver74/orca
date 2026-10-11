@@ -15300,9 +15300,13 @@
         "EditorPanelShell": {
           "e2c4dec350": "エディターを読み込み中…"
         },
+        "ExcalidrawViewer": {
+          "4b306c693f": "この Excalidraw ファイルを表示できません: {{value0}}"
+        },
         "EditorViewToggle": {
           "b3410cd5e0": "ノート",
           "e408aa9cd5": "テーブル",
+          "67c9a72313": "図",
           "167f45888c": "未コミットの変更",
           "4837f3f578": "変更点",
           "ac3bb87913": "編集",

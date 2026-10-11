@@ -29,6 +29,7 @@ const EXT_TO_LANGUAGE: Record<string, string> = {
   // would flag every record after line one as trailing content.
   '.jsonl': 'jsonl',
   '.ipynb': 'notebook',
+  '.excalidraw': 'excalidraw',
   '.md': 'markdown',
   '.mdx': 'markdown',
   // Why: Quarto/R Markdown are Markdown plus a YAML header and executable
@@ -170,4 +171,9 @@ export function detectLanguage(filePath: string): string {
     detectMonacoFilenameLanguage(filename) ??
     (lowerName === '.env' || lowerName.startsWith('.env.') ? 'ini' : 'plaintext')
   )
+}
+
+// Why: notebook and excalidraw are viewer languages over JSON files; Monaco only knows 'json'.
+export function toMonacoLanguage(language: string): string {
+  return language === 'notebook' || language === 'excalidraw' ? 'json' : language
 }

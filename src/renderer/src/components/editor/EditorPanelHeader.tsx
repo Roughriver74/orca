@@ -6,6 +6,7 @@ import type { OpenFile } from '@/store/slices/editor'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import EditorViewToggle, {
   CSV_VIEW_MODE_METADATA,
+  EXCALIDRAW_VIEW_MODE_METADATA,
   NOTEBOOK_VIEW_MODE_METADATA
 } from './EditorViewToggle'
 import type { EditorToggleValue } from './EditorViewToggle'
@@ -29,6 +30,7 @@ type EditorPanelHeaderProps = {
   isMarkdown: boolean
   isCsv: boolean
   isNotebook: boolean
+  isExcalidraw: boolean
   hasEditorToggle: boolean
   availableEditorToggleModes: readonly EditorToggleValue[]
   effectiveToggleValue: EditorToggleValue
@@ -63,6 +65,7 @@ export function EditorPanelHeader({
   isMarkdown,
   isCsv,
   isNotebook,
+  isExcalidraw,
   hasEditorToggle,
   availableEditorToggleModes,
   effectiveToggleValue,
@@ -272,7 +275,13 @@ export function EditorPanelHeader({
           modes={availableEditorToggleModes}
           onChange={onEditorToggleChange}
           metadataOverride={
-            isCsv ? CSV_VIEW_MODE_METADATA : isNotebook ? NOTEBOOK_VIEW_MODE_METADATA : undefined
+            isCsv
+              ? CSV_VIEW_MODE_METADATA
+              : isNotebook
+                ? NOTEBOOK_VIEW_MODE_METADATA
+                : isExcalidraw
+                  ? EXCALIDRAW_VIEW_MODE_METADATA
+                  : undefined
           }
         />
       )}

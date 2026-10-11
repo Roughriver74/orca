@@ -44,6 +44,12 @@ describe('getMarkdownViewModes', () => {
       })
     ).toEqual(['source', 'rich'])
   })
+
+  it('opens excalidraw edit tabs as a diagram with a source toggle and no Changes', () => {
+    const target = { language: 'excalidraw', mode: 'edit' } as const
+    expect(getEditorToggleModes(target)).toEqual(['source', 'rich'])
+    expect(getDefaultMarkdownViewMode(target)).toBe('rich')
+  })
 })
 
 describe('markdown preview helpers', () => {
