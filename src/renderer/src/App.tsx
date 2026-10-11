@@ -33,6 +33,7 @@ import { useOnboardingAndFeatureTips } from './app-shell/use-onboarding-and-feat
 import { usePersistedUIWriter } from './app-shell/use-persisted-ui-writer'
 import { useRuntimeGraphSync } from './app-shell/use-runtime-graph-sync'
 import { useWindowVisibilityEffects } from './app-shell/use-window-visibility-effects'
+import { useWorkspaceTimelineCapture } from './components/right-sidebar/workspace-timeline/use-workspace-timeline-capture'
 
 function App(): React.JSX.Element {
   const layout = useAppChromeLayout()
@@ -47,6 +48,7 @@ function App(): React.JSX.Element {
   useAppSessionPersistence()
   useRuntimeGraphSync()
   usePersistedUIWriter()
+  useWorkspaceTimelineCapture()
   useDocumentAppearance()
   useDocumentTitle()
   useWindowVisibilityEffects()

@@ -234,6 +234,7 @@ const USER_NAMED_TAB_OPENERS = [
   'components/right-sidebar/ai-vault-session-log-open.ts',
   'components/right-sidebar/source-control/notes/use-note-opening.ts',
   'components/right-sidebar/useFileExplorerHandlers.ts',
+  'components/right-sidebar/workspace-timeline/use-workspace-timeline-file-open.ts',
   'components/settings/KeybindingsFileActions.tsx',
   'components/tab-bar/tab-create-entry-absolute-file.ts',
   'components/terminal-pane/terminal-file-open-routing.ts',
