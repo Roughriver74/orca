@@ -123,7 +123,9 @@ describe('project group store routing', () => {
     projectGroupsCreate.mockResolvedValue(projectGroup)
     const store = createTestStore()
 
-    await expect(store.getState().createProjectGroup('Platform', 'local')).resolves.toEqual({
+    await expect(
+      store.getState().createProjectGroup('Platform', { hostId: 'local' })
+    ).resolves.toEqual({
       ...projectGroup,
       executionHostId: 'local'
     })

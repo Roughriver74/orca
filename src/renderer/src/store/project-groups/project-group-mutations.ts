@@ -6,7 +6,6 @@ import { selectProjectGroupRemovalTargets } from '../slices/project-group-remova
 import {
   getProjectGroupHostId,
   isProjectGroupJoinableFromCatalog,
-  projectGroupMatchesOwnerHost,
   resolveProjectGroupOwnerHostId,
   runtimeTargetForProjectGroupOwner
 } from '../slices/project-group-owner-routing'
@@ -16,7 +15,11 @@ import {
   repoMatchesHostIdentity
 } from '../slices/repo-host-identity'
 import { callRuntimeRpc } from '../../runtime/runtime-rpc-client'
-import { ipcOrRuntimeTargetForHostId } from '../../runtime/runtime-client-target'
+import {
+  ipcOrRuntimeTargetForHostId,
+  runtimeTargetForOwnerEnvironment
+} from '../../runtime/runtime-client-target'
+import { findIndexedProjectGroupOwner } from '@/lib/worktree-runtime-owner-index'
 import { getRepoExecutionHostId } from '../../../../shared/execution-host'
 import type { ProjectRemovalFailure, RepoSlice } from '../repos/repo-state'
 import { mergeProjectCompatibilityForHostRepoChange } from '../repos/repo-catalog-identity'
@@ -24,6 +27,7 @@ import { applyProjectGroupDeleteCascade } from './project-group-removal-state'
 import { adoptFromEndpoint } from '../adopt-from-endpoint'
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
+import { createProjectGroupOwnerUpdate } from './project-group-owner-update'
 
 function notifyProjectGroupOnOtherHost(): void {
   toast.error(
@@ -44,31 +48,43 @@ export function createProjectGroupMutationActions(
   RepoSlice,
   | 'createProjectGroup'
   | 'updateProjectGroup'
+  | 'moveProjectGroup'
   | 'deleteProjectGroup'
   | 'deleteProjectGroupWithContainedProjects'
   | 'moveProjectToGroup'
 > {
+  const updateOnOwnerHost = createProjectGroupOwnerUpdate(set, get)
+
   return {
-    createProjectGroup: async (name, hostId) => {
+    createProjectGroup: async (name, options) => {
       try {
-        // Why: a new group lands on the host of the project that seeds it, not the focused one.
-        const target = ipcOrRuntimeTargetForHostId(hostId)
+        const parentGroupId = options?.parentGroupId
+        // Why: a subgroup is created on its parent's host, which may not be the focused one.
+        const target = parentGroupId
+          ? runtimeTargetForProjectGroupOwner(get(), parentGroupId, options?.hostId)
+          : options?.hostId
+            ? ipcOrRuntimeTargetForHostId(options.hostId)
+            : runtimeTargetForOwnerEnvironment(get().settings?.activeRuntimeEnvironmentId ?? null)
         if (!target) {
           return null
         }
+        const parent = parentGroupId
+          ? findIndexedProjectGroupOwner(get().projectGroups, parentGroupId, options?.hostId)
+          : null
+        const args = {
+          name,
+          createdFrom: 'manual' as const,
+          ...(parentGroupId ? { parentGroupId } : {}),
+          // Why: hosts older than nesting don't inherit the parent's SSH target on create.
+          ...(parent?.connectionId ? { connectionId: parent.connectionId } : {})
+        }
         const group =
           target.kind === 'local'
-            ? await window.api.projectGroups.create({
-                name,
-                createdFrom: 'manual'
-              })
+            ? await window.api.projectGroups.create(args)
             : (
-                await callRuntimeRpc<{ group: ProjectGroup }>(
-                  target,
-                  'projectGroup.create',
-                  { name, createdFrom: 'manual' },
-                  { timeoutMs: 15_000 }
-                )
+                await callRuntimeRpc<{ group: ProjectGroup }>(target, 'projectGroup.create', args, {
+                  timeoutMs: 15_000
+                })
               ).group
         const ownedGroup = adoptFromEndpoint(target, { kind: 'projectGroup', row: group })
         const ownerHostId = getProjectGroupHostId(ownedGroup)
@@ -96,36 +112,25 @@ export function createProjectGroupMutationActions(
 
     updateProjectGroup: async (groupId, updates, options) => {
       try {
-        // Why: the sidebar lists groups from every host, so the mutation follows the group's owner, not the focused host.
-        const ownerHostId = resolveProjectGroupOwnerHostId(get(), groupId, options?.hostId)
-        const target = runtimeTargetForProjectGroupOwner(get(), groupId, options?.hostId)
-        if (!target) {
-          return false
-        }
-        const updated =
-          target.kind === 'local'
-            ? await window.api.projectGroups.update({ groupId, updates })
-            : (
-                await callRuntimeRpc<{ group: ProjectGroup | null }>(
-                  target,
-                  'projectGroup.update',
-                  { groupId, updates },
-                  { timeoutMs: 15_000 }
-                )
-              ).group
-        if (!updated) {
-          return false
-        }
-        const ownedGroup = adoptFromEndpoint(target, { kind: 'projectGroup', row: updated })
-        set((s) => ({
-          projectGroups: s.projectGroups.map((group) =>
-            projectGroupMatchesOwnerHost(group, groupId, ownerHostId) ? ownedGroup : group
-          ),
-          folderWorkspacePathStatuses: {}
-        }))
-        return true
+        return await updateOnOwnerHost(groupId, updates, options?.hostId)
       } catch (err) {
         console.error('Failed to update project group:', err)
+        return false
+      }
+    },
+
+    moveProjectGroup: async (groupId, parentGroupId, options) => {
+      try {
+        // Why: no tabOrder, so the host appends the group after its new siblings. An older host
+        // drops parentGroupId yet still answers with the unmoved group.
+        return await updateOnOwnerHost(
+          groupId,
+          { parentGroupId },
+          options?.hostId,
+          (group) => (group.parentGroupId ?? null) === parentGroupId
+        )
+      } catch (err) {
+        console.error('Failed to move project group:', err)
         return false
       }
     },

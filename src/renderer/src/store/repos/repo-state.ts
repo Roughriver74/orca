@@ -5,7 +5,8 @@ import type { FolderWorkspace } from '../../../../shared/folder-workspace-types'
 import type {
   NestedRepoScanResult,
   ProjectGroup,
-  ProjectGroupImportResult
+  ProjectGroupImportResult,
+  ProjectGroupUpdates
 } from '../../../../shared/project-group-types'
 import type {
   Project,
@@ -211,8 +212,12 @@ export type RepoSlice = {
     runtimeEnvironmentId: string | null
     mode: 'group' | 'separate'
   }) => Promise<ProjectGroupImportResult | null>
-  /** `hostId` is the host of the project that seeds the group. */
-  createProjectGroup: (name: string, hostId: ExecutionHostId) => Promise<ProjectGroup | null>
+  // options.parentGroupId creates a subgroup on that parent's host; options.hostId disambiguates
+  // the parent row, or (with no parentGroupId) is the host of the project that seeds the group.
+  createProjectGroup: (
+    name: string,
+    options?: { parentGroupId?: string; hostId?: ExecutionHostId }
+  ) => Promise<ProjectGroup | null>
   createFolderWorkspace: (
     args: {
       projectGroupId: string
@@ -251,7 +256,14 @@ export type RepoSlice = {
   // options.hostId targets a specific host's row + RPC target when the id exists on multiple hosts; else the group's own host owns the call.
   updateProjectGroup: (
     groupId: string,
-    updates: Partial<Pick<ProjectGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>,
+    // Why: moves go through moveProjectGroup, which first checks that the owner host supports nesting.
+    updates: Omit<ProjectGroupUpdates, 'parentGroupId'>,
+    options?: { hostId?: ExecutionHostId }
+  ) => Promise<boolean>
+  // parentGroupId null moves the group to the top level; false when the owner host rejected or ignored the move.
+  moveProjectGroup: (
+    groupId: string,
+    parentGroupId: string | null,
     options?: { hostId?: ExecutionHostId }
   ) => Promise<boolean>
   deleteProjectGroup: (groupId: string, options?: { hostId?: ExecutionHostId }) => Promise<boolean>

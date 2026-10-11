@@ -3,6 +3,11 @@ import type { FolderWorkspaceComparator, RenderableFolderWorkspace } from './fol
 import type { ProjectGroup } from '../project-group-types'
 import type { ProjectOrderBy } from '../ui-chrome-types'
 import { getDistinctProjectGroups, getEffectiveProjectGroupManualRank } from '../project-groups'
+import {
+  LOCAL_EXECUTION_HOST_ID,
+  getRepoExecutionHostId,
+  parseExecutionHostId
+} from '../execution-host'
 import { getProjectGroupHeaderKey } from './group-keys'
 import { appendOrderedGroups } from './group-sections'
 import { compareCodePoints, compareSidebarText } from './text-order'
@@ -78,16 +83,25 @@ export function appendProjectGroupSections(
   for (const list of folderWorkspacesByProjectGroupId.values()) {
     list.sort((left, right) => compareFolderWorkspaces(left.folderWorkspace, right.folderWorkspace))
   }
-  const childGroupsByParentId = new Map<string | null, ProjectGroup[]>()
+  // Why: ids repeat across hosts and each host nests its own copies, so a parent link resolves
+  // only inside the group's catalog; linking by bare id could turn two acyclic hosts into a loop.
+  const catalogGroupKey = (group: ProjectGroup, id: string): string => {
+    const hostId = getRepoExecutionHostId(group)
+    const catalogHostId =
+      parseExecutionHostId(hostId)?.kind === 'runtime' ? hostId : LOCAL_EXECUTION_HOST_ID
+    return `${catalogHostId}\u0000${id}`
+  }
+  const catalogGroupKeys = new Set(projectGroups.map((group) => catalogGroupKey(group, group.id)))
+  const childGroupsByParentKey = new Map<string | null, ProjectGroup[]>()
   // Why distinct: membership is id-keyed, so a same-id copy's header would sit empty (#30045).
   for (const group of getDistinctProjectGroups(projectGroups)) {
-    const parentId =
-      group.parentGroupId && projectGroupsById.has(group.parentGroupId) ? group.parentGroupId : null
-    const children = childGroupsByParentId.get(parentId) ?? []
+    const parentKey = group.parentGroupId ? catalogGroupKey(group, group.parentGroupId) : null
+    const key = parentKey && catalogGroupKeys.has(parentKey) ? parentKey : null
+    const children = childGroupsByParentKey.get(key) ?? []
     children.push(group)
-    childGroupsByParentId.set(parentId, children)
+    childGroupsByParentKey.set(key, children)
   }
-  for (const groups of childGroupsByParentId.values()) {
+  for (const groups of childGroupsByParentKey.values()) {
     groups.sort(
       (left, right) =>
         left.tabOrder - right.tabOrder ||
@@ -96,26 +110,27 @@ export function appendProjectGroupSections(
         compareCodePoints(left.id, right.id)
     )
   }
+  const getChildGroups = (group: ProjectGroup): ProjectGroup[] =>
+    childGroupsByParentKey.get(catalogGroupKey(group, group.id)) ?? []
 
-  const getProjectGroupSubtreeCount = (groupId: string): number => {
-    const directCount = groupByProjectGroupId.get(groupId)?.length ?? 0
-    const folderWorkspaceCount = folderWorkspacesByProjectGroupId.get(groupId)?.length ?? 0
-    const children = childGroupsByParentId.get(groupId) ?? []
-    return children.reduce(
-      (count, child) => count + getProjectGroupSubtreeCount(child.id),
+  const getProjectGroupSubtreeCount = (group: ProjectGroup): number => {
+    const directCount = groupByProjectGroupId.get(group.id)?.length ?? 0
+    const folderWorkspaceCount = folderWorkspacesByProjectGroupId.get(group.id)?.length ?? 0
+    return getChildGroups(group).reduce(
+      (count, child) => count + getProjectGroupSubtreeCount(child),
       directCount + folderWorkspaceCount
     )
   }
 
   const appendProjectGroup = (projectGroup: ProjectGroup, depth: number): void => {
     const repoEntries = sortRepoEntriesWithinGroup(groupByProjectGroupId.get(projectGroup.id) ?? [])
-    const childGroups = childGroupsByParentId.get(projectGroup.id) ?? []
+    const childGroups = getChildGroups(projectGroup)
     const key = getProjectGroupHeaderKey(projectGroup.id)
     result.push({
       type: 'header',
       key,
       label: projectGroup.name,
-      count: getProjectGroupSubtreeCount(projectGroup.id),
+      count: getProjectGroupSubtreeCount(projectGroup),
       icon: { kind: 'project' },
       projectGroup,
       projectGroupDepth: depth
@@ -132,7 +147,7 @@ export function appendProjectGroupSections(
     groupByProjectGroupId.delete(projectGroup.id)
   }
 
-  for (const projectGroup of childGroupsByParentId.get(null) ?? []) {
+  for (const projectGroup of childGroupsByParentKey.get(null) ?? []) {
     appendProjectGroup(projectGroup, 0)
   }
 

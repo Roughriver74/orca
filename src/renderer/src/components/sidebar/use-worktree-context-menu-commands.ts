@@ -78,7 +78,9 @@ export function useWorktreeContextMenuCommands(args: {
       if (!args.repo) {
         return
       }
-      const group = await args.createProjectGroup(name, getRepoExecutionHostId(args.repo))
+      const group = await args.createProjectGroup(name, {
+        hostId: getRepoExecutionHostId(args.repo)
+      })
       if (group) {
         await args.moveProjectToGroup(args.repo, group.id)
       }

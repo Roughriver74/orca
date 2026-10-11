@@ -81,7 +81,7 @@ export function registerReposProjectGroupCreateRaceTests(): void {
   describe.each([null, 'env-1'])('project group creation on host %s', (runtimeEnvironmentId) => {
     it('keeps the refreshed row without notifying subscribers when refresh finishes first', async () => {
       const { store, created, createStarted, ownerHostId } = setup(runtimeEnvironmentId)
-      const pendingCreate = store.getState().createProjectGroup('Platform', ownerHostId)
+      const pendingCreate = store.getState().createProjectGroup('Platform', { hostId: ownerHostId })
       await createStarted.promise
       await store.getState().fetchProjectGroups(catalogOwner(store))
       const refreshedState = store.getState()
@@ -106,7 +106,7 @@ export function registerReposProjectGroupCreateRaceTests(): void {
 
     it('inserts beside another host with the same ID, then accepts the later refresh', async () => {
       const { store, created, ownerHostId } = setup(runtimeEnvironmentId)
-      const pendingCreate = store.getState().createProjectGroup('Platform', ownerHostId)
+      const pendingCreate = store.getState().createProjectGroup('Platform', { hostId: ownerHostId })
       created.resolve(projectGroup)
       await pendingCreate
       expect(store.getState().projectGroups).toEqual([
@@ -125,7 +125,7 @@ export function registerReposProjectGroupCreateRaceTests(): void {
 
     it('keeps the original owner when the focused host changes during creation', async () => {
       const { store, created, createStarted, ownerHostId } = setup(runtimeEnvironmentId)
-      const pendingCreate = store.getState().createProjectGroup('Platform', ownerHostId)
+      const pendingCreate = store.getState().createProjectGroup('Platform', { hostId: ownerHostId })
       await createStarted.promise
       store.setState({
         settings: { ...getDefaultSettings('/test'), activeRuntimeEnvironmentId: 'other' }
@@ -142,7 +142,7 @@ export function registerReposProjectGroupCreateRaceTests(): void {
     it('does not roll back a successful refresh if the create response fails', async () => {
       const { store, created, createStarted, ownerHostId } = setup(runtimeEnvironmentId)
       vi.spyOn(console, 'error').mockImplementation(() => {})
-      const pendingCreate = store.getState().createProjectGroup('Platform', ownerHostId)
+      const pendingCreate = store.getState().createProjectGroup('Platform', { hostId: ownerHostId })
       await createStarted.promise
       await store.getState().fetchProjectGroups(catalogOwner(store))
       const refreshedState = store.getState()
@@ -157,7 +157,7 @@ export function registerReposProjectGroupCreateRaceTests(): void {
     const sshGroup = { ...projectGroup, connectionId: 'server' }
     store.setState({ projectGroups: [sshGroup, refreshedGroup] })
     const state = store.getState()
-    const pendingCreate = state.createProjectGroup('Platform', ownerHostId)
+    const pendingCreate = state.createProjectGroup('Platform', { hostId: ownerHostId })
     created.resolve(projectGroup)
     await pendingCreate
     expect(store.getState()).toBe(state)
@@ -167,7 +167,7 @@ export function registerReposProjectGroupCreateRaceTests(): void {
     const { store, created, ownerHostId } = setup(null)
     const sshGroup = { ...projectGroup, connectionId: 'server' }
     store.setState({ projectGroups: [sshGroup] })
-    const pendingCreate = store.getState().createProjectGroup('Platform', ownerHostId)
+    const pendingCreate = store.getState().createProjectGroup('Platform', { hostId: ownerHostId })
     created.resolve(projectGroup)
     await pendingCreate
     expect(store.getState().projectGroups).toEqual([
