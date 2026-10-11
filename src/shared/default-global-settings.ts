@@ -6,6 +6,7 @@ import { getDefaultTerminalQuickCommands } from './terminal-quick-commands'
 import { TASK_PROVIDERS } from './task-providers'
 import { getDefaultSourceControlAiSettings } from './source-control-ai-settings'
 import { DEFAULT_APP_ICON_ID } from './app-icon'
+import { DEFAULT_INTERFACE_THEME_ID } from './interface-themes'
 import { DEFAULT_OPEN_IN_APPLICATIONS } from './open-in-applications'
 import { DEFAULT_DISABLED_TUI_AGENTS } from './tui-agent-selection'
 import { DEFAULT_TUI_AGENT_ARGS, DEFAULT_TUI_AGENT_ENV } from './tui-agent-launch-defaults'
@@ -42,6 +43,8 @@ export function buildDefaultSettings(args: {
     branchPrefixCustom: '',
     jiraIssueKeyCasing: 'lowercase',
     theme: 'system',
+    interfaceThemeDark: DEFAULT_INTERFACE_THEME_ID,
+    interfaceThemeLight: DEFAULT_INTERFACE_THEME_ID,
     leftSidebarAppearanceMode: 'default',
     leftSidebarTintColor: DEFAULT_LEFT_SIDEBAR_TINT_COLOR,
     leftSidebarTintOpacity: DEFAULT_LEFT_SIDEBAR_TINT_OPACITY,

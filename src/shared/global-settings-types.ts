@@ -74,6 +74,10 @@ export type GlobalSettings = GlobalSettingsBase & {
    *  Existing workspaces and user-typed names are never rewritten. */
   jiraIssueKeyCasing?: JiraIssueKeyCasing
   theme: 'system' | 'dark' | 'light'
+  /** Interface palette id used while the resolved theme is dark (see shared/interface-themes). */
+  interfaceThemeDark: string
+  /** Interface palette id used while the resolved theme is light. */
+  interfaceThemeLight: string
   /** Controls the left sidebar surface without changing terminal brightness. */
   leftSidebarAppearanceMode: LeftSidebarAppearanceMode
   leftSidebarTintColor?: string
