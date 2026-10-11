@@ -11,6 +11,7 @@ import {
   WorktreeCardMetaBadges
 } from './WorktreeCardMeta'
 import { WorktreeCardPortsDetails, WorktreeCardPortsTrigger } from './WorktreeCardPorts'
+import { WorktreeCardUsageDetails, WorktreeCardUsageTrigger } from './WorktreeCardUsage'
 import type { WorktreeCardController } from './use-worktree-card-controller'
 
 function getVisibleContextLabel(
@@ -85,7 +86,9 @@ export function buildWorktreeCardPresentation(card: WorktreeCardController) {
     handleUnlinkReview,
     detailsHoverControl,
     showDeleteQuickAction: cardShowsDeleteQuickAction,
-    projectRowLabel
+    projectRowLabel,
+    hasUsage,
+    workspaceUsage
   } = card
   const isProjectRow = projectRowLabel !== undefined
   // Why: a project row's title line belongs to the project actions (… and +); details stay on hover.
@@ -122,9 +125,9 @@ export function buildWorktreeCardPresentation(card: WorktreeCardController) {
   // Why: the slot owns the unread/status lane; legacy keeps the bell toggle, the new card keeps the glyph passive.
   const showCombinedStatusSlot = showStatus
   const showTitleRowPrimary = !isProjectRow && compactCards && worktree.isMainWorktree && !isFolder
-  const showMetaRowDetails = !newCardStyle && !compactCards && (hasDetails || hasPorts)
+  const showMetaRowDetails = !newCardStyle && !compactCards && (hasDetails || hasPorts || hasUsage)
   const showTitleRowIndicators =
-    !isProjectRow && (newCardStyle || compactCards) && (hasDetails || hasPorts)
+    !isProjectRow && (newCardStyle || compactCards) && (hasDetails || hasPorts || hasUsage)
   // Why: grouped views can hide the repo badge; don't reserve a blank metadata lane unless there's real content.
   const hasDetailedMetaRowContent = Boolean(
     (showRepoBadgeInMetaRow && repo) ||
@@ -205,9 +208,10 @@ export function buildWorktreeCardPresentation(card: WorktreeCardController) {
           : showIssue
   )
   const detailsAndPortsContent =
-    hasDetails || hasPorts ? (
+    hasDetails || hasPorts || hasUsage ? (
       <div className="flex shrink-0 items-center gap-1">
         {hasPorts && <WorktreeCardPortsTrigger ports={workspacePorts} />}
+        {hasUsage && workspaceUsage && <WorktreeCardUsageTrigger usage={workspaceUsage} />}
         {hasDetails && (
           <WorktreeCardMetaBadges
             linkedItemCount={allReferenceItems.length}
@@ -238,7 +242,14 @@ export function buildWorktreeCardPresentation(card: WorktreeCardController) {
         comment={metaComment}
         automationProvenance={metaAutomationProvenance}
         cliProvenance={metaCliProvenance}
-        detailsAfter={hasPorts ? <WorktreeCardPortsDetails ports={workspacePorts} /> : null}
+        detailsAfter={
+          hasPorts || (hasUsage && workspaceUsage) ? (
+            <>
+              {hasPorts && <WorktreeCardPortsDetails ports={workspacePorts} />}
+              {hasUsage && workspaceUsage && <WorktreeCardUsageDetails usage={workspaceUsage} />}
+            </>
+          ) : null
+        }
         hoverControl={detailsHoverControl}
         onEditIssue={affiliateListMode ? undefined : handleEditIssue}
         onEditComment={affiliateListMode ? undefined : handleEditComment}

@@ -240,6 +240,8 @@ function setFlatWorktreeState(): void {
     updateWorktreesMeta: vi.fn(),
     workspaceHostScope: 'all',
     workspacePortScan: null,
+    workspaceUsageTodayByWorktreeId: {},
+    fetchWorkspaceUsageToday: vi.fn(),
     workspaceStatuses: [],
     worktreeCardProperties: ['status', 'pr', 'comment'] satisfies WorktreeCardProperty[],
     worktreeLineageById: {},

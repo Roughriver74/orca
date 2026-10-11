@@ -12,13 +12,19 @@ import type {
   CodexUsageSummary
 } from '../../shared/codex-usage-types'
 import type { AutomationRunUsage } from '../../shared/automations-types'
+import type { WorkspaceUsageProviderToday } from '../../shared/workspace-usage-types'
 import type { Store } from '../persistence'
 import type { CodexUsagePersistedState } from './types'
 import type { AutomationUsageLookupInput } from './codex-automation-run-attribution'
 import { CODEX_USAGE_SCHEMA_VERSION, codexUsageProvider } from './codex-usage-provider'
 import { resolveCodexAutomationRunUsage } from './codex-automation-run-attribution'
 import { buildRecentSessions } from './codex-usage-session-rows'
-import { buildBreakdown, buildDaily, buildSummary } from './codex-usage-rollup-projections'
+import {
+  buildAllWorktreeTodayUsage,
+  buildBreakdown,
+  buildDaily,
+  buildSummary
+} from './codex-usage-rollup-projections'
 import { UsageProviderStoreLifecycle } from '../usage/usage-provider-store-lifecycle'
 import { splitUsageCacheFileViaWorker } from '../usage/usage-scan-worker-spawn'
 
@@ -142,6 +148,11 @@ export class CodexUsageStore extends UsageProviderStoreLifecycle<
   ): Promise<CodexUsageSessionRow[]> {
     await this.refresh(false)
     return buildRecentSessions(this.state, scope, range, limit)
+  }
+
+  async getAllWorktreeUsageToday(): Promise<Record<string, WorkspaceUsageProviderToday>> {
+    await this.refresh(false)
+    return Object.fromEntries(buildAllWorktreeTodayUsage(this.state))
   }
 
   async getAutomationRunUsage(input: AutomationUsageLookupInput): Promise<AutomationRunUsage> {

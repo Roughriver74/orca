@@ -17,6 +17,7 @@ const WORKTREE_CARD_IMPORT_TIMEOUT_MS = 15_000
 vi.mock('@/store', () => {
   const getState = () => ({
     deleteStateByWorktreeId: {},
+    workspaceUsageTodayByWorktreeId: {},
     fetchHostedReviewForBranch,
     fetchIssue,
     fetchLinearIssue,

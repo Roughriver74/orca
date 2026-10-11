@@ -331,6 +331,8 @@ function setLineageState(
     updateWorktreesMeta: vi.fn(),
     workspaceHostScope: 'all',
     workspacePortScan: null,
+    workspaceUsageTodayByWorktreeId: {},
+    fetchWorkspaceUsageToday: vi.fn(),
     workspaceStatuses: [],
     worktreeCardProperties: [
       'status',

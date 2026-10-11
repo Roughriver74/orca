@@ -45,6 +45,7 @@ vi.mock('@/store', () => {
     sshTargetLabels,
     sshTargetsHydrated: true,
     updateWorktreeMeta,
+    workspaceUsageTodayByWorktreeId: {},
     worktreesByRepo,
     worktreeCardProperties
   })

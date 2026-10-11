@@ -5,6 +5,7 @@ import type {
   OpenCodeUsageSnapshot
 } from '../../shared/opencode-usage-types'
 import type { MuseUsageBreakdownKind, MuseUsageSnapshot } from '../../shared/muse-usage-types'
+import type { WorkspaceUsageToday } from '../../shared/workspace-usage-types'
 import type {
   CodexRateLimitResetResult,
   RateLimitRuntimeTarget,
@@ -59,4 +60,8 @@ export type RateLimitsApi = {
   refreshMiniMax: () => Promise<RateLimitState>
   refreshGrok: () => Promise<RateLimitState>
   onUpdate: (callback: (state: RateLimitState) => void) => () => void
+}
+
+export type WorkspaceUsageApi = {
+  getAllToday: () => Promise<Record<string, WorkspaceUsageToday>>
 }

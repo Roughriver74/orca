@@ -7,6 +7,7 @@ import type {
   CodexUsageScope,
   CodexUsageSummary
 } from '../../shared/codex-usage-types'
+import type { WorkspaceUsageProviderToday } from '../../shared/workspace-usage-types'
 import type { CodexLongContextTokens, CodexUsagePersistedState } from './types'
 import { estimateCostUsd } from './codex-usage-cost-estimate'
 import {
@@ -14,6 +15,48 @@ import {
   getFilteredSessions,
   getScopedSessionModels
 } from './codex-usage-scope-filters'
+import {
+  groupTodayDailyByWorktree,
+  groupTodaySessionCountsByWorktree
+} from '../usage/workspace-usage-today'
+
+/** Today's Codex token usage per Orca worktree, for the sidebar/workspace-card summary. */
+export function buildAllWorktreeTodayUsage(
+  state: CodexUsagePersistedState
+): Map<string, WorkspaceUsageProviderToday> {
+  const sessionCounts = groupTodaySessionCountsByWorktree(state.sessions)
+  const result = new Map<string, WorkspaceUsageProviderToday>()
+  for (const [worktreeId, rows] of groupTodayDailyByWorktree(state.dailyAggregates)) {
+    let inputTokens = 0
+    let cachedInputTokens = 0
+    let outputTokens = 0
+    let totalTokens = 0
+    let estimatedCostUsd = 0
+    let hasAnyBillableCost = false
+    for (const row of rows) {
+      inputTokens += row.inputTokens
+      cachedInputTokens += row.cachedInputTokens
+      outputTokens += row.outputTokens
+      totalTokens += row.totalTokens
+      const cost = estimateCostUsd(row.model, row)
+      if (cost !== null) {
+        hasAnyBillableCost = true
+        estimatedCostUsd += cost
+      }
+    }
+    result.set(worktreeId, {
+      provider: 'codex',
+      sessions: sessionCounts.get(worktreeId) ?? 0,
+      inputTokens,
+      outputTokens,
+      cacheReadTokens: cachedInputTokens,
+      cacheWriteTokens: 0,
+      totalTokens,
+      estimatedCostUsd: hasAnyBillableCost ? estimatedCostUsd : null
+    })
+  }
+  return result
+}
 
 export function buildSummary(
   state: CodexUsagePersistedState,

@@ -7,10 +7,60 @@ import type {
   ClaudeUsageScope,
   ClaudeUsageSummary
 } from '../../shared/claude-usage-types'
+import type { WorkspaceUsageProviderToday } from '../../shared/workspace-usage-types'
 import type { ClaudeUsagePersistedState } from './types'
 import { estimateCostUsd } from './claude-model-pricing'
 import { addBillableTokens, NO_TOKENS, type ClaudeBillableTokens } from './claude-billable-tokens'
 import { getFilteredDaily, getFilteredSessions } from './claude-usage-scope-filters'
+import {
+  groupTodayDailyByWorktree,
+  groupTodaySessionCountsByWorktree
+} from '../usage/workspace-usage-today'
+
+/** Today's Claude token usage per Orca worktree, for the sidebar/workspace-card summary. */
+export function buildAllWorktreeTodayUsage(
+  state: ClaudeUsagePersistedState
+): Map<string, WorkspaceUsageProviderToday> {
+  const sessionCounts = groupTodaySessionCountsByWorktree(state.sessions)
+  const result = new Map<string, WorkspaceUsageProviderToday>()
+  for (const [worktreeId, rows] of groupTodayDailyByWorktree(state.dailyAggregates)) {
+    let inputTokens = 0
+    let outputTokens = 0
+    let cacheReadTokens = 0
+    let cacheWriteTokens = 0
+    let estimatedCostUsd = 0
+    let hasAnyBillableCost = false
+    for (const row of rows) {
+      inputTokens += row.inputTokens
+      outputTokens += row.outputTokens
+      cacheReadTokens += row.cacheReadTokens
+      cacheWriteTokens += row.cacheWriteTokens
+      const cost = estimateCostUsd(
+        row.model,
+        row.inputTokens,
+        row.outputTokens,
+        row.cacheReadTokens,
+        row.cacheWriteTokens,
+        row.cacheWrite1hTokens
+      )
+      if (cost !== null) {
+        hasAnyBillableCost = true
+        estimatedCostUsd += cost
+      }
+    }
+    result.set(worktreeId, {
+      provider: 'claude',
+      sessions: sessionCounts.get(worktreeId) ?? 0,
+      inputTokens,
+      outputTokens,
+      cacheReadTokens,
+      cacheWriteTokens,
+      totalTokens: inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens,
+      estimatedCostUsd: hasAnyBillableCost ? estimatedCostUsd : null
+    })
+  }
+  return result
+}
 
 export function buildSummary(
   state: ClaudeUsagePersistedState,

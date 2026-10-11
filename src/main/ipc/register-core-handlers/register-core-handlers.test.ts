@@ -7,6 +7,7 @@ const {
   registerCliHandlersMock,
   registerPreflightHandlersMock,
   registerUsageProviderHandlersMock,
+  registerWorkspaceUsageHandlersMock,
   registerGitHubHandlersMock,
   registerFeedbackHandlersMock,
   registerStatsHandlersMock,
@@ -78,6 +79,7 @@ const {
   registerCliHandlersMock: vi.fn(),
   registerPreflightHandlersMock: vi.fn(),
   registerUsageProviderHandlersMock: vi.fn(),
+  registerWorkspaceUsageHandlersMock: vi.fn(),
   registerGitHubHandlersMock: vi.fn(),
   registerFeedbackHandlersMock: vi.fn(),
   registerStatsHandlersMock: vi.fn(),
@@ -197,6 +199,10 @@ vi.mock('../preflight', () => ({
 
 vi.mock('../usage-provider-handlers', () => ({
   registerUsageProviderHandlers: registerUsageProviderHandlersMock
+}))
+
+vi.mock('../workspace-usage-handlers', () => ({
+  registerWorkspaceUsageHandlers: registerWorkspaceUsageHandlersMock
 }))
 
 vi.mock('../github', () => ({
@@ -452,6 +458,7 @@ describe('registerCoreHandlers', () => {
     registerCliHandlersMock.mockReset()
     registerPreflightHandlersMock.mockReset()
     registerUsageProviderHandlersMock.mockReset()
+    registerWorkspaceUsageHandlersMock.mockReset()
     registerGitHubHandlersMock.mockReset()
     registerFeedbackHandlersMock.mockReset()
     registerStatsHandlersMock.mockReset()

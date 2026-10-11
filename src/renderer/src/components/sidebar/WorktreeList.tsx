@@ -32,6 +32,7 @@ import { useWindowSidebarListModel } from './worktree-list/listing/use-window-li
 import { useMainSidebarListModel } from './worktree-list/listing/use-main-list-model'
 import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
 import { ORCA_SIDEBAR_INPUTS_IS_MAIN } from '../../../../shared/sidebar-inputs-switch'
+import { useWorkspaceUsageTodayPoll } from './worktree-list/listing/use-workspace-usage-today-poll'
 import { useWorktreeStatusMutations } from './worktree-list/drag/use-status-mutations'
 import { shouldFiltersHideAllRows } from './sidebar-empty-state-gate'
 import { buildWorktreeManualOrderCatalog } from './worktree-manual-order-catalog'
@@ -95,6 +96,7 @@ const WorktreeList = React.memo(function WorktreeList({
   const projectGroups = useAppStore((s) => s.projectGroups ?? EMPTY_PROJECT_GROUPS)
   const folderWorkspaces = useAppStore((s) => s.folderWorkspaces)
   const settings = useAppStore((s) => s.settings)
+  useWorkspaceUsageTodayPoll()
   const cardProps = useAppStore((s) => s.worktreeCardProperties)
   const { prCache, hostedReviewCache } = useAppStore(
     useShallow((s) => selectWorktreeListReviewCacheInputs(s, groupBy, cardProps))

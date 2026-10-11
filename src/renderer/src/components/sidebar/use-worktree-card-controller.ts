@@ -1,3 +1,4 @@
+import { useAppStore } from '@/store'
 import { useWorkspaceReferenceDetails } from './use-workspace-reference-details'
 import { getWorkspaceAttachments } from '../../../../shared/workspace-attachments'
 import { summarizeWorkspaceReviewChecks } from '../../../../shared/workspace-review-checks'
@@ -161,6 +162,8 @@ export function useWorktreeCardController(props: ResolvedWorktreeCardProps) {
     updateWorktreeMeta: foundation.updateWorktreeMeta,
     settings: foundation.settings
   })
+  const workspaceUsage = useAppStore((s) => s.workspaceUsageTodayByWorktreeId[worktree.id])
+  const hasUsage = Boolean(workspaceUsage && workspaceUsage.providers.length > 0)
 
   return {
     ...props,
@@ -184,6 +187,8 @@ export function useWorktreeCardController(props: ResolvedWorktreeCardProps) {
     showDeleteQuickAction,
     ...workspaceActions,
     ...secondary,
+    hasUsage,
+    workspaceUsage,
     ...(isProjectRow
       ? {
           visibleCardTitle: props.projectRowLabel ?? linked.visibleCardTitle,

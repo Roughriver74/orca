@@ -34,6 +34,7 @@ vi.mock('@/store', () => {
     sshTargetLabels: new Map(),
     updateWorktreeMeta,
     workspacePortScan: null,
+    workspaceUsageTodayByWorktreeId: {},
     worktreeCardProperties
   })
   return {

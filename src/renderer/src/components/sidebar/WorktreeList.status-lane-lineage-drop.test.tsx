@@ -302,6 +302,8 @@ function setStatusLaneState(): void {
     updateWorktreesMeta: mockStore.updateWorktreesMeta,
     workspaceHostScope: 'all',
     workspacePortScan: null,
+    workspaceUsageTodayByWorktreeId: {},
+    fetchWorkspaceUsageToday: vi.fn(),
     workspaceStatuses: [...DEFAULT_WORKSPACE_STATUSES],
     worktreeCardProperties: [
       'status',

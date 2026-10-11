@@ -25,6 +25,7 @@ let worktreeCardProperties: WorktreeCardProperty[] = ['status']
 vi.mock('@/store', () => {
   const getState = () => ({
     deleteStateByWorktreeId: {},
+    workspaceUsageTodayByWorktreeId: {},
     fetchHostedReviewForBranch,
     fetchIssue,
     fetchLinearIssue,
