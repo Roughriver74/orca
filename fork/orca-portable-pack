@@ -120,12 +120,22 @@ obtain_claude_token() {
   [[ -n "$claude_oauth_token" ]] && return 0
   log "Claude: issuing a long-lived subscription token (browser opens; copy the sk-ant-oat... token it prints)"
   claude setup-token || true
-  print -n "Paste the token: "
-  read -rs claude_oauth_token
-  print
-  claude_oauth_token=${claude_oauth_token//[[:space:]]/}
-  [[ "$claude_oauth_token" == sk-ant-oat* ]] || die "that does not look like a Claude OAuth token (sk-ant-oat...)"
+  # Why: the TUI can leave bracketed-paste on (pasted text arrives wrapped in ESC[200~) and a stray Enter queued.
+  print -n $'\e[?2004l'
+  local input attempt
+  for attempt in 1 2 3; do
+    print -n "Paste the token (or copy it and just press Enter): "
+    read -rs input || input=""
+    print
+    # Why extract: the token may arrive with escape codes, line breaks, or surrounding text.
+    claude_oauth_token=$(print -rn -- "$input" | tr -d '[:space:]' | grep -oE 'sk-ant-oat[A-Za-z0-9_-]+' | head -1 || true)
+    [[ -z "$claude_oauth_token" ]] && claude_oauth_token=$(pbpaste | tr -d '[:space:]' | grep -oE 'sk-ant-oat[A-Za-z0-9_-]+' | head -1 || true)
+    [[ -n "$claude_oauth_token" ]] && break
+    print -u2 "No sk-ant-oat... token found in the input or the clipboard; try again."
+  done
+  [[ -n "$claude_oauth_token" ]] || die "no Claude OAuth token entered"
   security add-generic-password -U -s "$KEYCHAIN_SERVICE" -a "$USER" -w "$claude_oauth_token"
+  log "Claude token saved to the macOS Keychain ($KEYCHAIN_SERVICE)"
 }
 (( with_claude )) && obtain_claude_token
 
