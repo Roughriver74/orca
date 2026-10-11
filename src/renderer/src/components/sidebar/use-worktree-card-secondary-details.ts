@@ -43,6 +43,7 @@ export function useWorktreeCardSecondaryDetails({
   compactCards,
   cardDetails,
   agentActivityDisplayMode,
+  forceInlineAgents = false,
   workspacePorts,
   openTaskPage,
   updateWorktreeMeta,
@@ -73,6 +74,7 @@ export function useWorktreeCardSecondaryDetails({
     showCli: boolean
     showComment: boolean
     showPorts: boolean
+    forceInlineAgents?: boolean
   }) {
   // Why: unread lives in the left status lane, so the Status toggle owns both the dot/PR slot and unread emphasis.
   const showUnreadEmphasis = showStatus && worktree.isUnread
@@ -89,7 +91,9 @@ export function useWorktreeCardSecondaryDetails({
   const metaAutomationProvenance = showAutomation ? worktree.automationProvenance : null
   const metaCliProvenance = showCli ? worktree.cliProvenance : null
   const metaComment = showComment ? hoverComment : null
-  const showInlineAgentList = cardDetails.inlineAgents
+  // Why not shouldShowInlineAgentList: cardDetails.inlineAgents already folds in
+  // (newCardStyle || !compactCards), so forcing just needs an OR on top of it.
+  const showInlineAgentList = forceInlineAgents || cardDetails.inlineAgents
   const compactInlineAgentRows = useWorktreeAgentRows(
     worktree.id,
     showInlineAgentList && agentActivityDisplayMode === 'compact'

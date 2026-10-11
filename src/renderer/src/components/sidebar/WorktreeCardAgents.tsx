@@ -51,13 +51,16 @@ type Props = {
   agents?: DashboardAgentRowData[]
   /** Spacing from the card body above; parent decides whether a divider is appropriate. */
   className?: string
+  /** List every agent row instead of folding several into the compact summary. */
+  showAllRows?: boolean
 }
 
 /** Inline agent list rendered inside WorktreeCard when 'inline-agents' is enabled. */
 const WorktreeCardAgents = React.memo(function WorktreeCardAgents({
   worktreeId,
   agents: precomputedAgents,
-  className
+  className,
+  showAllRows = false
 }: Props) {
   const selectedAgents = useWorktreeAgentRows(worktreeId, precomputedAgents === undefined)
   const agents = precomputedAgents ?? selectedAgents
@@ -65,19 +68,28 @@ const WorktreeCardAgents = React.memo(function WorktreeCardAgents({
     return null
   }
   // Why: mount the inner body (owns the 30s useNow tick) only for non-empty rows, so idle worktrees pay no timer cost.
-  return <WorktreeCardAgentsBody worktreeId={worktreeId} agents={agents} className={className} />
+  return (
+    <WorktreeCardAgentsBody
+      worktreeId={worktreeId}
+      agents={agents}
+      className={className}
+      showAllRows={showAllRows}
+    />
+  )
 })
 
 type BodyProps = {
   worktreeId: string
   agents: DashboardAgentRowData[]
   className?: string
+  showAllRows: boolean
 }
 
 const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
   worktreeId,
   agents,
-  className
+  className,
+  showAllRows
 }: BodyProps) {
   const agentActivityDisplayMode =
     useAppStore((s) => s.agentActivityDisplayMode) ?? DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE
@@ -354,7 +366,8 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
   if (agentActivityDisplayMode === 'compact') {
     const summaryAgents = hasLineage ? rootAgents : agents
     // Why: compact cards collapse multiple agents to one status line, except in send-target mode where rows are the picker surface.
-    const shouldUseSummaryRow = summaryAgents.length > 1 && !isAgentSendTargetModeActive
+    const shouldUseSummaryRow =
+      summaryAgents.length > 1 && !isAgentSendTargetModeActive && !showAllRows
     const subjectLabel = `${hasLineage ? rootAgents.length : agents.length} agents`
 
     return (

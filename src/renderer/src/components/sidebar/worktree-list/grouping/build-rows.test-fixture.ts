@@ -23,6 +23,7 @@ import type {
 import { planSidebarRows } from '../../../../../../shared/sidebar-list/sidebar-row-plan'
 import type { SortBy } from '../../../../../../shared/sidebar-list/smart-sort'
 import type { PRCacheView } from '../../../../../../shared/sidebar-list/workspace-review-facts'
+import type { ProjectAttentionByWorktree } from '../../../../../../shared/sidebar-list/project-attention-rank'
 import { createSidebarPRGroupReader } from './pr-group-key'
 
 /** Test-only positional entry to the shared row builder, with the window's defaults. */
@@ -53,7 +54,9 @@ export function buildSidebarRowPlan(
   defaultHostId: ExecutionHostId = LOCAL_EXECUTION_HOST_ID,
   pinnedDisplayPolicy: PinnedWorktreeDisplayPolicy = getPinnedWorktreeDisplayPolicy(settings),
   filterRepoIds: readonly string[] = [],
-  sortBy: SortBy = 'manual'
+  sortBy: SortBy = 'manual',
+  projectAttentionByWorktree?: ProjectAttentionByWorktree,
+  activeWorktreeId: string | null = null
 ) {
   return planSidebarRows({
     groupBy,
@@ -77,7 +80,9 @@ export function buildSidebarRowPlan(
     hostLabelById,
     defaultHostId,
     pinnedDisplayPolicy,
-    filterRepoIds
+    filterRepoIds,
+    projectAttentionByWorktree,
+    activeWorktreeId
   })
 }
 

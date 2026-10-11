@@ -39,7 +39,11 @@ import {
 } from '../../../../../../shared/sidebar-list/host-section-order'
 import type { ExecutionHostRegistryEntry } from '../../../../../../shared/execution-host-registry'
 import { buildSidebarHostOptions } from '../../sidebar-host-options'
-import { selectPendingWorktreeCreationKeys } from './pending-worktree-creation-keys'
+import {
+  parsePendingWorktreeCreationKey,
+  selectPendingWorktreeCreationKeys
+} from './pending-worktree-creation-keys'
+import { useProjectAttentionByWorktree } from './use-project-attention'
 
 type SectionRowsArgs = {
   agentSendTargetWorktreeId?: string | null
@@ -105,14 +109,7 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
     useShallow((s) => selectPendingWorktreeCreationKeys(s.pendingWorktreeCreations))
   )
   const pendingCreations = useMemo(
-    () =>
-      pendingCreationKeys.map((key) => {
-        const separator = key.indexOf(' ')
-        return {
-          creationId: key.slice(0, separator),
-          repoId: key.slice(separator + 1)
-        }
-      }),
+    () => pendingCreationKeys.map(parsePendingWorktreeCreationKey),
     [pendingCreationKeys]
   )
   const hostLabelOverrides = useMemo(
@@ -152,6 +149,14 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
 
   const hostScopedGroups =
     args.workspaceHostScope !== 'all' || args.visibleWorkspaceHostIds !== null
+  const projectAttentionByWorktree = useProjectAttentionByWorktree(
+    args.groupBy === 'repo' && args.projectOrderBy === 'attention',
+    worktrees
+  )
+  // Why gated: only compact project rows expand by the active workspace, so other modes don't rebuild rows on every switch.
+  const compactActiveWorktreeId = useAppStore((s) =>
+    args.groupBy === 'repo' && s.settings?.compactProjectRows === true ? s.activeWorktreeId : null
+  )
   const rowPlan = useMemo(
     () =>
       planSidebarRows({
@@ -176,7 +181,10 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
         defaultHostId,
         pinnedDisplayPolicy: args.pinnedDisplayPolicy,
         filterRepoIds: args.filterRepoIds,
-        sortBy: args.sortBy
+        sortBy: args.sortBy,
+        projectAttentionByWorktree,
+        activeWorktreeId: compactActiveWorktreeId,
+        compactProjectRows: args.settings?.compactProjectRows === true
       }),
     [
       args.groupBy,
@@ -199,7 +207,10 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
       pendingCreations,
       hostLabelById,
       args.pinnedDisplayPolicy,
-      args.filterRepoIds
+      args.filterRepoIds,
+      projectAttentionByWorktree,
+      compactActiveWorktreeId,
+      args.settings
     ]
   )
   const effectiveCollapsedGroups = useEffectiveCollapsedGroups({

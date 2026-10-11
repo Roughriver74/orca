@@ -21,12 +21,15 @@ export {
 } from './visible-worktree-activity-inputs'
 import { buildVisibleWorktreeOptionsFromState } from './visible-worktree-options-from-state'
 import { useAppStore } from '@/store'
+import type { AppState } from '@/store/types'
 import { getAllWorktreesFromState, getRepoMapFromState } from '@/store/selectors'
 import { getSettingsFocusedExecutionHostId } from '../../../../shared/execution-host'
 import {
-  computeRenderedSidebarWorktreeOrder,
-  computeRenderedSidebarWorktrees
+  computeRenderedSidebarRows,
+  computeRenderedSidebarWorktreeOrder
 } from './rendered-sidebar-worktree-order'
+import { getSidebarShortcutTargets, type SidebarShortcutTarget } from './sidebar-shortcut-targets'
+import { getPinnedWorktreeDisplayPolicy } from '../../../../shared/sidebar-list/row-types'
 
 
 /**
@@ -44,11 +47,7 @@ import {
  * null means WorktreeList is unmounted.
  */
 let _publishedVisibleIds: string[] | null = null
-export type VisibleWorktreeShortcutTarget = {
-  id: string
-  executionHostId?: Worktree['hostId']
-  lineageGroupKey?: string
-}
+export type VisibleWorktreeShortcutTarget = SidebarShortcutTarget
 let _publishedVisibleShortcutTargets: VisibleWorktreeShortcutTarget[] | null = null
 
 export function setVisibleWorktreeIds(ids: string[] | null): void {
@@ -72,8 +71,13 @@ export function getVisibleWorktreeIds(): string[] {
   if (_publishedVisibleIds) {
     return _publishedVisibleIds
   }
-
   const state = useAppStore.getState()
+  // Why the row pipeline: grouping, pinning and main-worktree hoisting reorder cards, so a flat sort numbers the wrong workspace.
+  return computeRenderedSidebarWorktreeOrder(state, getSidebarCandidateWorktrees(state))
+}
+
+/** Every workspace the sidebar may show (sorted, filtered), before grouping or folding. */
+function getSidebarCandidateWorktrees(state: AppState): Worktree[] {
   const allWorktrees = getAllWorktreesFromState(state).filter((w) => !w.isArchived)
 
   // Hoist repoMap so it's built once and reused across all branches below.
@@ -110,15 +114,13 @@ export function getVisibleWorktreeIds(): string[] {
   const visibleIdRank = new Map(visibleIds.map((id, index) => [id, index]))
   const visibleHostIds = getVisibleWorkspaceHostIdSet(state)
   const defaultHostId = getSettingsFocusedExecutionHostId(state.settings)
-  const visibleWorktrees = allWorktrees
+  return allWorktrees
     .filter(
       (worktree) =>
         visibleIdRank.has(worktree.id) &&
         worktreeMatchesVisibleHost(worktree, visibleHostIds, repoMap, defaultHostId)
     )
     .sort((a, b) => (visibleIdRank.get(a.id) ?? 0) - (visibleIdRank.get(b.id) ?? 0))
-  // Why the row pipeline: grouping, pinning and main-worktree hoisting reorder cards, so a flat sort numbers the wrong workspace.
-  return computeRenderedSidebarWorktreeOrder(state, visibleWorktrees)
 }
 
 export function getVisibleWorktreeShortcutTargets(): VisibleWorktreeShortcutTarget[] {
@@ -126,21 +128,9 @@ export function getVisibleWorktreeShortcutTargets(): VisibleWorktreeShortcutTarg
     return _publishedVisibleShortcutTargets
   }
   const state = useAppStore.getState()
-  const visibleIds = getVisibleWorktreeIds()
-  const visibleIdRank = new Map(visibleIds.map((id, index) => [id, index]))
-  const repoMap = getRepoMapFromState(state)
-  const visibleHostIds = getVisibleWorkspaceHostIdSet(state)
-  const defaultHostId = getSettingsFocusedExecutionHostId(state.settings)
-  const worktrees = getAllWorktreesFromState(state)
-    .filter(
-      (worktree) =>
-        !worktree.isArchived &&
-        visibleIdRank.has(worktree.id) &&
-        worktreeMatchesVisibleHost(worktree, visibleHostIds, repoMap, defaultHostId)
-    )
-    .sort((a, b) => (visibleIdRank.get(a.id) ?? 0) - (visibleIdRank.get(b.id) ?? 0))
-  return computeRenderedSidebarWorktrees(state, worktrees).map((worktree) => ({
-    id: worktree.id,
-    ...(worktree.hostId ? { executionHostId: worktree.hostId } : {})
-  }))
+  // Why candidates, not rendered ids: a folded compact project renders no card yet owns a slot.
+  return getSidebarShortcutTargets(
+    computeRenderedSidebarRows(state, getSidebarCandidateWorktrees(state)),
+    getPinnedWorktreeDisplayPolicy(state.settings)
+  )
 }

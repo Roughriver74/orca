@@ -34,7 +34,9 @@ export function useWorktreeCardController(props: ResolvedWorktreeCardProps) {
     prDisplay: review.prDisplay
   })
 
-  const showStatus = foundation.cardProps.includes('status')
+  const isProjectRow = props.projectRowLabel !== undefined
+  // Why: a project row's only signal is its agent status, so it shows even when the card property is off.
+  const showStatus = isProjectRow || foundation.cardProps.includes('status')
   const {
     issue: showIssue,
     linearIssue: showLinearIssue,
@@ -152,6 +154,8 @@ export function useWorktreeCardController(props: ResolvedWorktreeCardProps) {
     compactCards: foundation.compactCards,
     cardDetails: foundation.cardDetails,
     agentActivityDisplayMode: foundation.agentActivityDisplayMode,
+    // Why: the expanded compact project is the only place its agents show, so it ignores the card property.
+    forceInlineAgents: props.forceInlineAgents === true,
     workspacePorts: foundation.workspacePorts,
     openTaskPage: foundation.openTaskPage,
     updateWorktreeMeta: foundation.updateWorktreeMeta,
@@ -179,7 +183,14 @@ export function useWorktreeCardController(props: ResolvedWorktreeCardProps) {
     ...activation,
     showDeleteQuickAction,
     ...workspaceActions,
-    ...secondary
+    ...secondary,
+    ...(isProjectRow
+      ? {
+          visibleCardTitle: props.projectRowLabel ?? linked.visibleCardTitle,
+          showInlineAgentList: props.forceInlineAgents === true,
+          showLineageChildChip: false
+        }
+      : {})
   }
 }
 

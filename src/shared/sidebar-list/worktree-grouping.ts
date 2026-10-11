@@ -12,6 +12,12 @@ import { PR_GROUP_ORDER, getPRLaneKey } from './group-keys'
 import type { OrderedGroupEntry, WorktreeGroupEntry } from './worktree-group-entry'
 import { buildProjectSections, type ProjectGroupingIndex } from '../project-section-grouping'
 import { orderProjectSections } from '../project-section-order'
+import { getEffectiveProjectGroupManualRank } from '../project-groups'
+import {
+  compareProjectAttentionRank,
+  createProjectAttentionRankLookup,
+  type ProjectAttentionByWorktree
+} from './project-attention-rank'
 import type {
   ImportedWorktreesCardCandidate,
   NewExternalWorktreesInboxCandidate,
@@ -37,6 +43,7 @@ export function buildOrderedGroups(args: {
   projectOrderBy: ProjectOrderBy
   folderWorkspaces?: readonly RenderableFolderWorkspace[]
   compareFolderWorkspaces: FolderWorkspaceComparator
+  projectAttentionByWorktree?: ProjectAttentionByWorktree
 }): OrderedGroupEntry[] {
   const {
     groupBy,
@@ -53,12 +60,13 @@ export function buildOrderedGroups(args: {
     repoOrder,
     projectOrderBy,
     folderWorkspaces = [],
-    compareFolderWorkspaces
+    compareFolderWorkspaces,
+    projectAttentionByWorktree
   } = args
 
   if (groupBy === 'repo') {
     // Why shared: the paired phone builds its Project sections with this same function.
-    return buildProjectSections({
+    const entries = buildProjectSections({
       items: naturalWorktrees,
       repoIdOf: (worktree) => worktree.repoId,
       displayRepoIdOf: (worktree) =>
@@ -78,6 +86,18 @@ export function buildOrderedGroups(args: {
       repoOrder,
       projectOrderBy
     })
+    // Why re-sorted here, not in the phone-shared orderProjectSections: attention ranks
+    // Smart agent status, a desktop-only concept the generic sort can't depend on.
+    if (projectOrderBy === 'attention' && entries.length > 1) {
+      const getAttentionRank = createProjectAttentionRankLookup(projectAttentionByWorktree)
+      return [...entries].sort(
+        (left, right) =>
+          compareProjectAttentionRank(getAttentionRank(left), getAttentionRank(right)) ||
+          getEffectiveProjectGroupManualRank(left[1].repo, repoOrder) -
+            getEffectiveProjectGroupManualRank(right[1].repo, repoOrder)
+      )
+    }
+    return entries
   }
 
   // Why no lane labels: status and PR headers are named by the section emitter and the client.

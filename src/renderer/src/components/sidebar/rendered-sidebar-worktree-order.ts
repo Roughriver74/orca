@@ -13,8 +13,7 @@ import { createSidebarPRGroupReader } from './worktree-list/grouping/pr-group-ke
 import {
   getPinnedWorktreeDisplayPolicy,
   type ImportedWorktreesCardCandidate,
-  type NewExternalWorktreesInboxCandidate,
-  type PendingCreationRef
+  type NewExternalWorktreesInboxCandidate
 } from '../../../../shared/sidebar-list/row-types'
 import {
   addHostSectionRows,
@@ -24,7 +23,15 @@ import { orderHostSectionOptions } from '../../../../shared/sidebar-list/host-se
 import { buildSidebarHostOptions } from './sidebar-host-options'
 import { getLogicalRepoOrderRankById } from '../../../../shared/project-section-order'
 import { getRenderedWorktreesInSidebarOrder } from './worktree-sidebar-row-preference'
+import {
+  buildProjectAttentionFromState,
+  hasLiveSmartAttentionSignal
+} from './project-attention-order'
 import { selectWorktreeListReviewCacheInputs } from './worktree-list/listing/review-cache-inputs'
+import {
+  parsePendingWorktreeCreationKey,
+  selectPendingWorktreeCreationKeys
+} from './worktree-list/listing/pending-worktree-creation-keys'
 import {
   filterFolderWorkspacesForVisibleHosts,
   filterProjectGroupsForVisibleHosts,
@@ -34,7 +41,6 @@ import {
 const EMPTY_REPO_ID_SET: ReadonlySet<string> = Object.freeze(new Set<string>())
 const EMPTY_IMPORTED_BY_REPO: ReadonlyMap<string, ImportedWorktreesCardCandidate> = new Map()
 const EMPTY_INBOX_BY_REPO: ReadonlyMap<string, NewExternalWorktreesInboxCandidate> = new Map()
-const EMPTY_PENDING_CREATIONS: readonly PendingCreationRef[] = []
 
 /**
  * Orders already-filtered worktrees the way the sidebar would render them, for
@@ -91,11 +97,14 @@ export function computeRenderedSidebarRows(
       visibleHostIdSet,
       defaultHostId
     ),
-    // Why empty: placeholder/imported/inbox/pending inputs never emit item or folder-workspace rows, the only two the order reads.
+    // Why empty: placeholder/imported/inbox inputs never emit item or folder-workspace rows.
+    // Pending creates can: in compact project mode they keep their project's section open.
     placeholderRepoIds: EMPTY_REPO_ID_SET,
     importedWorktreesByRepo: EMPTY_IMPORTED_BY_REPO,
     newExternalWorktreesInboxByRepo: EMPTY_INBOX_BY_REPO,
-    pendingCreations: EMPTY_PENDING_CREATIONS,
+    pendingCreations: selectPendingWorktreeCreationKeys(state.pendingWorktreeCreations).map(
+      parsePendingWorktreeCreationKey
+    ),
     projectGrouping: { projects: projection.projects, projectHostSetups: projection.setups },
     folderWorkspaces: filterFolderWorkspacesForVisibleHosts(
       state.folderWorkspaces,
@@ -107,7 +116,15 @@ export function computeRenderedSidebarRows(
     defaultHostId,
     pinnedDisplayPolicy,
     filterRepoIds: state.filterRepoIds,
-    sortBy: state.sortBy
+    sortBy: state.sortBy,
+    projectAttentionByWorktree:
+      state.groupBy === 'repo' &&
+      state.projectOrderBy === 'attention' &&
+      hasLiveSmartAttentionSignal(state)
+        ? buildProjectAttentionFromState(state, visibleWorktrees)
+        : undefined,
+    activeWorktreeId: state.activeWorktreeId,
+    compactProjectRows: state.settings?.compactProjectRows === true
   }).render(state.collapsedGroups)
 
   // Why lazy: with no host filter, addHostSectionRows is a pass-through, so skip building the whole host registry on a keystroke.

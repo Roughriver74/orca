@@ -11,6 +11,7 @@ import { PINNED_GROUP_KEY } from '../../../../../../shared/sidebar-list/group-ke
 import type { WorktreeGroupBy } from '../../../../../../shared/sidebar-list/row-types'
 import {
   getFolderBackedRepoWorktreeCardContentIndent,
+  getCompactProjectRowGeometry,
   getFolderBackedRepoWorktreeCardSurfaceInset,
   getLineageChildrenInlineStyle,
   getWorktreeCardContentIndent,
@@ -23,6 +24,11 @@ import { stopNestedWorktreeCardBubble } from './header-event-guards'
 import type { WorktreeItemRow } from '../listing/renderable-rows'
 import { getWorktreeOptionId } from './option-dom'
 import type { WorktreeRowDragState } from '../drag/row-state'
+import {
+  CompactProjectRowActions,
+  getCompactProjectRowDrag,
+  type CompactProjectRowContext
+} from './compact-project-row-actions'
 
 export type WorktreeItemRowContext = {
   settings: AppState['settings']
@@ -60,6 +66,7 @@ export type WorktreeItemRowContext = {
     draggedCopies: DraggedWorktreeCopies
   ) => void
   onCardDragEnd: () => void
+  compactProject?: CompactProjectRowContext
 }
 
 // Geometry differs three ways: a plain grouped row, a lineage child inheriting its parent's
@@ -68,10 +75,13 @@ function getWorktreeItemRowGeometry(
   ctx: WorktreeItemRowContext,
   itemRow: WorktreeItemRow,
   nested: boolean
-): { surfaceInset: number; cardContentIndent: number } {
+): { surfaceInset: number; cardContentIndent: number; lineageChildrenInlineOffset?: number } {
   // Why: the shared child wrapper already inherits the parent's group and content offsets.
   if (nested) {
     return { surfaceInset: LINEAGE_NESTED_ROW_SURFACE_INSET, cardContentIndent: 0 }
+  }
+  if (itemRow.compactProjectHeader) {
+    return getCompactProjectRowGeometry(itemRow.groupDepth)
   }
 
   const projectGroupId = itemRow.repo?.projectGroupId
@@ -122,6 +132,8 @@ export function renderWorktreeItemRow(
     ctx.worktreeDragState.draggingWorktreeId &&
     (ctx.worktreeDragState.lineageDropTargetId === itemRow.worktree.id ||
       ctx.nativeLineageDropTargetId === itemRow.worktree.id)
+  const compactProjectHeader = nested ? undefined : itemRow.compactProjectHeader
+  const compactProjectDrag = getCompactProjectRowDrag(ctx.compactProject, compactProjectHeader)
   const isActiveWorktree = isActiveSidebarWorkspace(itemRow.worktree, {
     worktreeId: ctx.activeWorktreeId,
     hostId: ctx.activeWorkspaceExecutionHostId ?? null
@@ -140,9 +152,11 @@ export function renderWorktreeItemRow(
       data-worktree-drag-id={worktreeDragGroupKey ? itemRow.worktree.id : undefined}
       data-worktree-drag-group-key={worktreeDragGroupKey}
       data-worktree-drag-group-index={ctx.groupIndexByRowKey.get(itemRow.rowKey)}
+      {...compactProjectDrag.attributes}
       className={cn(
         // Why: don't transition 'transform' — it lags/flashes when TanStack Virtual repositions adjacent rows.
         'relative transition-[opacity,filter] duration-150 ease-out',
+        compactProjectHeader && 'group',
         ctx.worktreeDragState.draggingWorktreeId === itemRow.worktree.id &&
           // Why: the fixed drag preview is the affordance; a translucent source row would bleed through sticky headers/footers.
           'pointer-events-none opacity-0'
@@ -158,6 +172,10 @@ export function renderWorktreeItemRow(
       onPointerDown={(event) => {
         if (nested) {
           event.stopPropagation()
+        }
+        if (compactProjectDrag.onPointerDown) {
+          compactProjectDrag.onPointerDown(event)
+          return
         }
         ctx.onRowPointerDown(event, itemRow.worktree, itemRow.rowKey)
       }}
@@ -205,7 +223,19 @@ export function renderWorktreeItemRow(
         onLineageToggle={
           itemRow.lineageGroupKey ? ctx.getLineageToggleHandler(itemRow.lineageGroupKey) : undefined
         }
+        projectRowLabel={compactProjectHeader?.label}
+        forceInlineAgents={
+          compactProjectHeader?.compactProjectActive === true ||
+          itemRow.inExpandedCompactProject === true
+        }
       />
+      {compactProjectHeader && ctx.compactProject ? (
+        <CompactProjectRowActions
+          ctx={ctx.compactProject}
+          header={compactProjectHeader}
+          expanded={compactProjectHeader.compactProjectActive === true}
+        />
+      ) : null}
     </div>
   )
 }

@@ -41,6 +41,10 @@ export type GroupHeaderRow = {
   hostWorktreeCounts?: ReadonlyMap<ExecutionHostId, number>
   hostWorktreeIds?: ReadonlyMap<ExecutionHostId, readonly string[]>
   worktreeIds?: readonly string[]
+  /** Compact project rows only: the project's visible workspaces, for its aggregate status. */
+  projectWorktreeIds?: readonly string[]
+  /** Compact project rows only: whether this project holds the active workspace (its expanded state). */
+  compactProjectActive?: boolean
 }
 
 export type WorktreeRow = {
@@ -58,6 +62,10 @@ export type WorktreeRow = {
   lineageCollapsed?: boolean
   hostContextLabel?: string
   showProjectName?: boolean
+  /** Set when compact project rows fold a single-workspace project's header into this row. */
+  compactProjectHeader?: GroupHeaderRow
+  /** Card listed under the expanded compact project, which always shows its agent rows. */
+  inExpandedCompactProject?: boolean
 }
 
 export type ImportedWorktreesCardCandidate = {

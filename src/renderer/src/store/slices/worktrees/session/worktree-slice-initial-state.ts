@@ -19,6 +19,7 @@ export const worktreeSliceInitialState: Pick<
   | 'sortEpoch'
   | 'settledSortEpoch'
   | 'sortOrderEpoch'
+  | 'activeTitleAttentionEpoch'
   | 'everActivatedWorktreeIds'
   | 'lastVisitedAtByWorktreeId'
   | 'hasHydratedWorktreePurge'
@@ -41,6 +42,7 @@ export const worktreeSliceInitialState: Pick<
   sortEpoch: 0,
   settledSortEpoch: 0,
   sortOrderEpoch: 0,
+  activeTitleAttentionEpoch: 0,
   everActivatedWorktreeIds: new Set<string>(),
   lastVisitedAtByWorktreeId: {},
   hasHydratedWorktreePurge: false,

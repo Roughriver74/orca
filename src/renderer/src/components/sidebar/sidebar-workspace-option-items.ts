@@ -83,25 +83,6 @@ export const SORT_OPTIONS = localizeChoices<ChoiceId<typeof WORKSPACE_SORT_BY_CH
   }
 )
 
-export const PROJECT_ORDER_OPTIONS = localizeChoices<
-  ChoiceId<typeof WORKSPACE_PROJECT_ORDER_CHOICES>
->(
-  WORKSPACE_PROJECT_ORDER_CHOICES,
-  { manual: manualLabel, recent: recentLabel },
-  {
-    manual: () =>
-      translate(
-        'auto.components.sidebar.SidebarWorkspaceOptionsMenu.6664282a7b',
-        'Drag projects to arrange them'
-      ),
-    recent: () =>
-      translate(
-        'auto.components.sidebar.SidebarWorkspaceOptionsMenu.af9249c505',
-        'Most recent workspace activity'
-      )
-  }
-)
-
 export const CARD_LAYOUT_OPTIONS = localizeChoices<ChoiceId<typeof WORKSPACE_CARD_LAYOUT_CHOICES>>(
   WORKSPACE_CARD_LAYOUT_CHOICES,
   {

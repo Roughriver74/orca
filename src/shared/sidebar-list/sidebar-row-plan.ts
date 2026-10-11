@@ -50,6 +50,7 @@ import type {
 import { orderMainWorktreeFirst, getRenderedNaturalAnchorRepoIds } from './section-order'
 import { withRepoSectionDisplayLabels } from '../project-section-order'
 import { buildOrderedGroups } from './worktree-grouping'
+import type { ProjectAttentionByWorktree } from './project-attention-rank'
 
 type SidebarOccurrenceSection = WorktreeOccurrenceSection<Worktree> & { group: WorktreeGroupEntry }
 
@@ -78,6 +79,9 @@ export type SidebarRowPlanInputs = {
   defaultHostId: ExecutionHostId
   pinnedDisplayPolicy: PinnedWorktreeDisplayPolicy
   filterRepoIds: readonly string[]
+  projectAttentionByWorktree?: ProjectAttentionByWorktree
+  activeWorktreeId?: string | null
+  compactProjectRows?: boolean
 }
 
 /** Plans the sidebar's sections once; `render` emits rows for a collapse state. */
@@ -104,7 +108,10 @@ export function planSidebarRows(inputs: SidebarRowPlanInputs) {
     hostLabelById,
     defaultHostId,
     pinnedDisplayPolicy,
-    filterRepoIds
+    filterRepoIds,
+    projectAttentionByWorktree,
+    activeWorktreeId,
+    compactProjectRows
   } = inputs
   const projectIndex = buildProjectGroupingIndex(projectGrouping)
   // Membership is decided once, above the groupBy switch: every mode renders the
@@ -149,7 +156,8 @@ export function planSidebarRows(inputs: SidebarRowPlanInputs) {
               repoOrder,
               projectOrderBy,
               folderWorkspaces: renderableFolderWorkspaces,
-              compareFolderWorkspaces
+              compareFolderWorkspaces,
+              projectAttentionByWorktree
             })
       if (pinned.length > 0) {
         groups.unshift([PINNED_GROUP_KEY, { label: '', items: pinned, repoIds: new Set() }])
@@ -281,7 +289,9 @@ export function planSidebarRows(inputs: SidebarRowPlanInputs) {
       pendingByRepo,
       mixedWorktreeHostContextLabels,
       noticeHostContextLabelByRepoId,
-      occurrencePlan
+      occurrencePlan,
+      compactProjectRows,
+      activeWorktreeId
     }
 
     if (groupBy !== 'repo' || projectGroups.length === 0) {
@@ -298,7 +308,8 @@ export function planSidebarRows(inputs: SidebarRowPlanInputs) {
       folderWorkspaces: renderableFolderWorkspaces,
       compareFolderWorkspaces,
       projectOrderBy,
-      repoOrder
+      repoOrder,
+      projectAttentionByWorktree
     })
 
     return result

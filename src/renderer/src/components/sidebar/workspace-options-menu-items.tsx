@@ -1,6 +1,7 @@
 import { Fragment, useMemo, type ComponentType, type JSX } from 'react'
 import { useAppStore } from '@/store'
 import {
+  DropdownMenuCheckboxItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -26,7 +27,8 @@ import {
 import SidebarArchivedWorkspacesMenuSection from './SidebarArchivedWorkspacesMenuSection'
 import { useSidebarHostScopeOptions } from './use-sidebar-host-scope-options'
 import { SidebarHostScopeMenuSection } from './SidebarHostScopeMenuSection'
-import { PROJECT_ORDER_OPTIONS, SORT_OPTIONS } from './sidebar-workspace-option-items'
+import { getCompactProjectRowsLabel, PROJECT_ORDER_OPTIONS } from './sidebar-project-order-options'
+import { SORT_OPTIONS } from './sidebar-workspace-option-items'
 import {
   WorktreeCardDisplayMenuItem,
   WorktreeCardLayoutMenuItem,
@@ -156,53 +158,66 @@ function SortByOptionItem({ preserveWorkspaceBoardOpen }: OptionItemProps): JSX.
 function ProjectOrderOptionItem({ preserveWorkspaceBoardOpen }: OptionItemProps): JSX.Element {
   const projectOrderBy = useAppStore((s) => s.projectOrderBy)
   const setProjectOrderBy = useAppStore((s) => s.setProjectOrderBy)
+  const compactProjectRows = useAppStore((s) => s.settings?.compactProjectRows === true)
+  const setCompactProjectRows = useAppStore((s) => s.setCompactProjectRows)
   const projectOrderLabel =
     PROJECT_ORDER_OPTIONS.find((opt) => opt.id === projectOrderBy)?.label ?? 'Manual'
   return (
-    <DropdownMenuSub>
-      <DropdownMenuSubTrigger>
-        <span className="flex flex-1 items-center justify-between">
-          <span>
-            {translate(
-              'auto.components.sidebar.SidebarWorkspaceOptionsMenu.09faabd875',
-              'Project order'
-            )}
+    <>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <span className="flex flex-1 items-center justify-between">
+            <span>
+              {translate(
+                'auto.components.sidebar.SidebarWorkspaceOptionsMenu.09faabd875',
+                'Project order'
+              )}
+            </span>
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {projectOrderLabel}
+            </span>
           </span>
-          <span className="text-[11px] font-medium text-muted-foreground">{projectOrderLabel}</span>
-        </span>
-      </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent
-        className="w-44"
-        data-workspace-board-preserve-open={preserveWorkspaceBoardOpen ? '' : undefined}
-      >
-        <DropdownMenuRadioGroup
-          value={projectOrderBy}
-          onValueChange={(value) => {
-            const next = PROJECT_ORDER_OPTIONS.find((opt) => opt.id === value)
-            if (next) {
-              setProjectOrderBy(next.id)
-            }
-          }}
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent
+          className="w-44"
+          data-workspace-board-preserve-open={preserveWorkspaceBoardOpen ? '' : undefined}
         >
-          {PROJECT_ORDER_OPTIONS.map((opt) => (
-            <Tooltip key={opt.id}>
-              <TooltipTrigger asChild>
-                <DropdownMenuRadioItem
-                  value={opt.id}
-                  // Keep the menu open so people can compare order modes.
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  {opt.label}
-                </DropdownMenuRadioItem>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={6}>
-                {opt.description}
-              </TooltipContent>
-            </Tooltip>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuSubContent>
-    </DropdownMenuSub>
+          <DropdownMenuRadioGroup
+            value={projectOrderBy}
+            onValueChange={(value) => {
+              const next = PROJECT_ORDER_OPTIONS.find((opt) => opt.id === value)
+              if (next) {
+                setProjectOrderBy(next.id)
+              }
+            }}
+          >
+            {PROJECT_ORDER_OPTIONS.map((opt) => (
+              <Tooltip key={opt.id}>
+                <TooltipTrigger asChild>
+                  <DropdownMenuRadioItem
+                    value={opt.id}
+                    // Keep the menu open so people can compare order modes.
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    {opt.label}
+                  </DropdownMenuRadioItem>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={6}>
+                  {opt.description}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+      <DropdownMenuCheckboxItem
+        checked={compactProjectRows}
+        onCheckedChange={(checked) => setCompactProjectRows(checked === true)}
+        onSelect={(e) => e.preventDefault()}
+      >
+        {getCompactProjectRowsLabel()}
+      </DropdownMenuCheckboxItem>
+    </>
   )
 }
 

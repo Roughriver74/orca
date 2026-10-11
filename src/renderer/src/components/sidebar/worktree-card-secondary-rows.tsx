@@ -32,7 +32,8 @@ export function WorktreeCardSecondaryRows({
     showLineageChildChip,
     lineageChildAriaLabel,
     childWorkspaceShortLabel,
-    isDeleting
+    isDeleting,
+    forceInlineAgents
   } = card
   const { hasMetaRow } = presentation
 
@@ -89,6 +90,7 @@ export function WorktreeCardSecondaryRows({
         <WorktreeCardAgents
           worktreeId={worktree.id}
           agents={agentActivityDisplayMode === 'compact' ? compactInlineAgentRows : undefined}
+          showAllRows={forceInlineAgents === true}
           className={hasMetaRow || remoteBranchConflict ? 'mt-0' : '-mt-1'}
         />
       )}

@@ -125,7 +125,8 @@ export function getManualOrderAnchorRepo<R extends ProjectSectionRepo>(
  * Order project header entries by the user's project-order preference. Manual
  * follows the canonical repoOrder; Recent follows each project's most recent
  * visible workspace activity (descending), with empty/imported-only projects
- * sorting after active ones, then by manual rank, then label.
+ * sorting after active ones, then by manual rank, then label. Attention ranks
+ * by each project's most urgent Smart class (see project-attention-rank.ts).
  */
 export function sortProjectEntries<
   T extends readonly [string, ProjectSectionEntry<ActivityItem, ProjectSectionRepo>]

@@ -19,6 +19,11 @@ import {
   withRepoSectionDisplayLabels
 } from '../project-section-order'
 import { buildFolderWorkspaceRow } from './row-builders'
+import {
+  compareProjectAttentionRank,
+  createProjectAttentionRankLookup,
+  type ProjectAttentionByWorktree
+} from './project-attention-rank'
 
 export function appendProjectGroupSections(
   ctx: SectionAppendContext,
@@ -29,6 +34,7 @@ export function appendProjectGroupSections(
     compareFolderWorkspaces: FolderWorkspaceComparator
     projectOrderBy: ProjectOrderBy
     repoOrder: Map<string, number> | undefined
+    projectAttentionByWorktree?: ProjectAttentionByWorktree
   }
 ): void {
   const {
@@ -51,6 +57,18 @@ export function appendProjectGroupSections(
   }
 
   const sortRepoEntriesWithinGroup = (entries: OrderedGroupEntry[]): OrderedGroupEntry[] => {
+    if (projectOrderBy === 'attention') {
+      if (entries.length < 2) {
+        return [...entries]
+      }
+      const getAttentionRank = createProjectAttentionRankLookup(args.projectAttentionByWorktree)
+      return [...entries].sort(
+        (left, right) =>
+          compareProjectAttentionRank(getAttentionRank(left), getAttentionRank(right)) ||
+          getEffectiveProjectGroupManualRank(left[1].repo, repoOrder) -
+            getEffectiveProjectGroupManualRank(right[1].repo, repoOrder)
+      )
+    }
     if (projectOrderBy === 'recent') {
       if (entries.length < 2) {
         return [...entries]
