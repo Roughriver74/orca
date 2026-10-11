@@ -73,16 +73,25 @@ ensure_node() {
   local tarball="$STATE/node.tar.xz"
   curl -fsSL -o "$tarball" "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.xz"
   mkdir -p "$dir" && tar -xJf "$tarball" -C "$dir" --strip-components=1 && rm -f "$tarball"
-  # Why: the corepack bundled with Node 24.2 cannot launch pnpm 12's package layout.
-  "$dir/bin/npm" install -g corepack@0.34.6 >>"$LOG" 2>&1
 }
 
 ensure_toolchain() {
   ensure_node
+  export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+  if (( ! IS_MAC )); then
+    # Why: Linux corepack shims try pnpm 12 through a removed `bin/pnpm.cjs` entry; corepack still
+    # fetches the pinned version, and pnpm's own launcher in that cache runs fine.
+    local pinned dir
+    pinned=$(node -p "require('$REPO/package.json').packageManager.split('@')[1].split('+')[0]")
+    dir="$HOME/.cache/node/corepack/v1/pnpm/$pinned"
+    [[ -x "$dir/pnpm" ]] || (cd "$REPO" && corepack install >>"$LOG" 2>&1)
+    print -r -- "#!/bin/sh
+exec \"$dir/pnpm\" \"\$@\"" >"$STATE/bin/pnpm"
+    chmod +x "$STATE/bin/pnpm"
+    return 0
+  fi
   # Why: package scripts call bare `pnpm`; corepack shims pin the version from package.json.
   [[ -x "$STATE/bin/pnpm" ]] || corepack enable --install-directory "$STATE/bin" pnpm
-  export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-  (( IS_MAC )) || return 0
   # Why: Orca's native helper scripts build per-triple and lipo from `.build/<triple>/release`; Swift
   # 6.4's default swiftbuild engine writes every triple to one path, so force the native build system.
   if [[ ! -x "$STATE/bin/swift" ]]; then
