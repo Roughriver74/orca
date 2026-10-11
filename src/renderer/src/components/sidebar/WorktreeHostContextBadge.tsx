@@ -17,14 +17,26 @@ import { cn } from '@/lib/utils'
 export function WorktreeHostContextBadge({
   label,
   className,
-  title
+  title,
+  tint = null
 }: {
   label: string
   className?: string
   title?: string
+  /** Host color shared with the card's left bar, so the chip reads as its legend. */
+  tint?: string | null
 }): React.JSX.Element {
+  const style: (React.CSSProperties & { '--host-tint'?: string }) | undefined = tint
+    ? { '--host-tint': tint }
+    : undefined
   return (
-    <Badge variant="hostContext" className={cn('max-w-[7rem]', className)} title={title}>
+    <Badge
+      variant="hostContext"
+      className={cn('max-w-[7rem]', className)}
+      title={title}
+      data-host-tint={tint ? '' : undefined}
+      style={style}
+    >
       <span className="truncate">{label}</span>
     </Badge>
   )

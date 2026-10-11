@@ -8,6 +8,7 @@ import { useIsSleepingWorktree } from './use-worktree-sleep-state'
 import { WorktreeCardParentContent } from './worktree-card-parent-content'
 import { buildWorktreeCardPresentation } from './worktree-card-presentation'
 import { resolveProjectCardTint } from './project-header-color'
+import { resolveHostCardTint } from './host-card-tint'
 import type { WorktreeCardController } from './use-worktree-card-controller'
 
 export function WorktreeCardSurface({ card }: { card: WorktreeCardController }): React.JSX.Element {
@@ -44,8 +45,17 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
   const { titleOnlyCard, cardStyle } = presentation
   const isSleeping = useIsSleepingWorktree(worktree.id)
   const projectTint = resolveProjectCardTint(card.repo?.badgeColor)
-  const surfaceStyle: (React.CSSProperties & { '--project-tint'?: string }) | undefined =
-    projectTint ? { ...cardStyle, '--project-tint': projectTint } : cardStyle
+  const hostTint = resolveHostCardTint(card.repo)
+  const hasTint = projectTint !== null || hostTint !== null
+  const surfaceStyle:
+    | (React.CSSProperties & { '--project-tint'?: string; '--host-tint'?: string })
+    | undefined = hasTint
+    ? {
+        ...cardStyle,
+        ...(projectTint ? { '--project-tint': projectTint } : {}),
+        ...(hostTint ? { '--host-tint': hostTint } : {})
+      }
+    : cardStyle
 
   const parentCardContent = <WorktreeCardParentContent card={card} presentation={presentation} />
 
@@ -86,7 +96,7 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
         (isMultiSelected && !isActiveSurface && !isLineageDropTarget) || undefined
       }
       data-worktree-lineage-drop-target={isLineageDropTarget || undefined}
-      data-project-tint={projectTint ? '' : undefined}
+      data-card-tint={hasTint ? '' : undefined}
       onClick={handleClick}
       onDoubleClick={affiliateListMode ? undefined : handleDoubleClick}
       draggable={!affiliateListMode && nativeDragEnabled && !isDeleting && !titleRenaming}
