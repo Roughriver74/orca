@@ -1,0 +1,298 @@
+#!/bin/zsh
+# Self-built Orca (fork Roughriver74/orca, branch `custom`) = latest upstream release + own patches.
+#
+# Two roles share this script. The maintainer Mac rebases patches onto each upstream release and
+# pushes `custom` to the fork; follower Macs only build whatever `origin/custom` points at.
+#
+#   orca-custom-update sync       # maintainer: new upstream release? rebase patches, push, build, stage
+#   orca-custom-update follow     # follower: origin/custom moved? build it and stage
+#   orca-custom-update build      # build current `custom` branch and stage it
+#   orca-custom-update install    # swap staged build into /Applications once Orca is not running
+#   orca-custom-update bootstrap-follower   # one-time setup on another Mac (clone, role, launchd)
+#   orca-custom-update status
+#
+# Patches = commits on `custom` above the release tag it is based on.
+# This script is versioned in the fork (fork/orca-custom-update) and ~/bin links to it, so every Mac
+# gets script updates through git together with the patches.
+set -euo pipefail
+
+# Why: sync/follow rewrite the checkout that holds this file; run from a private copy so zsh never
+# reads a half-replaced script.
+if [[ -z "${ORCA_CUSTOM_UPDATE_COPY:-}" ]]; then
+  copy=$(mktemp -t orca-custom-update)
+  cp "$(readlink -f "$0")" "$copy"
+  ORCA_CUSTOM_UPDATE_COPY="$copy" exec /bin/zsh "$copy" "$@"
+fi
+trap 'rm -f "$ORCA_CUSTOM_UPDATE_COPY"' EXIT
+
+REPO="$HOME/projects/mac_soft/orca"
+STATE="$HOME/.local/share/orca-custom"
+STAGED="$STATE/Orca.app"
+APP="/Applications/Orca.app"
+OFFICIAL_BACKUP="/Applications/Orca.app.bak"
+ROLE_FILE="$HOME/.local/share/orca-custom/role"
+FORK_URL="https://github.com/Roughriver74/orca.git"
+UPSTREAM_URL="https://github.com/stablyai/orca.git"
+LAUNCH_AGENT="$HOME/Library/LaunchAgents/com.roughriver74.orca-custom-update.plist"
+LOG="$HOME/Library/Logs/orca-custom-update.log"
+mkdir -p "$STATE/bin"
+
+export PATH="$STATE/bin:/opt/homebrew/opt/node@24/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+# Why: package scripts call bare `pnpm`; corepack shims pin the version from package.json.
+[[ -x "$STATE/bin/pnpm" ]] || corepack enable --install-directory "$STATE/bin" pnpm
+# Why: Orca's native helper scripts build per-triple and lipo from `.build/<triple>/release`; Swift
+# 6.4's default swiftbuild engine writes every triple to one path, so force the native build system.
+if [[ ! -x "$STATE/bin/swift" ]]; then
+  print -r -- '#!/bin/zsh
+if [[ "$1" == build ]]; then shift; exec /usr/bin/swift build --build-system native "$@"; fi
+exec /usr/bin/swift "$@"' >"$STATE/bin/swift"
+  chmod +x "$STATE/bin/swift"
+fi
+# Why: Command Line Tools lack the x86_64 Swift back-deploy libs; only the arm64 slice runs here.
+if [[ ! -x "$STATE/bin/swiftc" ]]; then
+  print -r -- '#!/bin/zsh
+args=(); for a in "$@"; do [[ "$a" == x86_64-apple-macosx1[0-2]* ]] && a=x86_64-apple-macosx14.0; args+=("$a"); done
+exec /usr/bin/swiftc "${args[@]}"' >"$STATE/bin/swiftc"
+  chmod +x "$STATE/bin/swiftc"
+fi
+# Why: Xcode's license is not accepted on this Mac; Command Line Tools compile the native helpers.
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+export CSC_IDENTITY_AUTO_DISCOVERY=false
+
+log() { print -r -- "$(date '+%F %T') $*" | tee -a "$LOG" >&2; }
+notify() { osascript -e "display notification \"$2\" with title \"$1\"" >/dev/null 2>&1 || true; }
+
+# Single instance: a launchd tick must not start a second build next to a running one.
+if [[ "${1:-status}" != status ]]; then
+  LOCK="$STATE/lock"
+  if ! mkdir "$LOCK" 2>/dev/null; then
+    if kill -0 "$(cat "$LOCK/pid" 2>/dev/null)" 2>/dev/null; then
+      exit 0
+    fi
+    rm -rf "$LOCK" && mkdir "$LOCK"
+  fi
+  print $$ >"$LOCK/pid"
+  trap 'rm -rf "$LOCK"; rm -f "$ORCA_CUSTOM_UPDATE_COPY"' EXIT
+fi
+
+base_tag() { git -C "$REPO" describe --tags --abbrev=0 --match 'v[0-9]*' custom; }
+
+latest_release_tag() {
+  git -C "$REPO" ls-remote --tags --refs upstream 'v[0-9]*.[0-9]*.[0-9]*' \
+    | awk -F/ '{print $3}' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1
+}
+
+orca_running() { pgrep -xq Orca; }
+
+# The orcad template (remote runtime for SSH hosts) needs node-pty prebuilds from every platform's CI
+# runner, so it cannot be built here. Our patches don't touch it: reuse the official one for the tag.
+official_orcad_template() {
+  local tag=$1 version=${1#v}
+  local cache="$STATE/official/$tag"
+  if [[ ! -d "$cache/orcad-template" ]]; then
+    rm -rf "$cache" && mkdir -p "$cache"
+    local app_version
+    for candidate in "$APP" "$OFFICIAL_BACKUP"; do
+      app_version=$(defaults read "$candidate/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || true)
+      if [[ "$app_version" == "$version" && -d "$candidate/Contents/Resources/orcad-template" ]]; then
+        ditto "$candidate/Contents/Resources/orcad-template" "$cache/orcad-template"
+        print -r -- "$cache/orcad-template"
+        return 0
+      fi
+    done
+    log "downloading official $tag for its orcad template"
+    curl -fsSL -o "$cache/Orca-$version-arm64-mac.zip" \
+      "https://github.com/stablyai/orca/releases/download/$tag/Orca-$version-arm64-mac.zip" >>"$LOG" 2>&1
+    unzip -q "$cache/Orca-$version-arm64-mac.zip" 'Orca.app/Contents/Resources/orcad-template/*' -d "$cache/zip"
+    mv "$cache/zip/Orca.app/Contents/Resources/orcad-template" "$cache/orcad-template"
+    rm -rf "$cache/zip" "$cache/Orca-$version-arm64-mac.zip"
+  fi
+  print -r -- "$cache/orcad-template"
+}
+
+build() {
+  cd "$REPO"
+  git checkout -q custom
+  log "build: $(git log --oneline -1)"
+  pnpm install --frozen-lockfile >>"$LOG" 2>&1
+  # Why: mobile/ is a separate pnpm project; packaging asserts its web bundle exists.
+  (cd mobile && pnpm install --frozen-lockfile) >>"$LOG" 2>&1
+  pnpm run build:desktop >>"$LOG" 2>&1
+  rm -rf native/computer-use-macos/.build native/keyboard-layout-macos/.build native/notification-status-macos/.build
+  pnpm run build:computer-macos >>"$LOG" 2>&1
+  pnpm run build:keyboard-layout-macos >>"$LOG" 2>&1
+  pnpm run build:notification-status-macos >>"$LOG" 2>&1
+  pnpm run ensure:electron-runtime >>"$LOG" 2>&1
+  local commit version
+  commit=$(git rev-parse --short=12 HEAD)
+  version="$(node -p "require('./package.json').version")-local.$(date +%s)000.$commit"
+  rm -rf dist/mac-arm64
+  ORCA_BUILD_COMMIT="$commit" ORCA_LOCAL_BUILD_VERSION="$version" \
+    pnpm exec electron-builder --config config/electron-builder.config.cjs --mac dir --arm64 --publish never >>"$LOG" 2>&1
+  rm -rf "$STAGED"
+  ditto dist/mac-arm64/Orca.app "$STAGED"
+  local template
+  template=$(official_orcad_template "$(base_tag)")
+  rm -rf "$STAGED/Contents/Resources/orcad-template"
+  ditto "$template" "$STAGED/Contents/Resources/orcad-template"
+  # Why: arm64 macOS requires a valid (ad-hoc is fine) signature over the final bundle contents.
+  codesign --force --deep --sign - "$STAGED" >>"$LOG" 2>&1
+  print -r -- "$version" >"$STATE/staged-version"
+  log "staged $version"
+}
+
+install_staged() {
+  [[ -d "$STAGED" ]] || { log "install: nothing staged"; return 0; }
+  if orca_running; then
+    log "install: Orca is running, will retry later"
+    return 0
+  fi
+  # Keep the first official app as the rollback target; later self-builds are disposable.
+  if [[ ! -d "$OFFICIAL_BACKUP" ]]; then
+    mv "$APP" "$OFFICIAL_BACKUP"
+  else
+    rm -rf "$APP"
+  fi
+  mv "$STAGED" "$APP"
+  xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
+  local version; version=$(<"$STATE/staged-version")
+  print -r -- "$version" >"$STATE/installed-version"
+  rm -f "$STATE/staged-version"
+  log "installed $version"
+  notify "Orca обновлена" "Установлена своя сборка $version"
+}
+
+# Commits named `upstream-pr(#N): …` are cherry-picked upstream PRs. Once PR N is merged and its merge
+# commit is inside the new release, the release already has it: drop our copy instead of re-applying.
+merged_patch_commits() {
+  local current=$1 latest=$2 c n merge_commit
+  for c in $(git rev-list --reverse "$current"..custom); do
+    n=$(git log -1 --format=%s "$c" | sed -n 's/^upstream-pr(#\([0-9]*\)).*/\1/p')
+    [[ -n "$n" ]] || continue
+    merge_commit=$(gh pr view "$n" --repo stablyai/orca --json mergeCommit -q '.mergeCommit.oid // empty' 2>/dev/null || true)
+    if [[ -n "$merge_commit" ]] && git merge-base --is-ancestor "$merge_commit" "$latest" 2>/dev/null; then
+      print -r -- "$c"
+    fi
+  done
+}
+
+sync() {
+  cd "$REPO"
+  git fetch -q upstream --tags
+  local current latest
+  current=$(base_tag)
+  latest=$(latest_release_tag)
+  if [[ "$current" == "$latest" ]]; then
+    log "sync: up to date with $current"
+    return 0
+  fi
+  log "sync: $current -> $latest"
+  git checkout -q custom
+  local drops
+  drops=$(merged_patch_commits "$current" "$latest" | tr '\n' ' ')
+  [[ -n "$drops" ]] && log "sync: dropping patches merged upstream: $drops"
+  # Why: the todo editor marks merged-upstream patches as `drop`; every other patch is re-applied.
+  local todo_editor="$STATE/rebase-todo-editor"
+  print -r -- '#!/bin/zsh
+for sha in ${=ORCA_DROP_SHAS}; do sed -i "" -E "s/^pick (${sha:0:7}[0-9a-f]*) /drop \1 /" "$1"; done' >"$todo_editor"
+  chmod +x "$todo_editor"
+  # Why: lockfile conflicts are expected (the patch adds a dependency); regenerate instead of merging.
+  if ! ORCA_DROP_SHAS="$drops" GIT_SEQUENCE_EDITOR="$todo_editor" \
+    git rebase -q -i --onto "$latest" "$current" custom >>"$LOG" 2>&1; then
+    local conflicts
+    conflicts=$(git diff --name-only --diff-filter=U)
+    if [[ "$conflicts" == "pnpm-lock.yaml" ]]; then
+      git checkout "$latest" -- pnpm-lock.yaml
+      pnpm install --no-frozen-lockfile >>"$LOG" 2>&1
+      git add pnpm-lock.yaml
+      GIT_EDITOR=true git rebase --continue >>"$LOG" 2>&1 || true
+    fi
+    if [[ -d .git/rebase-merge || -d .git/rebase-apply ]]; then
+      git rebase --abort
+      log "sync: conflict rebasing onto $latest: $conflicts"
+      notify "Orca: нужна ручная правка" "Патчи не накладываются на $latest — сборка не обновлена"
+      return 1
+    fi
+  fi
+  git push -q --force-with-lease origin custom >>"$LOG" 2>&1 || log "sync: push to fork failed (non-fatal)"
+  build
+  notify "Orca $latest собрана" "Закройте Orca полностью (Cmd+Q) — новая сборка установится сама"
+  install_staged
+}
+
+follow() {
+  cd "$REPO"
+  git fetch -q origin custom
+  git fetch -q upstream --tags
+  if [[ "$(git rev-parse custom 2>/dev/null)" == "$(git rev-parse origin/custom)" && -f "$STATE/installed-version" ]]; then
+    log "follow: up to date with origin/custom"
+    return 0
+  fi
+  log "follow: origin/custom -> $(git log --oneline -1 origin/custom)"
+  git checkout -q -B custom origin/custom
+  build
+  notify "Новая сборка Orca готова" "Закройте Orca полностью (Cmd+Q) — она установится сама"
+  install_staged
+}
+
+bootstrap_follower() {
+  if [[ ! -d "$REPO/.git" ]]; then
+    mkdir -p "$(dirname "$REPO")"
+    git clone -q --filter=blob:none "$FORK_URL" "$REPO"
+    git -C "$REPO" remote add upstream "$UPSTREAM_URL"
+  fi
+  print follower >"$ROLE_FILE"
+  mkdir -p "$(dirname "$LAUNCH_AGENT")" "$HOME/Library/Logs"
+  cat >"$LAUNCH_AGENT" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.roughriver74.orca-custom-update</string>
+  <key>ProgramArguments</key>
+  <array><string>/bin/zsh</string><string>$HOME/bin/orca-custom-update</string><string>auto</string></array>
+  <key>StartInterval</key><integer>1800</integer>
+  <key>RunAtLoad</key><true/>
+  <key>LowPriorityIO</key><true/>
+  <key>Nice</key><integer>10</integer>
+  <key>StandardOutPath</key><string>$HOME/Library/Logs/orca-custom-update.launchd.log</string>
+  <key>StandardErrorPath</key><string>$HOME/Library/Logs/orca-custom-update.launchd.log</string>
+</dict>
+</plist>
+PLIST
+  launchctl bootout "gui/$(id -u)/com.roughriver74.orca-custom-update" 2>/dev/null || true
+  launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENT"
+  log "bootstrap: follower ready; first build starts via launchd"
+}
+
+# launchd runs `auto` every 30 min: install a staged build once Orca is closed, then check for a new
+# build source at most every 6 h (maintainer: upstream release; follower: the fork's `custom`).
+auto() {
+  install_staged
+  local stamp="$STATE/last-sync"
+  if [[ -f "$stamp" ]] && (( $(date +%s) - $(stat -f %m "$stamp") < 21600 )); then
+    return 0
+  fi
+  touch "$stamp"
+  if [[ "$(cat "$ROLE_FILE" 2>/dev/null)" == follower ]]; then
+    follow
+  else
+    sync
+  fi
+}
+
+case "${1:-status}" in
+  auto) auto ;;
+  sync) sync ;;
+  follow) follow ;;
+  bootstrap-follower) bootstrap_follower ;;
+  build) build ;;
+  install) install_staged ;;
+  status)
+    print "base release:  $(base_tag)"
+    print "latest:        $(latest_release_tag)"
+    print "installed:     $(cat "$STATE/installed-version" 2>/dev/null || print official)"
+    print "staged:        $(cat "$STATE/staged-version" 2>/dev/null || print -)"
+    ;;
+  *) print -u2 "usage: orca-custom-update auto|sync|build|install|status"; exit 2 ;;
+esac
