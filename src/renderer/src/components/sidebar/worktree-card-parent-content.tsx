@@ -5,6 +5,7 @@ import { getWorkspaceAttachments } from '../../../../shared/workspace-attachment
 import { WorktreeCardHeader } from './worktree-card-header'
 import { WorktreeCardMetaRow } from './worktree-card-meta-row'
 import { WorktreeCardDetailsHover } from './WorktreeCardMeta'
+import { WorktreeCardUsageDetails } from './WorktreeCardUsage'
 import { WorktreeCardPortsDetails } from './WorktreeCardPorts'
 import type { WorktreeCardPresentation } from './worktree-card-presentation'
 import { WorktreeCardSecondaryRows } from './worktree-card-secondary-rows'
@@ -42,6 +43,7 @@ export function WorktreeCardParentContent({
     metaAutomationProvenance,
     metaCliProvenance,
     workspacePorts,
+    workspaceUsage,
     detailsHoverControl,
     handleRenameTitle,
     handleEditIssue,
@@ -95,7 +97,14 @@ export function WorktreeCardParentContent({
         workspaceTitle={hoverWorkspaceTitle}
         workspaceTitleRenameDisabled={isDeleting || affiliateListMode}
         detailsAfter={
-          workspacePorts.length > 0 ? <WorktreeCardPortsDetails ports={workspacePorts} /> : null
+          workspacePorts.length > 0 || (workspaceUsage && workspaceUsage.providers.length > 0) ? (
+            <>
+              {workspacePorts.length > 0 && <WorktreeCardPortsDetails ports={workspacePorts} />}
+              {workspaceUsage && workspaceUsage.providers.length > 0 && (
+                <WorktreeCardUsageDetails usage={workspaceUsage} />
+              )}
+            </>
+          ) : null
         }
         openDelay={100}
         hoverControl={detailsHoverControl}

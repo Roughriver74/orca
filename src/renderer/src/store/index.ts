@@ -23,6 +23,7 @@ import {
   createMuseUsageSlice,
   createOpenCodeUsageSlice
 } from './slices/usage-provider-slices'
+import { createWorkspaceUsageSlice } from './slices/workspace-usage'
 import { createBrowserSlice } from './slices/browser'
 import { createRateLimitSlice } from './slices/rate-limits'
 import { createSshSlice } from './slices/ssh'
@@ -102,6 +103,7 @@ export const useAppStore = create<AppState>()(
         ...createCodexUsageSlice(...a),
         ...createOpenCodeUsageSlice(...a),
         ...createMuseUsageSlice(...a),
+        ...createWorkspaceUsageSlice(...a),
         ...createBrowserSlice(...a),
         ...createRateLimitSlice(...a),
         ...createSshSlice(...a),

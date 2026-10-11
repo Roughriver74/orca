@@ -27,6 +27,7 @@ vi.mock('@/store', () => ({
   useAppStore: (selector: (state: unknown) => unknown) =>
     selector({
       deleteStateByWorktreeId,
+      workspaceUsageTodayByWorktreeId: {},
       fetchHostedReviewForBranch,
       fetchIssue,
       fetchLinearIssue,

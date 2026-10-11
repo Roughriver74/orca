@@ -24,6 +24,7 @@ import {
   createMuseUsageSlice,
   createOpenCodeUsageSlice
 } from './usage-provider-slices'
+import { createWorkspaceUsageSlice } from './workspace-usage'
 import { createBrowserSlice } from './browser'
 import { createRateLimitSlice } from './rate-limits'
 import { createSshSlice } from './ssh'
@@ -84,6 +85,7 @@ export function createTestStore() {
     ...createCodexUsageSlice(...a),
     ...createOpenCodeUsageSlice(...a),
     ...createMuseUsageSlice(...a),
+    ...createWorkspaceUsageSlice(...a),
     ...createBrowserSlice(...a),
     ...createRateLimitSlice(...a),
     ...createSshSlice(...a),

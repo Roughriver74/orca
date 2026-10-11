@@ -50,6 +50,7 @@ vi.mock('@/store', () => {
     tabsByWorktree: {},
     updateWorktreeMeta: vi.fn(),
     workspacePortScan,
+    workspaceUsageTodayByWorktreeId: {},
     worktreeCardProperties
   })
   return {

@@ -22,3 +22,7 @@ export function getLocalUsageDay(timestamp: string): string | null {
   const parsed = new Date(timestamp)
   return Number.isNaN(parsed.getTime()) ? null : formatLocalDay(parsed)
 }
+
+export function getTodayLocalUsageDay(): string {
+  return formatLocalDay(new Date())
+}

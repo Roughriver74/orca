@@ -12,11 +12,17 @@ import type {
   ClaudeUsageSummary
 } from '../../shared/claude-usage-types'
 import type { AutomationRunUsage } from '../../shared/automations-types'
+import type { WorkspaceUsageProviderToday } from '../../shared/workspace-usage-types'
 import type { Store } from '../persistence'
 import type { ClaudeUsagePersistedState } from './types'
 import { scanClaudeUsageFilesViaWorker } from '../usage/usage-scan-worker-spawn'
 import { UsageProviderStoreLifecycle } from '../usage/usage-provider-store-lifecycle'
-import { buildBreakdown, buildDaily, buildSummary } from './claude-usage-report-aggregation'
+import {
+  buildAllWorktreeTodayUsage,
+  buildBreakdown,
+  buildDaily,
+  buildSummary
+} from './claude-usage-report-aggregation'
 import { buildRecentSessions } from './claude-usage-session-rows'
 import type { AutomationUsageLookupInput } from './claude-usage-automation-attribution'
 import { resolveAutomationRunUsage } from './claude-usage-automation-attribution'
@@ -139,6 +145,11 @@ export class ClaudeUsageStore extends UsageProviderStoreLifecycle<
   ): Promise<ClaudeUsageSessionRow[]> {
     await this.refresh(false)
     return buildRecentSessions(this.state, scope, range, limit)
+  }
+
+  async getAllWorktreeUsageToday(): Promise<Record<string, WorkspaceUsageProviderToday>> {
+    await this.refresh(false)
+    return Object.fromEntries(buildAllWorktreeTodayUsage(this.state))
   }
 
   async getAutomationRunUsage(input: AutomationUsageLookupInput): Promise<AutomationRunUsage> {
