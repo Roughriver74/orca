@@ -62,6 +62,7 @@ function build(
     undefined,
     undefined,
     undefined,
+    undefined,
     options.attention,
     options.activeWorktreeId ?? null
   )
@@ -152,6 +153,7 @@ describe('buildRows compact project rows', () => {
         [],
         undefined,
         [],
+        undefined,
         undefined,
         undefined,
         undefined,
@@ -293,6 +295,7 @@ describe('buildRows attention order details', () => {
       [],
       undefined,
       [],
+      undefined,
       undefined,
       undefined,
       undefined,

@@ -1448,6 +1448,27 @@ html.native-shell .app-layout {
   box-shadow: 0 1px 2px color-mix(in srgb, var(--worktree-sidebar-foreground) 3%, transparent);
 }
 
+/* Why: a pseudo layer keeps the project tint under hover/active washes, which reset `background`;
+   isolation keeps the z-index:-1 layer above the card's own background but below its content. */
+[data-worktree-card-surface][data-project-tint] {
+  isolation: isolate;
+}
+
+[data-worktree-card-surface][data-project-tint]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: color-mix(in oklab, var(--project-tint) 9%, transparent);
+  box-shadow: inset 3px 0 0 color-mix(in oklab, var(--project-tint) 85%, transparent);
+}
+
+.dark [data-worktree-card-surface][data-project-tint]::before {
+  background: color-mix(in oklab, var(--project-tint) 13%, transparent);
+}
+
 [data-worktree-card-surface][data-worktree-card-active='secondary'] {
   border-color: color-mix(in srgb, var(--sidebar-ring) 25%, transparent);
   background: color-mix(in srgb, var(--sidebar-accent) 45%, transparent);
