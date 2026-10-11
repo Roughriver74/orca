@@ -131,17 +131,73 @@ export function getRepoLucideIcon(name: string | null | undefined): LucideIcon {
   return getRepoLucideIconOptions().find((option) => option.name === name)?.icon ?? Folder
 }
 
+const AUTO_PROJECT_EMOJI = [
+  '🦊',
+  '🐳',
+  '🦉',
+  '🐙',
+  '🦋',
+  '🐝',
+  '🌵',
+  '🍀',
+  '🌊',
+  '🔥',
+  '⚡',
+  '🌙',
+  '🪐',
+  '🧩',
+  '🎯',
+  '🚀',
+  '🛠️',
+  '📦',
+  '🧪',
+  '🎨',
+  '🧭',
+  '📊',
+  '🧠',
+  '🐢',
+  '🐬',
+  '🍉',
+  '🍋',
+  '🌻',
+  '🦀',
+  '🐧',
+  '🍄',
+  '🎲'
+] as const
+
+/** Stable emoji for a project name, so the same project gets the same glyph on every host. */
+export function getAutoProjectEmoji(seed: string): string {
+  let hash = 0
+  for (const char of seed.trim().toLowerCase()) {
+    hash = (hash * 31 + (char.codePointAt(0) ?? 0)) >>> 0
+  }
+  return AUTO_PROJECT_EMOJI[hash % AUTO_PROJECT_EMOJI.length]
+}
+
 export function RepoIconGlyph({
-  repoIcon,
+  repoIcon: chosenRepoIcon,
   className,
   iconClassName,
-  color
+  color,
+  autoEmojiSeed
 }: {
   repoIcon: RepoIcon | null | undefined
   className?: string
   iconClassName?: string
   color?: string
+  /**
+   * Fork-only: when set, a project without a user-chosen icon (none, or the auto-detected
+   * GitHub owner avatar) shows a stable emoji instead — owner avatars repeat across one's repos.
+   */
+  autoEmojiSeed?: string
 }): React.JSX.Element {
+  const usesAutoIcon =
+    !chosenRepoIcon || (chosenRepoIcon.type === 'image' && chosenRepoIcon.source === 'github')
+  const repoIcon: RepoIcon | null | undefined =
+    autoEmojiSeed && usesAutoIcon
+      ? { type: 'emoji', emoji: getAutoProjectEmoji(autoEmojiSeed) }
+      : chosenRepoIcon
   const imageSrc = repoIcon?.type === 'image' ? repoIcon.src : null
   // Why: private-mode GHES avatars need a session cookie, so the load fails and would
   // render blank — track the failed src so a different icon still renders.

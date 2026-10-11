@@ -104,6 +104,7 @@ export function WorktreeCardHeader({
           <RepoIdentityChip repo={repo!}>
             <RepoIconGlyph
               repoIcon={repo!.repoIcon}
+              autoEmojiSeed={repo!.displayName}
               color={resolveRepoHeaderColor(repo!.badgeColor)}
               className="size-full"
               iconClassName="size-3"
@@ -167,6 +168,7 @@ export function WorktreeCardHeader({
           <span className="flex size-4 shrink-0 items-center justify-center rounded-[4px] text-muted-foreground">
             <RepoIconGlyph
               repoIcon={repo.repoIcon}
+              autoEmojiSeed={repo.displayName}
               color={resolveRepoHeaderColor(repo.badgeColor)}
               className="size-4"
               iconClassName="size-3.5"
@@ -178,6 +180,7 @@ export function WorktreeCardHeader({
           <RepoIdentityChip repo={repo!}>
             <RepoIconGlyph
               repoIcon={repo!.repoIcon}
+              autoEmojiSeed={repo!.displayName}
               color={resolveRepoHeaderColor(repo!.badgeColor)}
               className="size-full"
               iconClassName="size-3"

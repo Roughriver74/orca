@@ -334,6 +334,7 @@ export function renderWorktreeSectionHeaderRow(args: {
               {row.repo ? (
                 <RepoIconGlyph
                   repoIcon={row.repo.repoIcon}
+                  autoEmojiSeed={row.repo.displayName}
                   color={repoHeaderColor}
                   className="size-4"
                   iconClassName="size-3.5"
