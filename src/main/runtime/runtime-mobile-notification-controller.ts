@@ -24,7 +24,7 @@ export type MobileNotificationDispatchEvent = {
   desktopAllowed?: boolean
   desktopAway?: boolean
   emittedAt?: number
-  source: 'agent-task-complete' | 'terminal-bell' | 'test' | 'plugin'
+  source: 'agent-task-complete' | 'terminal-bell' | 'check-failed' | 'test' | 'plugin'
   title: string
   body: string
   worktreeId?: string

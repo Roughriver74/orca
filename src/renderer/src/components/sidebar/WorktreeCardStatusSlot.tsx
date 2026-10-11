@@ -5,6 +5,7 @@ import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { getWorktreeStatusLabel, type WorktreeStatus } from '@/lib/worktree-status'
 import { FilledBellIcon } from './WorktreeCardHelpers'
+import { WorkspaceCheckStatusBadge } from './WorkspaceCheckStatusBadge'
 import StatusIndicator from './StatusIndicator'
 import { useWorktreeActivityStatus } from './use-worktree-activity-status'
 import { useIsSleepingWorktree } from './use-worktree-sleep-state'
@@ -203,7 +204,12 @@ export function WorktreeCardStatusSlot({
   }
 
   if (!unreadActionEnabled) {
-    return overlayNewCardUnreadStatus(passiveStatus, showNewCardUnreadAlert)
+    return (
+      <>
+        {overlayNewCardUnreadStatus(passiveStatus, showNewCardUnreadAlert)}
+        <WorkspaceCheckStatusBadge worktreeId={worktreeId} />
+      </>
+    )
   }
 
   const actionLabel = isUnread ? 'Mark as read' : 'Mark as unread'
@@ -268,6 +274,7 @@ export function WorktreeCardStatusSlot({
         </TooltipContent>
       </Tooltip>
       {showStatus && <span className="sr-only">{statusLabel}</span>}
+      <WorkspaceCheckStatusBadge worktreeId={worktreeId} />
     </>
   )
 }

@@ -192,4 +192,7 @@ export function configureRuntimeServices(runtime: OrcaRuntimeService): void {
     prepareForClaudeLaunch: (target) => state.claudeRuntimeAuth!.prepareForClaudeLaunch(target),
     resolveBaseEnvironment: () => resolveHostAgentBaseEnvironment(store.getSettings())
   })
+  if (state.workspaceCheckService) {
+    runtime.setWorkspaceCheckService(state.workspaceCheckService)
+  }
 }

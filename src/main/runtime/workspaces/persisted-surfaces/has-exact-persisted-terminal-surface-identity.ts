@@ -20,6 +20,8 @@ import type {
 } from '../../runtime-legacy-worker-terminal-recovery-types'
 import { getLatestPtyTitle } from '../../runtime-worktree-status-projection'
 import type { AutomationService } from '../../../automations/service'
+import type { WorkspaceCheckService } from '../../../workspace-check/workspace-check-service'
+import type { WorkspaceCheckState } from '../../../../shared/workspace-check-types'
 import type { ArtifactCloudService } from '../../../artifacts/artifact-cloud-service'
 import type {
   ArtifactCloudOperation,
@@ -224,6 +226,29 @@ export abstract class OrcaRuntimeWithHasExactPersistedTerminalSurfaceIdentity ex
 
   setAutomationService(service: AutomationService): void {
     this.automation.setService(service)
+  }
+
+  private workspaceCheckService: WorkspaceCheckService | null = null
+
+  setWorkspaceCheckService(service: WorkspaceCheckService): void {
+    this.workspaceCheckService = service
+  }
+
+  getWorkspaceCheckState(worktreeId: string): WorkspaceCheckState | null {
+    return this.workspaceCheckService?.getState(worktreeId) ?? null
+  }
+
+  async runWorkspaceCheckNow(worktreeId: string): Promise<WorkspaceCheckState> {
+    if (!this.workspaceCheckService) {
+      throw new Error('runtime_unavailable')
+    }
+    return this.workspaceCheckService.runNow(worktreeId)
+  }
+
+  // Why public: WorkspaceCheckService is wired from startup composition (main-process-observers.ts)
+  // outside this class, but emitClientEvent itself stays protected.
+  publishWorkspaceCheckChanged(worktreeId: string, state: WorkspaceCheckState | null): void {
+    this.emitClientEvent({ type: 'workspaceCheckChanged', worktreeId, state })
   }
 
   releaseFinishedAutomationRunTerminals(): Promise<number> {

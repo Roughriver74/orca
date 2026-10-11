@@ -25,6 +25,13 @@ export function buildNotificationOptions(
     }
   }
 
+  if (args.source === 'check-failed') {
+    return {
+      title: `Check failed in ${args.worktreeLabel ?? 'workspace'}`,
+      body: args.repoLabel ? `${args.repoLabel} · command failed` : 'Check command failed'
+    }
+  }
+
   if (args.source === 'test') {
     return {
       title: 'Orca notifications are on',

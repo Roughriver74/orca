@@ -51,6 +51,7 @@ import type { StructuredSessionLaunchDirectorySlice } from './slices/structured-
 import type { StructuredChatSleptAtSlice } from './slices/structured-chat-slept-at'
 import type { WorkspaceAttentionSlice } from './slices/workspace-attention/workspace-attention-contract'
 import type { OverlapRadarSlice } from './slices/overlap-radar'
+import type { WorkspaceCheckStateSlice } from './slices/workspace-check-state'
 
 export type AppState = RepoSlice &
   SparsePresetsSlice &
@@ -102,4 +103,5 @@ export type AppState = RepoSlice &
   StructuredSessionLaunchDirectorySlice &
   StructuredChatSleptAtSlice &
   WorkspaceAttentionSlice &
-  OverlapRadarSlice
+  OverlapRadarSlice &
+  WorkspaceCheckStateSlice

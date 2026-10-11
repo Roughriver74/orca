@@ -1,4 +1,5 @@
 import { BrowserWindow, Notification, ipcMain, powerMonitor } from 'electron'
+import type { NotificationDeliveryService } from '../notifications/notification-delivery-service'
 import { readDesktopAwayState } from '../notifications/desktop-away-state'
 import type { Store } from '../persistence'
 import type {
@@ -29,6 +30,15 @@ import {
   recordNotificationDeliveryOutcome,
   resetNotificationPermissionEvidence
 } from './notification-permission-probe'
+
+// Why module-level: other main-process services (e.g. the workspace check runner) dispatch
+// desktop notifications outside the renderer-originated `notifications:dispatch` IPC round
+// trip, but must still go through the one delivery policy (cooldowns, settings gates, tray).
+let notificationDeliveryService: NotificationDeliveryService | null = null
+
+export function getNotificationDeliveryService(): NotificationDeliveryService | null {
+  return notificationDeliveryService
+}
 
 export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntimeService): void {
   ipcMain.removeHandler('notifications:getDesktopAwayState')
@@ -167,6 +177,7 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
       }
     }
   })
+  notificationDeliveryService = deliveryService
 
   // A remote host reported no pending prompt: its alerts relayed to this desktop's phones are over.
   ipcMain.removeHandler('notifications:settleStructuredPrompts')

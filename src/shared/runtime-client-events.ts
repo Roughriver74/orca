@@ -10,6 +10,7 @@ import type { RuntimeNativeChatLaunchDraftResolution } from './runtime-types'
 import type { RuntimeNavigationTarget } from './runtime-navigation'
 import type { WorktreeSortOrderUpdate } from './worktree/sort-order-update'
 import type { SidebarInputsChangedEvent } from './sidebar-list/sidebar-inputs-feed-contract'
+import type { WorkspaceCheckState } from './workspace-check-types'
 
 export type RuntimeClientEvent =
   | { type: 'reposChanged' }
@@ -30,6 +31,9 @@ export type RuntimeClientEvent =
   // channel for ssh:state-changed, so without this event their reconnect
   // overlays never learn the host connected (STA-1468).
   | { type: 'sshStateChanged'; targetId: string; state: SshConnectionState }
+  // Why: the check engine runs on the execution host; clients cannot observe a
+  // run's progress or result without the host announcing it.
+  | { type: 'workspaceCheckChanged'; worktreeId: string; state: WorkspaceCheckState | null }
   | {
       type: 'worktreeTerminalSleepState'
       worktreeId: string

@@ -53,6 +53,7 @@ import { createStructuredSessionLaunchDirectorySlice } from './slices/structured
 import { createStructuredChatSleptAtSlice } from './slices/structured-chat-slept-at'
 import { createWorkspaceAttentionSlice } from './slices/workspace-attention/workspace-attention-slice'
 import { createOverlapRadarSlice } from './slices/overlap-radar'
+import { createWorkspaceCheckStateSlice } from './slices/workspace-check-state'
 import { e2eConfig } from '@/lib/e2e-config'
 import type { createWebRuntimeSessionTerminal } from '@/runtime/web-runtime-terminal-creation'
 import {
@@ -144,7 +145,8 @@ export const useAppStore = create<AppState>()(
           ...createStructuredSessionLaunchDirectorySlice(...a),
           ...createStructuredChatSleptAtSlice(...a),
           ...createWorkspaceAttentionSlice(...a),
-          ...createOverlapRadarSlice(...a)
+          ...createOverlapRadarSlice(...a),
+          ...createWorkspaceCheckStateSlice(...a)
         }
       })
     ),

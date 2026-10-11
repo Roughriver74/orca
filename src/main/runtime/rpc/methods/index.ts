@@ -71,6 +71,7 @@ import {
 } from './workspace-layout'
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../../shared/layout-owner-switch'
 import { ORCA_SIDEBAR_INPUTS_IS_MAIN } from '../../../../shared/sidebar-inputs-switch'
+import { WORKSPACE_CHECK_METHODS } from './workspace-check'
 
 // Why: a flat manifest keeps registration order explicit and provides one
 // grep-point for "what methods does the RPC server expose?" — useful when
@@ -84,6 +85,7 @@ export const ALL_RPC_METHODS = [
   ...ARTIFACT_METHODS,
   ...AUTOMATION_METHODS,
   ...REPO_METHODS,
+  ...WORKSPACE_CHECK_METHODS,
   ...WORKTREE_METHODS,
   ...REFERENCE_METHODS,
   ...AGENT_SESSION_METHODS,

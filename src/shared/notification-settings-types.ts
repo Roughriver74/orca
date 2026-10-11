@@ -6,6 +6,8 @@ import type { NotificationSourceId } from './notification-source'
 export type NotificationSettings = {
   enabled: boolean
   agentTaskComplete: boolean
+  /** Opt-out: absent (including pre-upgrade persisted settings) behaves as enabled. */
+  checkFailed?: boolean
   terminalBell: boolean
   suppressWhenFocused: boolean
   customSoundId:
@@ -28,7 +30,7 @@ export type NotificationSettings = {
   notifyHiddenWorkspaces: boolean
 }
 
-export type NotificationEventSource = 'agent-task-complete' | 'terminal-bell' | 'test'
+export type NotificationEventSource = 'agent-task-complete' | 'terminal-bell' | 'check-failed' | 'test'
 
 export type StructuredNotificationRead = StructuredAttentionRead & {
   paneKey: string
