@@ -1,4 +1,12 @@
 {
+  "overlapRadar": {
+    "badge": "Overlap",
+    "badgeAriaLabel": "Overlapping changes with other workspaces",
+    "popoverHeading": "Overlapping changes",
+    "alsoChangedIn": "Also changed in {{workspace}}",
+    "lockfileTag": "lockfile",
+    "lockfileNote": "Lockfiles are usually safe to regenerate and rarely need manual merging."
+  },
   "csv": {
     "detectingDelimiter": "Detecting delimiter…",
     "indexProgress": "Indexing CSV… {{percent}}%",

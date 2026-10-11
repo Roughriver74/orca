@@ -115,6 +115,7 @@ export function applyRemoveWorktreeSuccessState(
       gitBranchCompareRequestStatusHeadByWorktree: omitByWorktree(
         s.gitBranchCompareRequestStatusHeadByWorktree
       ),
+      overlapRadarChangedPathsByWorktree: omitByWorktree(s.overlapRadarChangedPathsByWorktree),
       everActivatedWorktreeIds: s.everActivatedWorktreeIds.has(worktreeId)
         ? new Set([...s.everActivatedWorktreeIds].filter((id) => id !== worktreeId))
         : s.everActivatedWorktreeIds,

@@ -24,7 +24,12 @@ const badgeVariants = cva(
           'h-4 rounded border-border bg-accent px-1.5 text-[10px] leading-none text-muted-foreground dark:border-border/50 dark:bg-accent/80',
         /** A skill or file sitting inline in the chat message box, ringed while selected. */
         promptPill:
-          'max-w-full border-border bg-secondary px-1.5 py-0 align-baseline text-muted-foreground data-[selected=true]:ring-1 data-[selected=true]:ring-ring'
+          'max-w-full border-border bg-secondary px-1.5 py-0 align-baseline text-muted-foreground data-[selected=true]:ring-1 data-[selected=true]:ring-ring',
+        /** Same dense, squared shape as `hostContext` but for a low-severity caution chip
+         *  (e.g. overlap radar) — the status-warning tokens already carry their own
+         *  light/dark values, so no `dark:` overrides are needed here. */
+        warning:
+          'h-4 rounded border-status-warning-border bg-status-warning-background px-1.5 text-[10px] leading-none text-status-warning'
       }
     },
     defaultVariants: {

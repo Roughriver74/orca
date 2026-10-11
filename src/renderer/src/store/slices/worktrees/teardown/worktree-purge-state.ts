@@ -169,6 +169,7 @@ export function buildFullWorktreePurgeState(
     gitBranchCompareRequestStatusHeadByWorktree: omitByWorktree(
       s.gitBranchCompareRequestStatusHeadByWorktree
     ),
+    overlapRadarChangedPathsByWorktree: omitByWorktree(s.overlapRadarChangedPathsByWorktree),
     // Why: keyed by worktreeId; without this it leaks a huge-status marker per removed worktree.
     gitStatusHugeByWorktree: omitByWorktree(s.gitStatusHugeByWorktree),
     explorerDisplayRootByWorktree: omitByWorktree(s.explorerDisplayRootByWorktree),
