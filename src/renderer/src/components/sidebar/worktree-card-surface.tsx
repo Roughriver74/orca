@@ -7,6 +7,7 @@ import WorktreeContextMenu from './WorktreeContextMenu'
 import { useIsSleepingWorktree } from './use-worktree-sleep-state'
 import { WorktreeCardParentContent } from './worktree-card-parent-content'
 import { buildWorktreeCardPresentation } from './worktree-card-presentation'
+import { resolveProjectCardTint } from './project-header-color'
 import type { WorktreeCardController } from './use-worktree-card-controller'
 
 export function WorktreeCardSurface({ card }: { card: WorktreeCardController }): React.JSX.Element {
@@ -42,6 +43,9 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
   } = card
   const { titleOnlyCard, cardStyle } = presentation
   const isSleeping = useIsSleepingWorktree(worktree.id)
+  const projectTint = resolveProjectCardTint(card.repo?.badgeColor)
+  const surfaceStyle: (React.CSSProperties & { '--project-tint'?: string }) | undefined =
+    projectTint ? { ...cardStyle, '--project-tint': projectTint } : cardStyle
 
   const parentCardContent = <WorktreeCardParentContent card={card} presentation={presentation} />
 
@@ -82,13 +86,14 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
         (isMultiSelected && !isActiveSurface && !isLineageDropTarget) || undefined
       }
       data-worktree-lineage-drop-target={isLineageDropTarget || undefined}
+      data-project-tint={projectTint ? '' : undefined}
       onClick={handleClick}
       onDoubleClick={affiliateListMode ? undefined : handleDoubleClick}
       draggable={!affiliateListMode && nativeDragEnabled && !isDeleting && !titleRenaming}
       onDragStart={!affiliateListMode && nativeDragEnabled ? handleDragStart : undefined}
       onDragEnd={!affiliateListMode && nativeDragEnabled ? handleDragEnd : undefined}
       aria-busy={isDeleting}
-      style={cardStyle}
+      style={surfaceStyle}
     >
       {isDeleting && (
         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/50 backdrop-blur-[1px]">

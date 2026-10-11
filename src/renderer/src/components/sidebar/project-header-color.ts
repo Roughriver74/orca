@@ -15,6 +15,14 @@ export function resolveRepoHeaderColor(badgeColor: string | null | undefined): s
   return REPO_COLORS.find((repoColor) => repoColor === normalizedBadgeColor) ?? normalizedBadgeColor
 }
 
+/** Card tint for a project the user gave a non-default color; the default gray stays untinted. */
+export function resolveProjectCardTint(badgeColor: string | null | undefined): string | null {
+  const normalizedBadgeColor = normalizeRepoBadgeColor(badgeColor)
+  return normalizedBadgeColor && normalizedBadgeColor !== DEFAULT_REPO_BADGE_COLOR
+    ? normalizedBadgeColor
+    : null
+}
+
 export function resolveProjectGroupHeaderColor(args: {
   groupBy: string
   headerKey: string
