@@ -34,6 +34,26 @@ export const getThemeEntries = createLocalizedCatalog((): SettingsSearchEntry[] 
         {
           englishOnly: true
         }
+      ),
+      ...translateSearchKeyword(
+        'settings.appearance.interfaceTheme.keywordPaletteNames',
+        'tokyo night dracula nord gruvbox one dark rose pine kanagawa everforest solarized github',
+        {
+          englishOnly: true,
+          aliases: [
+            'Tokyo Night',
+            'Dracula',
+            'Nord',
+            'Gruvbox',
+            'One Dark',
+            'Rosé Pine',
+            'Rose Pine',
+            'Kanagawa',
+            'Everforest',
+            'Solarized',
+            'GitHub'
+          ]
+        }
       )
     ]
   }

@@ -273,7 +273,8 @@
         "dark": "Dark Theme",
         "light": "Light Theme",
         "keywordPalette": "palette",
-        "keywordCatppuccin": "catppuccin"
+        "keywordCatppuccin": "catppuccin",
+        "keywordPaletteNames": "tokyo night dracula nord gruvbox one dark rose pine kanagawa everforest solarized github"
       }
     },
     "browser": {
