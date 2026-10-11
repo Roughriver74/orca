@@ -7,6 +7,7 @@ import { ChangesModeView } from './ChangesModeView'
 import { ConflictBanner, ConflictPlaceholderView } from './ConflictComponents'
 import {
   CsvViewer,
+  ExcalidrawViewer,
   CsvPagedViewer,
   ImageViewer,
   IpynbViewer,
@@ -44,6 +45,7 @@ export function EditorEditFileSurface({
   isMermaid,
   isCsv,
   isNotebook,
+  isExcalidraw,
   mdViewMode,
   inlineMarkdownRenderState,
   isChangesMode,
@@ -76,6 +78,7 @@ export function EditorEditFileSurface({
   isMermaid: boolean
   isCsv: boolean
   isNotebook: boolean
+  isExcalidraw: boolean
   mdViewMode: MarkdownViewMode
   inlineMarkdownRenderState: MarkdownRenderState | null
   isChangesMode: boolean
@@ -295,6 +298,14 @@ export function EditorEditFileSurface({
       scrollCacheKey={`${editorViewStateKey}:notebook`}
       onContentChange={handleContentChange}
       onDirtyStateHint={handleDirtyStateHint}
+      onSave={handleSave}
+    />
+  ) : isExcalidraw && mdViewMode === 'rich' ? (
+    <ExcalidrawViewer
+      key={activeFile.id}
+      content={currentContent}
+      readOnly={activeFile.readOnly === true}
+      onContentChange={handleContentChange}
       onSave={handleSave}
     />
   ) : (

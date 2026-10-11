@@ -1,4 +1,5 @@
 import { useAppStore } from '@/store'
+import { toMonacoLanguage } from '@/lib/language-detect'
 import type { MarkdownViewMode, OpenFile, PendingEditorReveal } from '@/store/slices/editor'
 import type { GitDiffResult } from '../../../../shared/git-diff-compare-types'
 import type { GitStatusEntry } from '../../../../shared/git-status-types'
@@ -49,6 +50,7 @@ export function EditorContent({
   isMermaid,
   isCsv,
   isNotebook,
+  isExcalidraw,
   mdViewMode,
   inlineMarkdownRenderState,
   isChangesMode,
@@ -77,6 +79,7 @@ export function EditorContent({
   isMermaid: boolean
   isCsv: boolean
   isNotebook: boolean
+  isExcalidraw: boolean
   mdViewMode: MarkdownViewMode
   inlineMarkdownRenderState: MarkdownRenderState | null
   isChangesMode: boolean
@@ -111,7 +114,7 @@ export function EditorContent({
   // Why: the same absolute path can exist in different worktrees, paired
   // runtimes, or SSH targets; durable PDF zoom must not cross those owners.
   const pdfPreferenceKey = buildPdfScalePreferenceKey(activeFile)
-  const monacoLanguage = resolvedLanguage === 'notebook' ? 'json' : resolvedLanguage
+  const monacoLanguage = toMonacoLanguage(resolvedLanguage)
   const reloadOpenCheckRunDetailsTab = useAppStore((state) => state.reloadOpenCheckRunDetailsTab)
   const markdownDocuments = useMarkdownDocuments(activeFile, isMarkdown, mdViewMode, handleSave)
   const getConflictNavigation = useEditorConflictNavigation()
@@ -255,6 +258,7 @@ export function EditorContent({
         isMermaid={isMermaid}
         isCsv={isCsv}
         isNotebook={isNotebook}
+        isExcalidraw={isExcalidraw}
         mdViewMode={mdViewMode}
         inlineMarkdownRenderState={inlineMarkdownRenderState}
         isChangesMode={isChangesMode}

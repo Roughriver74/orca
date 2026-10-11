@@ -7,6 +7,7 @@ import {
   GitCompareArrows,
   NotebookText,
   Pencil,
+  Shapes,
   Table as TableIcon,
   type LucideIcon
 } from 'lucide-react'
@@ -82,6 +83,15 @@ export const NOTEBOOK_VIEW_MODE_METADATA: Partial<Record<MarkdownViewMode, ViewM
       return translate('auto.components.editor.EditorViewToggle.b3410cd5e0', 'Notebook')
     },
     icon: NotebookText
+  }
+}
+
+export const EXCALIDRAW_VIEW_MODE_METADATA: Partial<Record<MarkdownViewMode, ViewModeMetadata>> = {
+  rich: {
+    get label() {
+      return translate('auto.components.editor.EditorViewToggle.67c9a72313', 'Diagram')
+    },
+    icon: Shapes
   }
 }
 

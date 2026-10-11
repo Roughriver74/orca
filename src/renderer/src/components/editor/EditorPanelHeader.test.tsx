@@ -77,6 +77,7 @@ const baseProps = {
   isMarkdown: false,
   isCsv: false,
   isNotebook: false,
+  isExcalidraw: false,
   hasEditorToggle: false,
   availableEditorToggleModes: [],
   effectiveToggleValue: 'edit',

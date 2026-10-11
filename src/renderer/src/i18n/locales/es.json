@@ -15811,9 +15811,13 @@
         "EditorPanelShell": {
           "e2c4dec350": "Cargando editor…"
         },
+        "ExcalidrawViewer": {
+          "4b306c693f": "No se puede mostrar este archivo de Excalidraw: {{value0}}"
+        },
         "EditorViewToggle": {
           "b3410cd5e0": "Notebook",
           "e408aa9cd5": "Tabla",
+          "67c9a72313": "Diagrama",
           "167f45888c": "Cambios no confirmados",
           "4837f3f578": "Cambios",
           "ac3bb87913": "Editar",
