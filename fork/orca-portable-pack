@@ -148,8 +148,11 @@ fi
 
 if (( with_codex )); then
   codex_zip=$(fetch_release_asset openai/codex '^codex-x86_64-pc-windows-msvc\.exe\.zip$')
-  unzip -q -o "$codex_zip" -d "$stage/bin"
-  mv "$stage/bin/codex-x86_64-pc-windows-msvc.exe" "$stage/bin/codex.exe"
+  # Why a subfolder: the package keeps resources beside its entrypoint (see codex-package.json).
+  unzip -q -o "$codex_zip" -d "$stage/bin/codex"
+  mv "$stage/bin/codex/codex-x86_64-pc-windows-msvc.exe" "$stage/bin/codex/codex.exe"
+  jq '.entrypoint = "codex.exe"' "$stage/bin/codex/codex-package.json" >"$stage/bin/codex/codex-package.json.new"
+  mv "$stage/bin/codex/codex-package.json.new" "$stage/bin/codex/codex-package.json"
   if [[ -f "$HOME/.codex/auth.json" ]]; then
     mkdir -p "$stage/home/.codex"
     cp "$HOME/.codex/auth.json" "$stage/home/.codex/auth.json"
