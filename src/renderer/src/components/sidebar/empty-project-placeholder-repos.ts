@@ -20,7 +20,12 @@ export function getEmptyProjectPlaceholderRepoIds(args: {
     if (filterSet && !filterSet.has(repo.id)) {
       continue
     }
-    const hasNoWorktrees = (args.worktreesByRepo[repo.id]?.length ?? 0) === 0
+    const repoWorktrees = args.worktreesByRepo[repo.id] ?? []
+    // Why: archiving every checkout is how a project is put away; an empty header would undo that.
+    if (repoWorktrees.length > 0 && repoWorktrees.every((worktree) => worktree.isArchived)) {
+      continue
+    }
+    const hasNoWorktrees = repoWorktrees.length === 0
     // Why: workspace filters hide cards, but must not rewrite the visible
     // membership of a persisted Project Group. #8865
     // Hide-when-idle repos opt out: an empty header for every idle clone is the clutter they remove.

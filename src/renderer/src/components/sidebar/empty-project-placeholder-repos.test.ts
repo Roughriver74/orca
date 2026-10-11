@@ -118,6 +118,21 @@ describe('getEmptyProjectPlaceholderRepoIds', () => {
     ).toEqual([groupedRepo.id])
   })
 
+  it('drops a grouped project whose every checkout is archived', () => {
+    const groupedRepo: Repo = { ...repo, projectGroupId: 'group-1' }
+    const archived: Worktree = { ...worktree, repoId: groupedRepo.id, isArchived: true }
+
+    expect(
+      getEmptyProjectPlaceholderRepoIds({
+        groupBy: 'repo',
+        repos: [groupedRepo],
+        worktreesByRepo: { [groupedRepo.id]: [archived] },
+        visibleWorktrees: [],
+        filterRepoIds: []
+      }).size
+    ).toBe(0)
+  })
+
   it('does not create a grouped repo placeholder when one of its workspaces is visible', () => {
     const groupedRepo: Repo = { ...repo, projectGroupId: 'group-1' }
     const groupedWorktree: Worktree = { ...worktree, repoId: groupedRepo.id }

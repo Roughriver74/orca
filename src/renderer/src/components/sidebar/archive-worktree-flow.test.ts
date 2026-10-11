@@ -162,11 +162,11 @@ describe('archive-worktree-flow', () => {
     expect(mocks.toastError).toHaveBeenCalledTimes(1)
   })
 
-  it('excludes primary checkouts, folder workspaces, and already-archived rows', () => {
+  it('archives primary checkouts but not folder workspaces or already-archived rows', () => {
     expect(isArchivableWorktree(makeWorktree({ id: 'wt-1', repoId: 'r' }))).toBe(true)
     expect(
       isArchivableWorktree(makeWorktree({ id: 'wt-2', repoId: 'r', isMainWorktree: true }))
-    ).toBe(false)
+    ).toBe(true)
     expect(isArchivableWorktree(makeWorktree({ id: folderWorkspaceKey('f-1'), repoId: 'r' }))).toBe(
       false
     )

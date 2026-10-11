@@ -8,14 +8,11 @@ import type { Worktree } from '../../../../shared/worktree/types'
 import { runSleepWorktrees } from './sleep-worktree-flow'
 import { prepareActiveWorktreeFocusAfterDelete } from './active-worktree-focus-after-delete'
 
-// Why: the primary checkout stands in for the project row, and folder-workspace
-// lanes do not filter archived rows yet, so hiding either would misbehave.
+// Why: multi-repo folder-workspace lanes do not filter archived rows yet, so hiding them
+// would misbehave. Primary checkouts are archivable: archiving one hides its whole project,
+// and the empty-project placeholder skips a project whose every checkout is archived.
 export function isArchivableWorktree(worktree: Worktree): boolean {
-  return (
-    !worktree.isArchived &&
-    !worktree.isMainWorktree &&
-    parseWorkspaceKey(worktree.id)?.type !== 'folder'
-  )
+  return !worktree.isArchived && parseWorkspaceKey(worktree.id)?.type !== 'folder'
 }
 
 type ArchiveWriteResult = { succeededIds: string[]; failedIds: string[] }
