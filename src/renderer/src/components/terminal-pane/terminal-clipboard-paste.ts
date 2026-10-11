@@ -12,43 +12,71 @@ type SaveClipboardImageAsTempFile = (args?: {
 
 type PasteTerminalClipboardDeps = {
   readClipboardText: (options?: ReadClipboardTextOptions) => Promise<string>
+  readClipboardFilePaths?: () => Promise<string[]>
   saveClipboardImageAsTempFile: SaveClipboardImageAsTempFile
   pasteText: (
     text: string,
     options?: TerminalPasteTextOptions
   ) => boolean | void | Promise<boolean | void>
+  /** Pastes absolute local paths a file manager copied; undefined leaves file
+   *  copies to fall through to the ordinary text/image paste path. */
+  pasteFilePaths?: (paths: string[]) => boolean | void | Promise<boolean | void>
   connectionId?: string | null
   runtimeEnvironmentId?: string | null
   forceBracketedMultilineTextPaste?: boolean
   protectedMultilineTextPasteOptions?: TerminalPasteTextOptions
   onTextPasteError?: (error: unknown) => void
+  onFilePathsPasteError?: (error: unknown) => void
   onImagePasteError?: (error: unknown) => void
 }
 
 export type TerminalClipboardPasteResult =
-  | { status: 'pasted'; kind: 'image-path' | 'text' }
+  | { status: 'pasted'; kind: 'file-paths' | 'image-path' | 'text' }
   | {
       status: 'skipped'
       reason:
         | 'empty'
+        | 'file-paths-paste-failed'
+        | 'file-paths-paste-rejected'
         | 'image-paste-failed'
         | 'image-paste-rejected'
         | 'text-paste-failed'
         | 'text-paste-rejected'
         | 'text-too-large'
     }
-
 export async function pasteTerminalClipboard({
   readClipboardText,
+  readClipboardFilePaths,
   saveClipboardImageAsTempFile,
   pasteText,
+  pasteFilePaths,
   connectionId,
   runtimeEnvironmentId,
   forceBracketedMultilineTextPaste = false,
   protectedMultilineTextPasteOptions,
   onTextPasteError,
+  onFilePathsPasteError,
   onImagePasteError
 }: PasteTerminalClipboardDeps): Promise<TerminalClipboardPasteResult> {
+  // Why: a file manager copy also puts the files' names on the clipboard as
+  // text, which this paste must never type — so files are checked, and acted
+  // on, before text or an image are even considered (issue request STA-clip).
+  if (pasteFilePaths) {
+    const filePaths = await readClipboardFilePaths?.().catch(() => [] as string[])
+    if (filePaths && filePaths.length > 0) {
+      try {
+        const result = await pasteFilePaths(filePaths)
+        if (result === false) {
+          return { status: 'skipped', reason: 'file-paths-paste-rejected' }
+        }
+        return { status: 'pasted', kind: 'file-paths' }
+      } catch (error) {
+        onFilePathsPasteError?.(error)
+        return { status: 'skipped', reason: 'file-paths-paste-failed' }
+      }
+    }
+  }
+
   let text = ''
   try {
     text = await readClipboardText({ maxBytes: TERMINAL_PASTE_MAX_BYTES })

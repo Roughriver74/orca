@@ -44,6 +44,8 @@ type UseFileExplorerNodeCommandsParams = {
   handleClick: (node: TreeNode, dirToggle?: DirToggleTiming, isKeyboardActivation?: boolean) => void
   toggleDir: (worktreeId: string, dirPath: string) => void
   scrollToIndex: (index: number) => void
+  displayRootPath: string | null
+  pasteFilesFromClipboard: (destinationDir: string) => Promise<void>
 }
 
 type UseFileExplorerNodeCommandsResult = {
@@ -76,7 +78,9 @@ export function useFileExplorerNodeCommands({
   refreshDir,
   handleClick,
   toggleDir,
-  scrollToIndex
+  scrollToIndex,
+  displayRootPath,
+  pasteFilesFromClipboard
 }: UseFileExplorerNodeCommandsParams): UseFileExplorerNodeCommandsResult {
   const collapseDirSubtree = useAppStore((s) => s.collapseDirSubtree)
   const openModal = useAppStore((s) => s.openModal)
@@ -111,7 +115,9 @@ export function useFileExplorerNodeCommands({
     requestDelete,
     requestDeleteAll,
     scrollToIndex,
-    activeWorktreeId
+    activeWorktreeId,
+    displayRootPath,
+    pasteFilesFromClipboard
   })
 
   // Why: context-menu Delete should respect the multi-selection — if the

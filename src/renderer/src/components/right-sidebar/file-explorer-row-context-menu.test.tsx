@@ -90,6 +90,7 @@ function renderRevealItem(
       onViewFile={vi.fn()}
       onCopyPaths={vi.fn()}
       onStartNew={vi.fn()}
+      onPasteFiles={vi.fn()}
       onStartRename={vi.fn()}
       onDuplicate={vi.fn()}
       onRequestDelete={vi.fn()}
@@ -182,5 +183,39 @@ describe('FileExplorerRowContextMenu host capabilities', () => {
     storeState.activeWorktreeId = 'folder:fw-1'
 
     expect(renderRevealItem()?.disabled).toBe(false)
+  })
+
+  it('shows a Paste item that calls onPasteFiles with targetDir', () => {
+    const onPasteFiles = vi.fn()
+    renderToStaticMarkup(
+      <FileExplorerRowContextMenu
+        node={fileNode}
+        isExpanded={false}
+        deleteShortcutLabel=""
+        targetDir="/repo/src"
+        targetDepth={1}
+        selectionSize={1}
+        onViewFile={vi.fn()}
+        onCopyPaths={vi.fn()}
+        onStartNew={vi.fn()}
+        onPasteFiles={onPasteFiles}
+        onStartRename={vi.fn()}
+        onDuplicate={vi.fn()}
+        onRequestDelete={vi.fn()}
+        canOpenInOrcaBrowser={false}
+        canCollapseFolderSubtree={false}
+        canAddAsProject={false}
+        onAddFolderAsProject={vi.fn()}
+        onOpenInTerminal={vi.fn()}
+        onCollapseFolderSubtree={vi.fn()}
+        onFindInFolder={vi.fn()}
+      />
+    )
+    const pasteItem = items.list.find((item) =>
+      React.Children.toArray(item.children).includes('Paste')
+    )
+    expect(pasteItem).toBeDefined()
+    pasteItem?.onSelect?.()
+    expect(onPasteFiles).toHaveBeenCalledWith('/repo/src')
   })
 })

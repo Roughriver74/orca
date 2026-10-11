@@ -58,6 +58,7 @@ type UseFileExplorerTreePaneStateResult = {
   handlers: ReturnType<typeof useFileExplorerHandlers>
   nodeCommands: ReturnType<typeof useFileExplorerNodeCommands>
   fileDropOwnerRef: (root: HTMLElement | null) => void
+  pasteFilesFromClipboard: (destinationDir: string) => Promise<void>
 }
 
 /**
@@ -219,7 +220,7 @@ export function useFileExplorerTreePaneState({
     operationOwner: rootCache?.operationOwner
   })
 
-  const fileDropOwnerRef = useFileExplorerImport({
+  const { fileDropOwnerRef, pasteFilesFromClipboard } = useFileExplorerImport({
     displayRootPath,
     worktreePath: visibleFilesWorktreePath,
     worktreeId: activeWorktreeId,
@@ -280,7 +281,9 @@ export function useFileExplorerTreePaneState({
     refreshDir,
     handleClick: handlers.handleClick,
     toggleDir: hasNameFilter ? handleToggleNameFilterDir : toggleDir,
-    scrollToIndex: rowScrolling.scrollToIndex
+    scrollToIndex: rowScrolling.scrollToIndex,
+    displayRootPath,
+    pasteFilesFromClipboard
   })
 
   return {
@@ -296,6 +299,7 @@ export function useFileExplorerTreePaneState({
     rowScrolling,
     handlers,
     nodeCommands,
-    fileDropOwnerRef
+    fileDropOwnerRef,
+    pasteFilesFromClipboard
   }
 }

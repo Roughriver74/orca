@@ -94,6 +94,7 @@ function virtualRowsElement(
     onCopyPaths: vi.fn(),
     onViewFile: vi.fn(),
     onStartNew: vi.fn(),
+    onPasteFiles: vi.fn(),
     onStartRename: vi.fn(),
     onDuplicate: vi.fn(),
     onAddFolderAsProject: vi.fn(),

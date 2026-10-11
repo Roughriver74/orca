@@ -388,4 +388,88 @@ describe('terminal clipboard paste', () => {
     expect(observedIgnoreBracketedPasteMode).toEqual([true])
     expect(saveClipboardImageAsTempFile).not.toHaveBeenCalled()
   })
+
+  it('pastes copied file paths ahead of text and image fallbacks', async () => {
+    const pasteText = vi.fn()
+    const pasteFilePaths = vi.fn()
+    const saveClipboardImageAsTempFile = vi.fn()
+
+    const result = await pasteTerminalClipboard({
+      // Why: Finder also puts the files' names on the clipboard as text —
+      // that must never be typed when real paths are pasted instead.
+      readClipboardText: vi.fn().mockResolvedValue('a b.txt\nc.png'),
+      readClipboardFilePaths: vi.fn().mockResolvedValue(['/Users/me/a b.txt', '/Users/me/c.png']),
+      saveClipboardImageAsTempFile,
+      pasteText,
+      pasteFilePaths
+    })
+
+    expect(pasteFilePaths).toHaveBeenCalledWith(['/Users/me/a b.txt', '/Users/me/c.png'])
+    expect(pasteText).not.toHaveBeenCalled()
+    expect(saveClipboardImageAsTempFile).not.toHaveBeenCalled()
+    expect(result).toEqual({ status: 'pasted', kind: 'file-paths' })
+  })
+
+  it('pastes copied files ahead of an image-only clipboard', async () => {
+    const pasteFilePaths = vi.fn()
+    const saveClipboardImageAsTempFile = vi.fn()
+
+    const result = await pasteTerminalClipboard({
+      readClipboardText: vi.fn().mockResolvedValue(''),
+      readClipboardFilePaths: vi.fn().mockResolvedValue(['/Users/me/shot.png']),
+      saveClipboardImageAsTempFile,
+      pasteText: vi.fn(),
+      pasteFilePaths
+    })
+
+    expect(pasteFilePaths).toHaveBeenCalledWith(['/Users/me/shot.png'])
+    expect(saveClipboardImageAsTempFile).not.toHaveBeenCalled()
+    expect(result).toEqual({ status: 'pasted', kind: 'file-paths' })
+  })
+
+  it('falls through to text when no caller is wired to paste file paths', async () => {
+    const pasteText = vi.fn()
+
+    const result = await pasteTerminalClipboard({
+      readClipboardText: vi.fn().mockResolvedValue('hello'),
+      readClipboardFilePaths: vi.fn().mockResolvedValue(['/Users/me/a.txt']),
+      saveClipboardImageAsTempFile: vi.fn(),
+      pasteText
+    })
+
+    expect(pasteText).toHaveBeenCalledWith('hello')
+    expect(result).toEqual({ status: 'pasted', kind: 'text' })
+  })
+
+  it('reports a rejected file-paths paste without falling back to text', async () => {
+    const pasteText = vi.fn()
+
+    const result = await pasteTerminalClipboard({
+      readClipboardText: vi.fn().mockResolvedValue('a.txt'),
+      readClipboardFilePaths: vi.fn().mockResolvedValue(['/Users/me/a.txt']),
+      saveClipboardImageAsTempFile: vi.fn(),
+      pasteText,
+      pasteFilePaths: vi.fn().mockResolvedValue(false)
+    })
+
+    expect(pasteText).not.toHaveBeenCalled()
+    expect(result).toEqual({ status: 'skipped', reason: 'file-paths-paste-rejected' })
+  })
+
+  it('reports a failed file-paths paste without falling back to text', async () => {
+    const onFilePathsPasteError = vi.fn()
+    const error = new Error('upload failed')
+
+    const result = await pasteTerminalClipboard({
+      readClipboardText: vi.fn().mockResolvedValue('a.txt'),
+      readClipboardFilePaths: vi.fn().mockResolvedValue(['/Users/me/a.txt']),
+      saveClipboardImageAsTempFile: vi.fn(),
+      pasteText: vi.fn(),
+      pasteFilePaths: vi.fn().mockRejectedValue(error),
+      onFilePathsPasteError
+    })
+
+    expect(onFilePathsPasteError).toHaveBeenCalledWith(error)
+    expect(result).toEqual({ status: 'skipped', reason: 'file-paths-paste-failed' })
+  })
 })

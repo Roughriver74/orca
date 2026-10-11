@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { FilePlus, FolderPlus } from 'lucide-react'
+import { ClipboardPaste, FilePlus, FolderPlus } from 'lucide-react'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
 import {
   DropdownMenu,
@@ -26,7 +26,8 @@ export function FileExplorerBackgroundMenu({
   point,
   worktreePath,
   displayDepth = 0,
-  onStartNew
+  onStartNew,
+  onPasteFiles
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -34,6 +35,7 @@ export function FileExplorerBackgroundMenu({
   displayDepth?: number
   worktreePath: string
   onStartNew: (type: 'file' | 'folder', dir: string, depth: number) => void
+  onPasteFiles: (dir: string) => void
 }): React.JSX.Element {
   useEffect(() => {
     const close = (): void => onOpenChange(false)
@@ -70,6 +72,13 @@ export function FileExplorerBackgroundMenu({
           {translate(
             'auto.components.right.sidebar.FileExplorerBackgroundMenu.3b5e2dcb8d',
             'New Folder'
+          )}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onPasteFiles(worktreePath)}>
+          <ClipboardPaste />
+          {translate(
+            'auto.components.right.sidebar.FileExplorerBackgroundMenu.7e1b4f9a02',
+            'Paste'
           )}
         </DropdownMenuItem>
       </DropdownMenuContent>

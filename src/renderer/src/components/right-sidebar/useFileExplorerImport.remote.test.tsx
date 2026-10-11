@@ -29,7 +29,7 @@ const setSelected = vi.fn()
 
 function Explorer({ worktreeId, root }: { worktreeId: string; root: string }) {
   // Like the tree pane, the owner is the one the tree root loaded with.
-  const ownerRef = useFileExplorerImport({
+  const { fileDropOwnerRef } = useFileExplorerImport({
     worktreeId,
     worktreePath: root,
     displayRootPath: root,
@@ -40,7 +40,7 @@ function Explorer({ worktreeId, root }: { worktreeId: string; root: string }) {
   })
   const srcDir = joinPath(root, 'src')
   return (
-    <div ref={ownerRef} data-testid="tree">
+    <div ref={fileDropOwnerRef} data-testid="tree">
       <button data-testid="src" data-file-explorer-drop-dir={srcDir} />
     </div>
   )

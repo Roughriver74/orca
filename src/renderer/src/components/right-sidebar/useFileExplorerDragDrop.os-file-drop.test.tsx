@@ -27,7 +27,7 @@ function Explorer(): React.JSX.Element {
     scrollRef,
     getOperationOwnerForPath: () => undefined
   })
-  const ownerRef = useFileExplorerImport({
+  const { fileDropOwnerRef, pasteFilesFromClipboard } = useFileExplorerImport({
     worktreeId: 'wt-1',
     worktreePath: '/repo',
     refreshDir,
@@ -45,7 +45,8 @@ function Explorer(): React.JSX.Element {
     selection: {},
     paneState: {
       scrollRef,
-      fileDropOwnerRef: ownerRef,
+      fileDropOwnerRef,
+      pasteFilesFromClipboard,
       inlineInputState: {},
       rowScrolling: {},
       handlers: {},
