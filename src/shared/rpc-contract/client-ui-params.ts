@@ -74,7 +74,8 @@ export const StatusBarItem = z.enum([
   'zcode',
   'ssh',
   'resource-usage',
-  'ports'
+  'ports',
+  'clock'
 ])
 
 export const WorkspaceStatusDefinition = z.object({
@@ -192,6 +193,7 @@ export const UiUpdateFields = z
     _grokStatusBarDefaultAdded: z.boolean().optional(),
     _cursorStatusBarDefaultAdded: z.boolean().optional(),
     _zcodeStatusBarDefaultAdded: z.boolean().optional(),
+    _clockStatusBarDefaultAdded: z.boolean().optional(),
     statusBarVisible: z.boolean().optional(),
     usagePercentageDisplay: z.enum(['used', 'remaining']).optional(),
     statusBarUsageMode: z.enum(['verbose', 'compact']).optional(),

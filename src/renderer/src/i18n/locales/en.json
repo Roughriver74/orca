@@ -295,7 +295,18 @@
         "antigravityToggleDescription": "Show Antigravity subscription usage for the active workspace.",
         "grokToggleDescription": "Show Grok subscription credit usage when signed in via Grok CLI.",
         "cursorToggleDescription": "Show Cursor plan usage when signed in through cursor-agent or Cursor IDE.",
-        "zcodeToggleDescription": "Show ZCode Coding Plan quota usage."
+        "zcodeToggleDescription": "Show ZCode Coding Plan quota usage.",
+        "clockToggleDescription": "Show the current date and time in the status bar.",
+        "clock": {
+          "title": "Date & Time",
+          "description": "Show the current date and time, centered in the status bar.",
+          "keyword": {
+            "clock": "clock",
+            "time": "time",
+            "date": "date",
+            "calendar": "calendar"
+          }
+        }
       },
       "menuBarIcon": {
         "title": "Show Menu Bar Icon",

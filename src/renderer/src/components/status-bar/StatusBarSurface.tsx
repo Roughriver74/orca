@@ -36,6 +36,7 @@ import {
 import { useStatusBarController } from './use-status-bar-controller'
 import { isOwnerNotSetUpPlaceholder } from './owner-usage-rate-limits'
 import { StatusBarVisibilityMenu } from './StatusBarVisibilityMenu'
+import { ClockStatusSegment } from './ClockStatusSegment'
 import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
 
 const PetStatusSegment = lazyWithRetry(() =>
@@ -71,6 +72,7 @@ export function StatusBarSurface({
     anyVisible,
     barRef,
     canSignInFromUsageRow,
+    clockSlotWidth,
     collapseUsage,
     collapsedUsageProviders,
     compact,
@@ -93,6 +95,7 @@ export function StatusBarSurface({
     setMenuOpen,
     setMenuPoint,
     setStatusBarUsageMode,
+    showClock,
     showEmptyUsageCta,
     showFloatingTerminalToggle,
     showFloatingWorkspaceAttentionDot,
@@ -126,6 +129,19 @@ export function StatusBarSurface({
         setMenuOpen(true)
       }}
     >
+      {showClock && clockSlotWidth > 0 ? (
+        // Why: a true center slot — absolutely positioned off the normal flex
+        // flow so left/right content widths never push it off-center; the
+        // measured slot width caps it so it can't overlap either side.
+        <div
+          className="pointer-events-none absolute inset-y-0 left-1/2 flex -translate-x-1/2 items-center justify-center"
+          style={{ maxWidth: clockSlotWidth }}
+        >
+          <div className="pointer-events-auto min-w-0">
+            <ClockStatusSegment />
+          </div>
+        </div>
+      ) : null}
       {/* Why: usage gives way first — what it drops stays one click away in its popover. */}
       <div
         className="status-bar-usage-cluster flex min-w-0 flex-1 items-center overflow-clip [overflow-clip-margin:3px]"
