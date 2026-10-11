@@ -206,6 +206,7 @@ build() {
     cp -a "$template" "$STAGED/resources/orcad-template"
   fi
   print -r -- "$version" >"$STATE/staged-version"
+  git rev-parse HEAD >"$STATE/built-commit"
   log "staged $version"
 }
 
@@ -322,7 +323,7 @@ follow() {
   cd "$REPO"
   git fetch -q origin custom
   git fetch -q upstream --tags
-  if [[ "$(git rev-parse custom 2>/dev/null)" == "$(git rev-parse origin/custom)" && -f "$STATE/installed-version" ]]; then
+  if [[ "$(cat "$STATE/built-commit" 2>/dev/null)" == "$(git rev-parse origin/custom)" ]]; then
     log "follow: up to date with origin/custom"
     return 0
   fi
