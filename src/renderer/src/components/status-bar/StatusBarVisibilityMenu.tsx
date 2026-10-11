@@ -1,4 +1,4 @@
-import { Activity, Plug, Server } from 'lucide-react'
+import { Activity, Clock, Plug, Server } from 'lucide-react'
 import React from 'react'
 import {
   DropdownMenu,
@@ -184,6 +184,15 @@ export function StatusBarVisibilityMenu({
         >
           <Plug className="size-3.5" />
           {translate('auto.components.status.bar.StatusBar.9659e38343', 'Ports')}
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={statusBarItems.includes('clock')}
+          onCheckedChange={() => {
+            toggleStatusBarItem('clock')
+          }}
+        >
+          <Clock className="size-3.5" />
+          {translate('settings.appearance.statusBar.clock.title', 'Date & Time')}
         </DropdownMenuCheckboxItem>
       </DropdownMenuContent>
     </DropdownMenu>

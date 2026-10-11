@@ -33,6 +33,25 @@ export type StatusBarLevelWidth = {
 const NO_COLLAPSED_USAGE: readonly string[] = []
 
 const WIDTH_TOLERANCE_PX = 1
+// Why: breathing room on each side of the clock pill within the free gap.
+const CLOCK_SLOT_MARGIN_PX = 12
+// Why: below this, truncation reads as illegible noise — hide the clock instead.
+const CLOCK_SLOT_MIN_WIDTH_PX = 80
+
+/** Width available for the status bar's absolutely-centered clock, measured as the
+ *  free gap between the usage cluster's actually-rendered content and the right-side
+ *  segments' content; 0 once that gap is too tight to show the clock legibly. */
+export function computeClockSlotWidth(params: {
+  availableWidth: number
+  usageRenderedWidth: number
+  segmentsWidth: number
+  columnGap: number
+}): number {
+  const { availableWidth, usageRenderedWidth, segmentsWidth, columnGap } = params
+  const gap = availableWidth - usageRenderedWidth - segmentsWidth - columnGap
+  const usable = gap - CLOCK_SLOT_MARGIN_PX * 2
+  return usable < CLOCK_SLOT_MIN_WIDTH_PX ? 0 : usable
+}
 
 /** Roomiest level known to fit; an unmeasured level is returned so it gets probed. */
 export function pickStatusBarDensityLevel(
@@ -88,6 +107,9 @@ export function useStatusBarDensity(): {
   density: StatusBarDensity
   overflowing: boolean
   collapsedUsageProviders: readonly string[]
+  /** Free gap between the usage cluster and the right-side segments, for an
+   *  absolutely-centered clock; 0 when there's no room to show it. */
+  clockSlotWidth: number
   barRef: (node: HTMLElement | null) => void
   usageRef: (node: HTMLElement | null) => void
   segmentsRef: (node: HTMLElement | null) => void
@@ -95,9 +117,11 @@ export function useStatusBarDensity(): {
   const [level, setLevel] = useState(0)
   const [overflowing, setOverflowing] = useState(false)
   const [collapsedUsageProviders, setCollapsedUsageProviders] = useState(NO_COLLAPSED_USAGE)
+  const [clockSlotWidth, setClockSlotWidth] = useState(0)
   const committedLevelRef = useRef(0)
   const overflowingRef = useRef(false)
   const collapsedUsageRef = useRef(NO_COLLAPSED_USAGE)
+  const clockSlotWidthRef = useRef(0)
   const levelWidthsRef = useRef<(StatusBarLevelWidth | undefined)[]>([])
   const barElementRef = useRef<HTMLElement | null>(null)
   const usageElementRef = useRef<HTMLElement | null>(null)
@@ -113,7 +137,9 @@ export function useStatusBarDensity(): {
     const available =
       bar.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight)
     const usage = measureUsageRow(usageElementRef.current)
-    const fixedWidth = (Number.parseFloat(style.columnGap) || 0) + measureWidth(segmentsElementRef)
+    const columnGap = Number.parseFloat(style.columnGap) || 0
+    const segmentsWidth = measureWidth(segmentsElementRef)
+    const fixedWidth = columnGap + segmentsWidth
     const required = usage.naturalWidth + fixedWidth
     const collapses = STATUS_BAR_DENSITY_LEVELS[committedLevelRef.current].collapseUsage
     levelWidthsRef.current = recordStatusBarDensityWidth(
@@ -143,6 +169,16 @@ export function useStatusBarDensity(): {
     if (nextOverflowing !== overflowingRef.current) {
       overflowingRef.current = nextOverflowing
       setOverflowing(nextOverflowing)
+    }
+    const nextClockSlotWidth = computeClockSlotWidth({
+      availableWidth: available,
+      usageRenderedWidth: usage.renderedWidth,
+      segmentsWidth,
+      columnGap
+    })
+    if (nextClockSlotWidth !== clockSlotWidthRef.current) {
+      clockSlotWidthRef.current = nextClockSlotWidth
+      setClockSlotWidth(nextClockSlotWidth)
     }
   }, [])
 
@@ -178,6 +214,7 @@ export function useStatusBarDensity(): {
     density: STATUS_BAR_DENSITY_LEVELS[level],
     overflowing,
     collapsedUsageProviders,
+    clockSlotWidth,
     ...refs
   }
 }

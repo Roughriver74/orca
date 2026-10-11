@@ -266,6 +266,31 @@ export const getStatusBarToggles = createLocalizedCatalog(
         'settings.appearance.statusBar.portsToggleDescription',
         'Show live workspace ports. Click it for workspace-scoped ports and external listeners.'
       )
+    },
+    {
+      id: 'clock',
+      title: translate('settings.appearance.statusBar.clock.title', 'Date & Time'),
+      description: translate(
+        'settings.appearance.statusBar.clock.description',
+        'Show the current date and time, centered in the status bar.'
+      ),
+      keywords: [
+        ...translateSearchKeyword(
+          'auto.components.settings.appearance.search.896eb53fd4',
+          'status bar'
+        ),
+        ...translateSearchKeyword('settings.appearance.statusBar.clock.keyword.clock', 'clock'),
+        ...translateSearchKeyword('settings.appearance.statusBar.clock.keyword.time', 'time'),
+        ...translateSearchKeyword('settings.appearance.statusBar.clock.keyword.date', 'date'),
+        ...translateSearchKeyword(
+          'settings.appearance.statusBar.clock.keyword.calendar',
+          'calendar'
+        )
+      ],
+      toggleDescription: translate(
+        'settings.appearance.statusBar.clockToggleDescription',
+        'Show the current date and time in the status bar.'
+      )
     }
   ]
 )

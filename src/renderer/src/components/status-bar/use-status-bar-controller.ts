@@ -49,6 +49,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     density: { compact, usageTightestOnly, segmentsIconOnly, collapseUsage },
     overflowing,
     collapsedUsageProviders,
+    clockSlotWidth,
     barRef,
     usageRef,
     segmentsRef
@@ -161,6 +162,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   const showSsh = statusBarItems.includes('ssh')
   const showResourceUsage = statusBarItems.includes('resource-usage')
   const showPorts = statusBarItems.includes('ports')
+  const showClock = statusBarItems.includes('clock')
   const showFloatingTerminalToggle =
     floatingTerminalEnabled && floatingTerminalTriggerLocation === 'status-bar'
   // Why: meter-only children (excludes resource-usage) so the % display callout anchors to a real meter cluster.
@@ -246,6 +248,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     anyFetching,
     anyVisible,
     barRef,
+    clockSlotWidth,
     collapseUsage,
     collapsedUsageProviders,
     compact,
@@ -271,6 +274,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     setMenuOpen,
     setMenuPoint,
     setStatusBarUsageMode,
+    showClock,
     showEmptyUsageCta,
     showFloatingTerminalToggle,
     showFloatingWorkspaceAttentionDot,
