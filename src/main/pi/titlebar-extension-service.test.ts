@@ -723,7 +723,8 @@ describe('PiTitlebarExtensionService', () => {
         expect(extensions).toEqual([
           'orca-agent-status.ts',
           'orca-prefill.ts',
-          'orca-titlebar-spinner.ts'
+          'orca-titlebar-spinner.ts',
+          'orca-workspace-context.ts'
         ])
       } finally {
         homedirOverride.current = ''

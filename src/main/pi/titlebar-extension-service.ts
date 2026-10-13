@@ -14,6 +14,10 @@ import {
 } from './prefill-extension-source'
 import { ORCA_PI_EXTENSION_FILE, getPiTitlebarExtensionSource } from './titlebar-extension-source'
 import {
+  ORCA_OMP_WORKSPACE_CONTEXT_EXTENSION_FILE,
+  getOmpWorkspaceContextExtensionSource
+} from './workspace-context-extension-source'
+import {
   isSafeDescendCandidate as sharedIsSafeDescendCandidate,
   safeRemoveOverlay
 } from '../pty/overlay-mirror'
@@ -157,6 +161,12 @@ export class PiTitlebarExtensionService {
       this.writeManagedExtension(
         join(extensionsDir, ORCA_PI_PREFILL_EXTENSION_FILE),
         withOrcaManagedExtensionMarker(getPiPrefillExtensionSource(kind))
+      )
+    }
+    if (kind === 'omp') {
+      this.writeManagedExtension(
+        join(extensionsDir, ORCA_OMP_WORKSPACE_CONTEXT_EXTENSION_FILE),
+        withOrcaManagedExtensionMarker(getOmpWorkspaceContextExtensionSource())
       )
     }
     const statusExtensionPath = join(extensionsDir, ORCA_PI_AGENT_STATUS_EXTENSION_FILE)
