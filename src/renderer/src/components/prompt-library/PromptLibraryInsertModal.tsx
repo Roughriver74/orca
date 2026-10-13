@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
@@ -19,43 +20,81 @@ import {
   expandPromptSnippet,
   type PromptSnippetExpansion
 } from '../../../../shared/prompt-snippet-variables'
-import { insertPromptSnippetIntoFocusedTarget } from './insert-prompt-snippet'
+import { enqueueAgentPrompt } from './agent-prompt-queue'
+import {
+  expandPromptSnippetForTarget,
+  insertPromptSnippetIntoTarget
+} from './insert-prompt-snippet'
 import {
   buildPromptSnippetVariableContext,
   resolvePromptSnippetClipboardVariable
 } from './prompt-snippet-variable-context'
+import { refreshRepoPromptSnippets } from './repo-prompt-snippets-loader'
+import { resolvePromptLibraryInsertTarget } from './resolve-prompt-library-insert-target'
 import type { PromptSnippet } from '../../../../shared/prompt-snippet-types'
 
 const EMPTY_PROMPT_SNIPPETS: PromptSnippet[] = []
+
+function isRepoPromptSnippet(snippet: PromptSnippet): boolean {
+  return snippet.id.startsWith('repo:')
+}
 
 export default function PromptLibraryInsertModal(): React.JSX.Element | null {
   const open = useAppStore((s) => s.activeModal === 'prompt-library')
   const closeModal = useAppStore((s) => s.closeModal)
   const snippets = useAppStore((s) => s.settings?.promptLibrarySnippets ?? EMPTY_PROMPT_SNIPPETS)
+  const activeWorktreeId = useAppStore((s) => s.activeWorktreeId)
+  const worktree = useAppStore((s) =>
+    s.activeWorktreeId ? (findWorktreeById(s.worktreesByRepo, s.activeWorktreeId) ?? null) : null
+  )
+  const connectionId = useAppStore((s) =>
+    worktree ? (s.repos.find((r) => r.id === worktree.repoId)?.connectionId ?? null) : null
+  )
+  const [repoSnippets, setRepoSnippets] = useState<PromptSnippet[]>(EMPTY_PROMPT_SNIPPETS)
   const inputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [preview, setPreview] = useState<PromptSnippetExpansion | null>(null)
 
+  // Why: refresh repo prompts on every open rather than fs-watching — they change rarely
+  // and this keeps the loader simple and SSH-safe.
+  useEffect(() => {
+    if (!open || !worktree) {
+      setRepoSnippets(EMPTY_PROMPT_SNIPPETS)
+      return
+    }
+    let cancelled = false
+    void refreshRepoPromptSnippets(worktree.path, connectionId).then((loaded) => {
+      if (!cancelled) {
+        setRepoSnippets(loaded)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, worktree, connectionId])
+
+  const combined = useMemo(() => [...snippets, ...repoSnippets], [snippets, repoSnippets])
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
     if (!needle) {
-      return snippets
+      return combined
     }
-    return snippets.filter(
+    return combined.filter(
       (snippet) =>
         snippet.name.toLowerCase().includes(needle) || snippet.body.toLowerCase().includes(needle)
     )
-  }, [snippets, query])
+  }, [combined, query])
 
   // Why: reset the picker (and re-seed the first result) on every open, not on every
   // keystroke — the filtered-list effect below keeps the selection valid as you type.
   useEffect(() => {
     if (open) {
       setQuery('')
-      setSelectedId(snippets[0]?.id ?? null)
+      setSelectedId(combined[0]?.id ?? null)
     }
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- only the open transition reseeds; `snippets` would re-fire on every settings write.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- only the open transition reseeds; `combined` would re-fire on every settings write.
   }, [open])
 
   useEffect(() => {
@@ -79,7 +118,7 @@ export default function PromptLibraryInsertModal(): React.JSX.Element | null {
     const repoDisplayName = worktree
       ? (state.repos.find((repo) => repo.id === worktree.repoId)?.displayName ?? null)
       : null
-    const context = buildPromptSnippetVariableContext(state, worktree, repoDisplayName)
+    const context = buildPromptSnippetVariableContext(state, worktree, repoDisplayName, null)
     void resolvePromptSnippetClipboardVariable(selected.body).then((clipboard) => {
       if (cancelled) {
         return
@@ -96,7 +135,7 @@ export default function PromptLibraryInsertModal(): React.JSX.Element | null {
     if (!selected) {
       return
     }
-    const result = await insertPromptSnippetIntoFocusedTarget(selected.body)
+    const result = await insertPromptSnippetIntoTarget(selected.body)
     closeModal()
     if (result.status === 'no-target') {
       toast.error(
@@ -108,8 +147,41 @@ export default function PromptLibraryInsertModal(): React.JSX.Element | null {
     }
   }, [closeModal, selected])
 
+  const handleQueue = useCallback(async () => {
+    if (!selected) {
+      return
+    }
+    const state = useAppStore.getState()
+    const target = resolvePromptLibraryInsertTarget(state)
+    if (!target) {
+      closeModal()
+      toast.error(
+        translate(
+          'promptLibrary.insert.noTarget',
+          'No active agent terminal or chat to insert into.'
+        )
+      )
+      return
+    }
+    const text = await expandPromptSnippetForTarget(selected.body, {
+      worktreeId: target.worktreeId,
+      paneKey: `${target.tabId}:${target.leafId}`
+    })
+    enqueueAgentPrompt({
+      paneKey: `${target.tabId}:${target.leafId}`,
+      worktreeId: target.worktreeId,
+      text
+    })
+    closeModal()
+  }, [closeModal, selected])
+
   const handleInputKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault()
+        void handleQueue()
+        return
+      }
       if (event.key === 'Enter') {
         event.preventDefault()
         void handleInsert()
@@ -123,7 +195,27 @@ export default function PromptLibraryInsertModal(): React.JSX.Element | null {
         setSelectedId(nextIndex >= 0 ? (filtered[nextIndex]?.id ?? null) : null)
       }
     },
-    [filtered, handleInsert, selectedId]
+    [filtered, handleInsert, handleQueue, selectedId]
+  )
+
+  const userSnippets = filtered.filter((snippet) => !isRepoPromptSnippet(snippet))
+  const repoFiltered = filtered.filter(isRepoPromptSnippet)
+
+  const renderSnippetButton = (snippet: PromptSnippet): React.JSX.Element => (
+    <button
+      key={snippet.id}
+      type="button"
+      onClick={() => setSelectedId(snippet.id)}
+      onDoubleClick={() => void handleInsert()}
+      className={cn(
+        'truncate rounded-md px-2 py-1.5 text-left text-sm',
+        snippet.id === selectedId
+          ? 'bg-accent text-accent-foreground'
+          : 'text-foreground hover:bg-accent/60'
+      )}
+    >
+      {snippet.name}
+    </button>
   )
 
   return (
@@ -166,22 +258,17 @@ export default function PromptLibraryInsertModal(): React.JSX.Element | null {
                     {translate('promptLibrary.insert.empty', 'No saved prompts match your search.')}
                   </p>
                 ) : (
-                  filtered.map((snippet) => (
-                    <button
-                      key={snippet.id}
-                      type="button"
-                      onClick={() => setSelectedId(snippet.id)}
-                      onDoubleClick={() => void handleInsert()}
-                      className={cn(
-                        'truncate rounded-md px-2 py-1.5 text-left text-sm',
-                        snippet.id === selectedId
-                          ? 'bg-accent text-accent-foreground'
-                          : 'text-foreground hover:bg-accent/60'
-                      )}
-                    >
-                      {snippet.name}
-                    </button>
-                  ))
+                  <>
+                    {userSnippets.map(renderSnippetButton)}
+                    {repoFiltered.length > 0 ? (
+                      <>
+                        <p className="mt-2 px-2 pb-1 text-xs font-medium text-muted-foreground">
+                          {translate('promptLibrary.insert.repoGroup', 'From this repo')}
+                        </p>
+                        {repoFiltered.map(renderSnippetButton)}
+                      </>
+                    ) : null}
+                  </>
                 )}
               </div>
             </ScrollArea>
@@ -208,6 +295,20 @@ export default function PromptLibraryInsertModal(): React.JSX.Element | null {
                     )}
                   </p>
                 ) : null}
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!activeWorktreeId}
+                    onClick={() => void handleQueue()}
+                  >
+                    {translate(
+                      'promptLibrary.insert.queueUntilAgentFinishes',
+                      'Queue until agent finishes'
+                    )}
+                  </Button>
+                </div>
               </>
             ) : (
               <p className="m-auto text-sm text-muted-foreground">

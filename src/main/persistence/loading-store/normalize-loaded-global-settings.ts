@@ -55,7 +55,8 @@ export function normalizeLoadedGlobalSettings(
     mobilePairingCustomAddress,
     mobilePairingCustomAddresses,
     normalizedNotifications,
-    normalizedSourceControlGroupOrder
+    normalizedSourceControlGroupOrder,
+    migratedPromptLibrarySnippets
   } = profile
 
   return {
@@ -156,6 +157,7 @@ export function normalizeLoadedGlobalSettings(
     voice: {
       ...getDefaultVoiceSettings(),
       ...parsed.settings?.voice
-    }
+    },
+    ...migratedPromptLibrarySnippets
   }
 }

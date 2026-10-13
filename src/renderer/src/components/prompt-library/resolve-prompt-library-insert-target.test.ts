@@ -26,7 +26,12 @@ function baseState(): Parameters<typeof resolvePromptLibraryInsertTarget>[0] {
 
 describe('resolvePromptLibraryInsertTarget', () => {
   it('resolves the pty backing the active leaf of the active tab', () => {
-    expect(resolvePromptLibraryInsertTarget(baseState())).toEqual({ ptyId: 'pty-1', tabId: TAB })
+    expect(resolvePromptLibraryInsertTarget(baseState())).toEqual({
+      ptyId: 'pty-1',
+      tabId: TAB,
+      leafId: LEAF,
+      worktreeId: WT
+    })
   })
 
   it('returns null when no worktree is active', () => {

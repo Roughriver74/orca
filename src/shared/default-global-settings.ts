@@ -107,6 +107,7 @@ export function buildDefaultSettings(args: {
     terminalMouseHideWhileTyping: false,
     terminalQuickCommands: getDefaultTerminalQuickCommands(),
     promptLibrarySnippets: getDefaultPromptSnippets(),
+    promptLibraryContextStartersSeeded: true,
     // Why: opt-in only, matching Ghostty's default (upgrades never enable it unexpectedly).
     terminalFocusFollowsMouse: false,
     windowBackgroundBlur: false,

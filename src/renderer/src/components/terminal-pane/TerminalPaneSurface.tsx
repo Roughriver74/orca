@@ -19,6 +19,7 @@ import { handleInternalTerminalFileDrop } from './terminal-drop-handler'
 import { TerminalQuickCommandEditorDialog } from './TerminalQuickCommandEditorDialog'
 import { TerminalPaneNativeChatPortal } from './TerminalPaneNativeChatPortal'
 import {
+  TerminalPaneAgentContextPromptPortals,
   TerminalPaneCodexRestartPortals,
   TerminalPaneMobileDriverPortals,
   TerminalPaneProcessExitPortals,
@@ -178,6 +179,7 @@ export function TerminalPaneSurface({
         />
       ))}
       <TerminalPaneCodexRestartPortals controller={controller} />
+      <TerminalPaneAgentContextPromptPortals controller={controller} />
       <AgentLaunchPaneNoticePortal
         refusal={visibleLaunchRefusal}
         isActive={isActive}

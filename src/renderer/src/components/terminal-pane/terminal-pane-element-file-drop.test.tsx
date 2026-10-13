@@ -87,6 +87,7 @@ vi.mock('./TerminalQuickCommandEditorDialog', () => ({
   TerminalQuickCommandEditorDialog: () => null
 }))
 vi.mock('./TerminalPaneRuntimePortals', () => ({
+  TerminalPaneAgentContextPromptPortals: () => null,
   TerminalPaneCodexRestartPortals: () => null,
   TerminalPaneMobileDriverPortals: () => null,
   TerminalPaneProcessExitPortals: () => null,

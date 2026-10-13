@@ -6830,6 +6830,20 @@
           }
         }
       },
+      "prompt-library": {
+        "AgentPromptQueueIndicator": {
+          "clear": "Clear queued prompts",
+          "count": "{{value0}} queued"
+        },
+        "agent-prompt-queue-auto-submit": {
+          "sendFailed": "Could not send the queued follow-up prompt."
+        }
+      },
+      "workspace-check": {
+        "workspace-check-auto-fix": {
+          "limitReached": "Auto-fix stopped after 3 attempts ({{value0}})"
+        }
+      },
       "settings": {
         "keep": {
           "local": {
@@ -12810,12 +12824,14 @@
           "machinesDescription": "Choose which machines can show notifications on this computer. A paired server’s switch also covers work reached through it."
         },
         "RepositoryCheckCommandSection": {
+          "autoFixHint": "When the check fails after an agent finishes, Orca sends the failure output back to that agent (up to 3 times in a row).",
+          "autoFixTitle": "Send failures to the agent",
           "description": "Shell command that verifies an agent's work. Runs automatically in this workspace once an agent finishes. Leave blank to disable.",
+          "keywordAutoFix": "auto-fix",
           "keywordCheck": "check",
           "keywordPostAgent": "post-agent",
           "keywordTest": "test",
           "keywordTypecheck": "typecheck",
-          "keywordVerify": "verify",
           "placeholder": "pnpm tc && pnpm test",
           "title": "Check Command"
         }
@@ -19846,7 +19862,9 @@
       "empty": "No saved prompts match your search.",
       "previewLabel": "Preview",
       "missingVariables": "Not available here, left blank: {{value0}}",
-      "noSelection": "Select a prompt to preview it."
+      "noSelection": "Select a prompt to preview it.",
+      "repoGroup": "From this repo",
+      "queueUntilAgentFinishes": "Queue until agent finishes"
     },
     "settings": {
       "deleteTitle": "Delete \"{{value0}}\"?",
@@ -19875,6 +19893,17 @@
         "template": "template",
         "insert": "insert"
       }
+    },
+    "triggers": {
+      "label": "Suggest as a chip when",
+      "checkFailed": "Check failed",
+      "overlap": "Files overlap a sibling worktree",
+      "agentDone": "Agent finished",
+      "hasIssue": "Linked issue",
+      "hasChanges": "Has changed files"
+    },
+    "chips": {
+      "ariaLabel": "Suggested prompts"
     }
   }
 }

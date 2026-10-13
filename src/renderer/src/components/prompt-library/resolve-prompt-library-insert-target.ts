@@ -3,6 +3,8 @@ import type { AppState } from '@/store/types'
 export type PromptLibraryInsertTarget = {
   ptyId: string
   tabId: string
+  leafId: string
+  worktreeId: string
 }
 
 /** The pty backing the active leaf of the active group's active tab in the active
@@ -30,5 +32,5 @@ export function resolvePromptLibraryInsertTarget(
   const layout = state.terminalLayoutsByTabId[tabId]
   const activeLeafId = layout?.activeLeafId
   const ptyId = activeLeafId ? layout?.ptyIdsByLeafId?.[activeLeafId] : null
-  return ptyId ? { ptyId, tabId } : null
+  return ptyId && activeLeafId ? { ptyId, tabId, leafId: activeLeafId, worktreeId } : null
 }

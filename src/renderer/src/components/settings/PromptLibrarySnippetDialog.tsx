@@ -4,6 +4,7 @@ import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Textarea } from '../ui/textarea'
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
 import {
   Dialog,
   DialogContent,
@@ -18,14 +19,35 @@ import {
   PROMPT_SNIPPET_VARIABLE_NAMES
 } from '../../../../shared/prompt-snippet-variables'
 import { isPromptSnippetComplete } from '../../../../shared/prompt-snippets'
-import type { PromptSnippet } from '../../../../shared/prompt-snippet-types'
+import {
+  isPromptSnippetTrigger,
+  PROMPT_SNIPPET_TRIGGERS,
+  type PromptSnippet,
+  type PromptSnippetTrigger
+} from '../../../../shared/prompt-snippet-types'
 
-export type PromptLibrarySnippetDraft = Pick<PromptSnippet, 'id' | 'name' | 'body'>
+export type PromptLibrarySnippetDraft = Pick<PromptSnippet, 'id' | 'name' | 'body' | 'when'>
 
 type PromptLibrarySnippetDialogProps = {
   draft: PromptLibrarySnippetDraft | null
   onClose: () => void
   onSave: (draft: PromptLibrarySnippetDraft) => void
+}
+
+// Why literal keys: the boot English catalog only resolves statically extracted translate() calls.
+function triggerLabel(trigger: PromptSnippetTrigger): string {
+  switch (trigger) {
+    case 'checkFailed':
+      return translate('promptLibrary.triggers.checkFailed', 'Check failed')
+    case 'overlap':
+      return translate('promptLibrary.triggers.overlap', 'Files overlap a sibling worktree')
+    case 'agentDone':
+      return translate('promptLibrary.triggers.agentDone', 'Agent finished')
+    case 'hasIssue':
+      return translate('promptLibrary.triggers.hasIssue', 'Linked issue')
+    case 'hasChanges':
+      return translate('promptLibrary.triggers.hasChanges', 'Has changed files')
+  }
 }
 
 export function PromptLibrarySnippetDialog({
@@ -35,6 +57,7 @@ export function PromptLibrarySnippetDialog({
 }: PromptLibrarySnippetDialogProps): React.JSX.Element {
   const [name, setName] = useState(draft?.name ?? '')
   const [body, setBody] = useState(draft?.body ?? '')
+  const [when, setWhen] = useState<PromptSnippetTrigger[]>(draft?.when ?? [])
   const [lastDraftId, setLastDraftId] = useState(draft?.id ?? null)
 
   // Why: reset form state during render (not useEffect) so switching which snippet is
@@ -44,6 +67,7 @@ export function PromptLibrarySnippetDialog({
     setLastDraftId(draftId)
     setName(draft?.name ?? '')
     setBody(draft?.body ?? '')
+    setWhen(draft?.when ?? [])
   }
 
   const referenced = listReferencedPromptSnippetVariables(body)
@@ -53,7 +77,7 @@ export function PromptLibrarySnippetDialog({
     if (!draft || !canSave) {
       return
     }
-    onSave({ id: draft.id, name: name.trim(), body })
+    onSave({ id: draft.id, name: name.trim(), body, when: when.length > 0 ? when : undefined })
   }
 
   return (
@@ -108,6 +132,24 @@ export function PromptLibrarySnippetDialog({
                 })}
               </p>
             ) : null}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>{translate('promptLibrary.triggers.label', 'Suggest as a chip when')}</Label>
+            <ToggleGroup
+              type="multiple"
+              variant="outline"
+              size="sm"
+              spacing={4}
+              value={when}
+              onValueChange={(value) => setWhen(value.filter(isPromptSnippetTrigger))}
+              className="flex flex-wrap"
+            >
+              {PROMPT_SNIPPET_TRIGGERS.map((trigger) => (
+                <ToggleGroupItem key={trigger} value={trigger} aria-label={triggerLabel(trigger)}>
+                  {triggerLabel(trigger)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
           </div>
         </div>
         <DialogFooter>

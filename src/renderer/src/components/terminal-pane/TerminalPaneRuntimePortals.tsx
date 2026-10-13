@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
 import CodexRestartChip from '../CodexRestartChip'
+import { AgentContextPromptChipRow } from './AgentContextPromptChipRow'
 import { CodexSharedServerBanner } from './CodexSharedServerBanner'
 import { TerminalSshReconnectOverlay } from './TerminalSshReconnectOverlay'
 import { TerminalRemoteRuntimeReconnectBanner } from './TerminalRemoteRuntimeReconnectBanner'
@@ -58,6 +59,38 @@ export function TerminalPaneCodexRestartPortals({
           </>,
           pane.container,
           `codex-restart-${pane.id}`
+        )
+      })}
+    </>
+  )
+}
+
+export function TerminalPaneAgentContextPromptPortals({
+  controller
+}: {
+  controller: TerminalPaneController
+}): React.JSX.Element {
+  const { managedPanes, paneTransportsRef, savedLayout, tabId, worktreeId } = controller
+  return (
+    <>
+      {managedPanes.map((pane) => {
+        const ptyId =
+          paneTransportsRef.current.get(pane.id)?.getPtyId() ??
+          savedLayout.ptyIdsByLeafId?.[pane.leafId]
+        if (!ptyId) {
+          return null
+        }
+        return createPortal(
+          <AgentContextPromptChipRow
+            key={`agent-context-prompts-${pane.id}-${ptyId}`}
+            paneKey={`${tabId}:${pane.leafId}`}
+            worktreeId={worktreeId}
+            tabId={tabId}
+            leafId={pane.leafId}
+            ptyId={ptyId}
+          />,
+          pane.container,
+          `agent-context-prompts-${pane.id}`
         )
       })}
     </>

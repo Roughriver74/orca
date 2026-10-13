@@ -24,6 +24,7 @@ type RepositoryUpdates = Partial<
     | 'upstream'
     | 'hookSettings'
     | 'checkCommand'
+    | 'checkAutoFix'
     | 'worktreeBaseRef'
     | 'worktreeBasePath'
     | 'kind'

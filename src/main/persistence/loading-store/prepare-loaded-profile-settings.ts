@@ -5,6 +5,10 @@ import { deriveGlobalWindowsRuntimeDefaultFromLegacySettings } from '../../../sh
 import { normalizeTaskProviderSettings } from '../../../shared/task-providers'
 import { normalizeAutoRenameBranchFromWorkDefaultOn } from '../../../shared/auto-rename-branch-from-work-settings'
 import {
+  normalizePromptSnippets,
+  seedPromptLibraryContextStarters
+} from '../../../shared/prompt-snippets'
+import {
   addMobilePairingCustomAddress,
   normalizeMobilePairingCustomAddress,
   normalizeMobilePairingCustomAddresses
@@ -53,6 +57,10 @@ export type PreparedLoadedProfileSettings = {
   normalizedSourceControlGroupOrder: GlobalSettings['sourceControlGroupOrder']
   normalizedOnboarding: PersistedState['onboarding']
   normalizedProjectGroups: ProjectGroup[]
+  migratedPromptLibrarySnippets: Pick<
+    GlobalSettings,
+    'promptLibrarySnippets' | 'promptLibraryContextStartersSeeded'
+  >
 }
 
 export function prepareLoadedProfileSettings(
@@ -231,6 +239,22 @@ export function prepareLoadedProfileSettings(
   ) {
     markNeedsSave()
   }
+  const promptLibraryContextStartersSeeded =
+    parsed.settings?.promptLibraryContextStartersSeeded === true
+  // Why: existing profiles get the four context-trigger starters added once; a later
+  // deletion is a real opt-out and must survive reload, same shape as autoRenameBranch above.
+  const migratedPromptLibrarySnippets: PreparedLoadedProfileSettings['migratedPromptLibrarySnippets'] =
+    {
+      promptLibrarySnippets: promptLibraryContextStartersSeeded
+        ? normalizePromptSnippets(parsed.settings?.promptLibrarySnippets)
+        : seedPromptLibraryContextStarters(
+            normalizePromptSnippets(parsed.settings?.promptLibrarySnippets)
+          ),
+      promptLibraryContextStartersSeeded: true
+    }
+  if (!promptLibraryContextStartersSeeded) {
+    markNeedsSave()
+  }
   return {
     migratedExperimentalActivity,
     migratedAutoRenameBranchFromWork,
@@ -252,6 +276,7 @@ export function prepareLoadedProfileSettings(
     normalizedNotifications,
     normalizedSourceControlGroupOrder,
     normalizedOnboarding,
-    normalizedProjectGroups
+    normalizedProjectGroups,
+    migratedPromptLibrarySnippets
   }
 }

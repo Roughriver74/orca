@@ -5,7 +5,12 @@ export const PROMPT_SNIPPET_VARIABLE_NAMES = [
   'file',
   'selection',
   'issue',
-  'clipboard'
+  'clipboard',
+  'changedFiles',
+  'checkCommand',
+  'checkOutput',
+  'lastAgentMessage',
+  'overlap'
 ] as const
 
 export type PromptSnippetVariableName = (typeof PROMPT_SNIPPET_VARIABLE_NAMES)[number]
@@ -26,7 +31,12 @@ const PROMPT_SNIPPET_VARIABLE_FLAG: Record<string, true> = {
   file: true,
   selection: true,
   issue: true,
-  clipboard: true
+  clipboard: true,
+  changedFiles: true,
+  checkCommand: true,
+  checkOutput: true,
+  lastAgentMessage: true,
+  overlap: true
 }
 
 function isPromptSnippetVariableName(value: string): value is PromptSnippetVariableName {
