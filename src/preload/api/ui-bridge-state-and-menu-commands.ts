@@ -3,6 +3,7 @@ import { ipcRenderer } from 'electron'
 import type { PersistedUIState } from '../../shared/persisted-ui-state-types'
 import type { KeybindingActionId } from '../../shared/keybindings'
 import type { PreloadApi } from '../api-types'
+import type { WorkspaceCheckState } from '../../shared/workspace-check-types'
 
 export const uiStateAndMenuCommandsApi = {
   get: () => ipcRenderer.invoke('ui:get'),
@@ -93,6 +94,16 @@ export const uiStateAndMenuCommandsApi = {
     const listener = (_event: Electron.IpcRendererEvent) => callback()
     ipcRenderer.on('ui:openPromptLibrary', listener)
     return () => ipcRenderer.removeListener('ui:openPromptLibrary', listener)
+  },
+  onWorkspaceCheckChanged: (
+    callback: (event: { worktreeId: string; state: WorkspaceCheckState | null }) => void
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      payload: { worktreeId: string; state: WorkspaceCheckState | null }
+    ) => callback(payload)
+    ipcRenderer.on('workspaceCheck:changed', listener)
+    return () => ipcRenderer.removeListener('workspaceCheck:changed', listener)
   },
   onOpenNewWorkspace: (callback: () => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent) => callback()

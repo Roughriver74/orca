@@ -23,6 +23,7 @@ import type {
   RuntimeTerminalDriverState,
   RuntimeTerminalPresentation
 } from '../../shared/runtime-types'
+import type { WorkspaceCheckState } from '../../shared/workspace-check-types'
 
 type DriverState = RuntimeTerminalDriverState
 
@@ -31,6 +32,8 @@ export type RuntimeNotifier = {
     selector?: { kind: 'self' } | { kind: 'ssh'; targetId: string } | { kind: 'orphan' }
     reason?: 'definition' | 'run' | 'usage'
   }): void
+  /** Local-window delivery; remote clients get the same change via `workspaceCheckChanged` client events. */
+  workspaceCheckChanged?(worktreeId: string, state: WorkspaceCheckState | null): void
   worktreesChanged(repoId: string, renamed?: { oldWorktreeId: string; newWorktreeId: string }): void
   worktreeBaseStatus?(event: WorktreeBaseStatusEvent): void
   worktreeRemoteBranchConflict?(event: WorktreeRemoteBranchConflictEvent): void

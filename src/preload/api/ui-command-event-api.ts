@@ -8,6 +8,7 @@ import type {
 import type { AgentLaunchPaneVerdictEvent } from '../../shared/agent-launch-pane-verdict'
 import type { RuntimeNavigationTarget } from '../../shared/runtime-navigation'
 import type { TerminalSurfaceCloseTarget } from '../../shared/terminal-surface-close-target'
+import type { WorkspaceCheckState } from '../../shared/workspace-check-types'
 import type {
   WorktreeDefaultTabsLaunch,
   WorktreeSetupLaunch,
@@ -78,6 +79,10 @@ export type UiCommandEventApi = {
   onOpenQuickOpen: (callback: () => void) => () => void
   onToggleQuickCommandsMenu: (callback: () => void) => () => void
   onOpenPromptLibrary: (callback: () => void) => () => void
+  /** Desktop-local workspace check results; web clients receive them as runtime client events. */
+  onWorkspaceCheckChanged: (
+    callback: (event: { worktreeId: string; state: WorkspaceCheckState | null }) => void
+  ) => () => void
   onOpenNewWorkspace: (callback: () => void) => () => void
   onDeleteCurrentWorkspace: (callback: () => void) => () => void
   onOpenWorkspaceBoard: (callback: () => void) => () => void

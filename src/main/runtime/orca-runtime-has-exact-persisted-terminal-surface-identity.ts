@@ -227,6 +227,8 @@ export class OrcaRuntimeWithHasExactPersistedTerminalSurfaceIdentity extends Orc
   // Why public: WorkspaceCheckService is wired from startup composition (main-process-observers.ts)
   // outside this class, but emitClientEvent itself stays protected.
   publishWorkspaceCheckChanged(worktreeId: string, state: WorkspaceCheckState | null): void {
+    // Why both: the desktop's own renderer listens on the notifier IPC, not the client-event stream.
+    this.notifier?.workspaceCheckChanged?.(worktreeId, state)
     this.emitClientEvent({ type: 'workspaceCheckChanged', worktreeId, state })
   }
 
