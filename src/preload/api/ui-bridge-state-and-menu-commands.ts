@@ -7,6 +7,7 @@ import type {
   RemoteCliBrowserScopeQuery,
   RemoteCliBrowserScopeReply
 } from '../../shared/desktop-browser-bridge-protocol'
+import type { WorkspaceCheckState } from '../../shared/workspace-check-types'
 
 export const uiStateAndMenuCommandsApi = {
   getJiraQuickFilters: () => ipcRenderer.invoke('ui:getJiraQuickFilters'),
@@ -101,6 +102,16 @@ export const uiStateAndMenuCommandsApi = {
     const listener = (_event: Electron.IpcRendererEvent) => callback()
     ipcRenderer.on('ui:openPromptLibrary', listener)
     return () => ipcRenderer.removeListener('ui:openPromptLibrary', listener)
+  },
+  onWorkspaceCheckChanged: (
+    callback: (event: { worktreeId: string; state: WorkspaceCheckState | null }) => void
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      payload: { worktreeId: string; state: WorkspaceCheckState | null }
+    ) => callback(payload)
+    ipcRenderer.on('workspaceCheck:changed', listener)
+    return () => ipcRenderer.removeListener('workspaceCheck:changed', listener)
   },
   onOpenNewWorkspace: (callback: () => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent) => callback()

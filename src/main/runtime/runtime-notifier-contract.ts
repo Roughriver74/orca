@@ -27,6 +27,7 @@ import type {
   RuntimeTerminalDriverState,
   RuntimeTerminalPresentation
 } from '../../shared/runtime-types'
+import type { WorkspaceCheckState } from '../../shared/workspace-check-types'
 
 type DriverState = RuntimeTerminalDriverState
 
@@ -41,6 +42,8 @@ export type RuntimeNotifier = {
     // Why: false for metadata-only changes (sort order) that leave Git scan results valid.
     options?: { invalidateGitScans?: boolean }
   ): void
+  /** Local-window delivery; remote clients get the same change via `workspaceCheckChanged` client events. */
+  workspaceCheckChanged?(worktreeId: string, state: WorkspaceCheckState | null): void
   worktreeBaseStatus?(event: WorktreeBaseStatusEvent): void
   worktreeRemoteBranchConflict?(event: WorktreeRemoteBranchConflictEvent): void
   reposChanged(): void
