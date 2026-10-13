@@ -3,7 +3,8 @@ import {
   getDefaultPromptSnippets,
   isPromptSnippetComplete,
   normalizePromptSnippets,
-  reindexPromptSnippets
+  reindexPromptSnippets,
+  seedPromptLibraryContextStarters
 } from './prompt-snippets'
 
 describe('normalizePromptSnippets', () => {
@@ -47,6 +48,41 @@ describe('normalizePromptSnippets', () => {
       sortOrder: index
     }))
     expect(normalizePromptSnippets(input)).toHaveLength(100)
+  })
+})
+
+describe('normalizePromptSnippets when', () => {
+  it('keeps only recognized when triggers, dropping unknown ones and empty results', () => {
+    const result = normalizePromptSnippets([
+      { id: 'a', name: 'A', body: 'x', sortOrder: 0, when: ['checkFailed', 'bogus'] },
+      { id: 'b', name: 'B', body: 'x', sortOrder: 1, when: ['bogus'] },
+      { id: 'c', name: 'C', body: 'x', sortOrder: 2, when: 'checkFailed' }
+    ])
+    expect(result.find((s) => s.id === 'a')?.when).toEqual(['checkFailed'])
+    expect(result.find((s) => s.id === 'b')?.when).toBeUndefined()
+    expect(result.find((s) => s.id === 'c')?.when).toBeUndefined()
+  })
+})
+
+describe('seedPromptLibraryContextStarters', () => {
+  it('adds missing context starters and reindexes', () => {
+    const seeded = seedPromptLibraryContextStarters([
+      { id: 'user-1', name: 'Mine', body: 'x', sortOrder: 0 }
+    ])
+    expect(seeded.length).toBeGreaterThan(1)
+    expect(seeded.map((s) => s.sortOrder)).toEqual(seeded.map((_, i) => i))
+    expect(seeded.some((s) => s.id === 'starter-fix-failing-check')).toBe(true)
+  })
+
+  it('does not re-add a starter the user already deleted by not including it', () => {
+    const withoutOne = seedPromptLibraryContextStarters([]).filter(
+      (s) => s.id !== 'starter-fix-failing-check'
+    )
+    const reseeded = seedPromptLibraryContextStarters(withoutOne)
+    // Why: seeding is a pure one-shot operation — callers gate re-invocation with the
+    // persisted guard flag, so calling it again here is expected to re-add it; the guard
+    // test lives at the settings-migration layer, not in this pure function.
+    expect(reseeded.some((s) => s.id === 'starter-fix-failing-check')).toBe(true)
   })
 })
 

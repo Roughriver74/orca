@@ -163,6 +163,9 @@ export type GlobalSettings = GlobalSettingsBase & {
   terminalCursorOpacity?: number
   terminalQuickCommands?: TerminalQuickCommand[]
   promptLibrarySnippets?: PromptSnippet[]
+  /** One-shot migration guard for seeding the four context-trigger starter snippets into
+   *  existing profiles; a later deletion sticks because this never re-runs once true. */
+  promptLibraryContextStartersSeeded?: boolean
   windowBackgroundBlur?: boolean
   /** Windows-only: close (X) hides to tray instead of quitting; the tray icon is always present regardless. */
   minimizeToTrayOnClose?: boolean

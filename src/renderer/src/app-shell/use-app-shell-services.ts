@@ -27,6 +27,9 @@ import { useCodexSharedSettingsNotice } from '../components/terminal-pane/codex-
 import { useVisibleReviewRefreshReporting } from './use-visible-review-refresh-reporting'
 import { useVisibleHostedReviewRefresh } from './use-visible-hosted-review-refresh'
 import { useProfileStateSaveDelayNotice } from './use-profile-state-save-delay-notice'
+import { useAgentPromptQueueAutoSubmit } from '../components/prompt-library/agent-prompt-queue-auto-submit'
+import { useWorkspaceCheckAutoFix } from '../components/workspace-check/workspace-check-auto-fix'
+import { useWorkspaceCheckPushSync } from '../components/workspace-check/use-workspace-check-push-sync'
 
 /**
  * App-level subscriptions that must outlive any individual surface. Each one is here because
@@ -68,4 +71,7 @@ export function useAppShellServices(): void {
   useBrowserClientHostedDownloadNotices()
   useCodexTerminalServerIsolationNotice()
   useCodexSharedSettingsNotice()
+  useAgentPromptQueueAutoSubmit()
+  useWorkspaceCheckPushSync()
+  useWorkspaceCheckAutoFix()
 }

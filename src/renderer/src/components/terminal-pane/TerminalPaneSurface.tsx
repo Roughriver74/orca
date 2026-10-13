@@ -20,6 +20,7 @@ import { TerminalQuickCommandEditorDialog } from './TerminalQuickCommandEditorDi
 import { TerminalPaneNativeChatPortal } from './TerminalPaneNativeChatPortal'
 import { TerminalPaneSleepingPortals } from './TerminalPaneSleepingPortals'
 import {
+  TerminalPaneAgentContextPromptPortals,
   TerminalPaneCodexRestartPortals,
   TerminalPaneMobileDriverPortals,
   TerminalPaneProcessExitPortals,
@@ -186,6 +187,7 @@ export function TerminalPaneSurface({
         />
       ))}
       <TerminalPaneCodexRestartPortals controller={controller} />
+      <TerminalPaneAgentContextPromptPortals controller={controller} />
       <AgentLaunchPaneNoticePortal
         refusal={visibleLaunchRefusal}
         isActive={isActive}

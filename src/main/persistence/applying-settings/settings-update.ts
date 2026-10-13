@@ -182,6 +182,12 @@ export function updateSettings(
   if ('autoRenameBranchFromWork' in updates || 'autoRenameBranchFromWorkDefaultedOn' in updates) {
     sanitizedUpdates.autoRenameBranchFromWorkDefaultedOn = true
   }
+  if (
+    'promptLibrarySnippets' in updates ||
+    'promptLibraryContextStartersSeeded' in updates
+  ) {
+    sanitizedUpdates.promptLibraryContextStartersSeeded = true
+  }
   if ('openInApplications' in updates) {
     sanitizedUpdates.openInApplications = normalizeOpenInApplications(updates.openInApplications)
   }

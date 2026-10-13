@@ -31,7 +31,7 @@ describe('expandPromptSnippet', () => {
 
   it('round-trips a body with every known variable', () => {
     const result = expandPromptSnippet(
-      '{branch} {worktree} {repo} {file} {selection} {issue} {clipboard}',
+      '{branch} {worktree} {repo} {file} {selection} {issue} {clipboard} {changedFiles} {checkCommand} {checkOutput} {lastAgentMessage} {overlap}',
       {
         branch: 'b',
         worktree: 'w',
@@ -39,10 +39,15 @@ describe('expandPromptSnippet', () => {
         file: 'f',
         selection: 's',
         issue: 'i',
-        clipboard: 'c'
+        clipboard: 'c',
+        changedFiles: 'cf',
+        checkCommand: 'cc',
+        checkOutput: 'co',
+        lastAgentMessage: 'lam',
+        overlap: 'ov'
       }
     )
-    expect(result).toEqual({ text: 'b w r f s i c', missing: [] })
+    expect(result).toEqual({ text: 'b w r f s i c cf cc co lam ov', missing: [] })
   })
 })
 

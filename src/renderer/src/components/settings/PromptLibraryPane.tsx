@@ -33,7 +33,7 @@ export function PromptLibraryPane({ settings }: PromptLibraryPaneProps): React.J
   }
 
   const handleEdit = (snippet: PromptSnippet): void => {
-    setDraft({ id: snippet.id, name: snippet.name, body: snippet.body })
+    setDraft({ id: snippet.id, name: snippet.name, body: snippet.body, when: snippet.when })
   }
 
   const handleSave = (saved: PromptLibrarySnippetDraft): void => {

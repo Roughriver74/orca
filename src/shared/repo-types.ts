@@ -73,6 +73,9 @@ export type Repo = {
   /** Shell command verifying an agent's work, run in the workspace once every agent pane there
    *  leaves `working`. Empty/absent disables the feature. */
   checkCommand?: string
+  /** Opt-in: when a workspace check fails after an agent finishes, resend the failure output to
+   *  that agent (up to 3 consecutive attempts, reset on a pass). Requires `checkCommand`. */
+  checkAutoFix?: boolean
   /** SSH target ID for remote repos. null/undefined = local. */
   connectionId?: string | null
   /**
