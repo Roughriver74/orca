@@ -188,6 +188,22 @@
   --itp-yellow: #fabd2f;
 }
 
+/* Gruvbox Dark Hard: bg0_h canvas; sidebar and subtext from gruvbox-material's hard set. */
+.dark.ui-dark-gruvbox-dark-hard {
+  --itp-base: #1d2021;
+  --itp-mantle: #141617;
+  --itp-text: #ebdbb2;
+  --itp-subtext: #bdae93;
+  --itp-surface0: #3c3836;
+  --itp-surface1: #504945;
+  --itp-overlay0: #7c6f64;
+  --itp-accent: #d3869b;
+  --itp-blue: #83a598;
+  --itp-red: #fb4934;
+  --itp-green: #b8bb26;
+  --itp-yellow: #fabd2f;
+}
+
 /* One Dark (Atom): https://github.com/atom/one-dark-ui */
 .dark.ui-dark-one-dark {
   --itp-base: #282c34;
@@ -254,6 +270,22 @@
   --itp-yellow: #dbbc7f;
 }
 
+/* Everforest Dark (hard contrast): https://github.com/sainnhe/everforest/blob/master/palette.md */
+.dark.ui-dark-everforest-dark-hard {
+  --itp-base: #272e33;
+  --itp-mantle: #1e2326;
+  --itp-text: #d3c6aa;
+  --itp-subtext: #a7b3aa;
+  --itp-surface0: #374145;
+  --itp-surface1: #414b50;
+  --itp-overlay0: #5a6569;
+  --itp-accent: #d699b6;
+  --itp-blue: #7fbbb3;
+  --itp-red: #e67e80;
+  --itp-green: #a7c080;
+  --itp-yellow: #dbbc7f;
+}
+
 /* Solarized Dark: https://ethanschoonover.com/solarized */
 .dark.ui-dark-solarized-dark {
   --itp-base: #002b36;
@@ -281,6 +313,22 @@
   --itp-overlay0: #6e7681;
   --itp-accent: #a371f7;
   --itp-blue: #58a6ff;
+  --itp-red: #f85149;
+  --itp-green: #3fb950;
+  --itp-yellow: #d29922;
+}
+
+/* GitHub Dark+: Primer's current dark tokens (brighter fg, visible borders). */
+.dark.ui-dark-github-dark-plus {
+  --itp-base: #0d1117;
+  --itp-mantle: #151b23;
+  --itp-text: #e6edf3;
+  --itp-subtext: #9198a1;
+  --itp-surface0: #262c36;
+  --itp-surface1: #3d444d;
+  --itp-overlay0: #656c76;
+  --itp-accent: #ab7df8;
+  --itp-blue: #4493f8;
   --itp-red: #f85149;
   --itp-green: #3fb950;
   --itp-yellow: #d29922;
@@ -352,6 +400,22 @@
   --itp-yellow: #9a6700;
 }
 
+/* GitHub Light+: Primer's current light tokens (darker muted text, visible borders). */
+.light.ui-light-github-light-plus {
+  --itp-base: #ffffff;
+  --itp-mantle: #f6f8fa;
+  --itp-text: #1f2328;
+  --itp-subtext: #59636e;
+  --itp-surface0: #e6eaef;
+  --itp-surface1: #d1d9e0;
+  --itp-overlay0: #818b98;
+  --itp-accent: #8250df;
+  --itp-blue: #0969da;
+  --itp-red: #d1242f;
+  --itp-green: #1a7f37;
+  --itp-yellow: #9a6700;
+}
+
 /* Everforest Light (medium contrast): https://github.com/sainnhe/everforest/blob/master/palette.md */
 .light.ui-light-everforest-light {
   --itp-base: #fdf6e3;
@@ -376,16 +440,20 @@
 .dark.ui-dark-dracula,
 .dark.ui-dark-nord,
 .dark.ui-dark-gruvbox-dark,
+.dark.ui-dark-gruvbox-dark-hard,
 .dark.ui-dark-one-dark,
 .dark.ui-dark-rose-pine,
 .dark.ui-dark-kanagawa,
 .dark.ui-dark-everforest-dark,
+.dark.ui-dark-everforest-dark-hard,
 .dark.ui-dark-solarized-dark,
 .dark.ui-dark-github-dark,
+.dark.ui-dark-github-dark-plus,
 .light.ui-light-solarized-light,
 .light.ui-light-gruvbox-light,
 .light.ui-light-rose-pine-dawn,
 .light.ui-light-github-light,
+.light.ui-light-github-light-plus,
 .light.ui-light-everforest-light {
   --background: var(--itp-base);
   --editor-surface: var(--itp-base);
