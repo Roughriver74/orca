@@ -134,6 +134,32 @@ describe('prunePendingSends', () => {
     expect(prunePendingSends(pending, transcript)).toEqual([])
   })
 
+  // omp gets pasted images as `@path` text in front of the prompt; an unmatched
+  // echo stays pinned below the reply the agent already gave.
+  it('drops a pending send whose prompt a mention-based agent prefixed with image paths', () => {
+    const shot = '/Users/me/Library/Application Support/orca/native-chat-pastes/orca-paste-1.png'
+    const pending = [{ ...pendingOf('p1', 'make  it neon'), imagePaths: [shot, '/tmp/b.jpg'] }]
+    const user = userMessage('m1', `@"${shot}" @/tmp/b.jpg make it neon`)
+
+    expect(pendingSendsAsMessages(pending, [user])).toEqual([])
+    expect(prunePendingSends(pending, [user, assistantMessage('m2', 'done')])).toEqual([])
+  })
+
+  it('drops an image-only pending send a mention-based agent echoed as a mention', () => {
+    const shot = '/Users/me/My Shots/shot.PNG'
+    const pending = [{ ...pendingOf('p1', ''), imagePaths: [shot] }]
+    const transcript = [userMessage('m1', `@"${shot}"`), assistantMessage('m2', 'a screenshot')]
+
+    expect(prunePendingSends(pending, transcript)).toEqual([])
+  })
+
+  it('keeps a pending send whose transcript row differs past a leading code-file mention', () => {
+    const pending = [pendingOf('p1', 'fix this')]
+    const transcript = [userMessage('m1', '@src/app.ts fix this'), assistantMessage('m2', 'fixed')]
+
+    expect(prunePendingSends(pending, transcript)).toBe(pending)
+  })
+
   it('keeps a pending send that has not landed yet', () => {
     const pending = [pendingOf('p1', 'not yet')]
     const next = prunePendingSends(pending, [assistantMessage('m1', 'working on it')])

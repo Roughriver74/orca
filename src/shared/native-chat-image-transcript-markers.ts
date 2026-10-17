@@ -3,6 +3,7 @@ import {
   stripAnsiEscapeSequences,
   TERMINAL_CONTROL_CHARACTER_PATTERN
 } from './ansi-escape-sequences'
+import { IMAGE_FILE_EXTENSIONS } from './image-file-extensions'
 import { isTextBlock, type NativeChatBlock, type NativeChatMessage } from './native-chat-types'
 
 const IMAGE_SOURCE_MARKER = /^\[Image:\s*source:\s*(.+?)\]\s*$/
@@ -12,6 +13,8 @@ const IMAGE_PROMPT_MARKER_AT_START = /^[^\S\r\n]*\[Image #\d+\]/
 const IMAGE_PROMPT_MARKER_AT_END = /\[Image #\d+\][^\S\r\n]*$/
 const HORIZONTAL_WHITESPACE_START = /^[^\S\r\n]+/
 const HORIZONTAL_WHITESPACE_END = /[^\S\r\n]+$/
+// `@path`, `@"path"` and `@'path'`, as formatNativeChatFileReference writes them.
+const LEADING_FILE_MENTION = /^@(?:"((?:[^"\\]|\\.)*)"|'([^']*)'|(\S+))(?:\s+|$)/
 
 export function imageSourcePathFromText(text: string): string | null {
   return text.match(IMAGE_SOURCE_MARKER)?.[1]?.trim() ?? null
@@ -60,30 +63,54 @@ export function stripImagePromptMarker(text: string): string {
   return result
 }
 
-/** Normalizes PTY-backed user text into the pending-echo comparison key. */
-export function normalizeNativeChatUserText(text: string): string {
+/** PTY-backed user text as the pending-echo comparison key, plus the images a
+ *  mention-based agent (omp, …) got as leading `@path` text — the composer
+ *  carries those separately, so the key must not include them. */
+export function splitNativeChatUserText(text: string): { text: string; imagePaths: string[] } {
   // Strip sequences first so their printable tails cannot survive a lone-control pass.
-  return stripImagePromptMarker(
+  let rest = stripImagePromptMarker(
     stripAnsiEscapeSequences(unwrapClaudePastedContent(text)).replace(
       TERMINAL_CONTROL_CHARACTER_PATTERN,
       ''
     )
-  )
-    .trim()
-    .replace(/\s+/g, ' ')
+  ).trim()
+  const imagePaths: string[] = []
+  for (
+    let match = LEADING_FILE_MENTION.exec(rest);
+    match;
+    match = LEADING_FILE_MENTION.exec(rest)
+  ) {
+    const path = match[1]?.replace(/\\"/g, '"') ?? match[2] ?? match[3] ?? ''
+    const lowerPath = path.toLowerCase()
+    if (!IMAGE_FILE_EXTENSIONS.some((extension) => lowerPath.endsWith(extension))) {
+      break
+    }
+    imagePaths.push(path)
+    rest = rest.slice(match[0].length)
+  }
+  return { text: rest.replace(/\s+/g, ' '), imagePaths }
 }
 
-export function normalizedNativeChatUserMessageText(message: NativeChatMessage): string | null {
+export function normalizeNativeChatUserText(text: string): string {
+  return splitNativeChatUserText(text).text
+}
+
+export function splitNativeChatUserMessageText(
+  message: NativeChatMessage
+): { text: string; imagePaths: string[] } | null {
   if (message.role !== 'user') {
     return null
   }
-  const normalized = normalizeNativeChatUserText(
+  return splitNativeChatUserText(
     message.blocks
       .filter(isTextBlock)
       .map((block) => unwrapClaudePastedContent(block.text))
       .join(' ')
   )
-  return normalized || null
+}
+
+export function normalizedNativeChatUserMessageText(message: NativeChatMessage): string | null {
+  return splitNativeChatUserMessageText(message)?.text || null
 }
 
 function stripImagePromptMarkersFromTextBlocks(
