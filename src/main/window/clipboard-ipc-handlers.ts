@@ -39,7 +39,7 @@ import {
 } from './clipboard-remote-file-copy'
 import { saveClipboardImageBufferInRuntime } from './clipboard-runtime-image-upload'
 import { uploadPastedImageToAgentSessionAttachments } from '../ipc/agent-session-attachment-upload'
-import { readWindowsClipboardImageFileAsPng } from './clipboard-windows-image-file'
+import { readCopiedImageFileAsPng } from './clipboard-copied-image-file'
 import { readClipboardImageSource } from './clipboard-image-source'
 import { readClipboardCopiedFilePaths } from './clipboard-copied-file-paths'
 import { buildClipboardImageThumbnail } from './clipboard-image-thumbnail'
@@ -137,6 +137,10 @@ export function registerClipboardHandlers(store: Store): void {
   // the clipboard in memory before the (slower) save lands.
   ipcMain.handle('clipboard:readImageThumbnail', (event): ClipboardImageThumbnail | null => {
     assertTrustedClipboardSender(event)
+    // A copied file's pasteboard image may be its Finder icon; its preview waits for the saved file.
+    if (readClipboardImageSource(clipboard)?.kind === 'file') {
+      return null
+    }
     return buildClipboardImageThumbnail(clipboard.readImage())
   })
   ipcMain.handle('clipboard:hasImage', (event): boolean => {
@@ -159,12 +163,12 @@ export function registerClipboardHandlers(store: Store): void {
       if (!source) {
         return null
       }
-      const image = clipboard.readImage()
-      if (image.isEmpty()) {
-        if (!source.windowsFileFormats) {
+      const image = source.kind === 'native' ? clipboard.readImage() : null
+      if (!image || image.isEmpty()) {
+        if (!source.imageFilePath) {
           return null
         }
-        const copiedFilePng = await readWindowsClipboardImageFileAsPng(source.windowsFileFormats, {
+        const copiedFilePng = await readCopiedImageFileAsPng(source.imageFilePath, {
           createImageFromBuffer: (buffer) => nativeImage.createFromBuffer(buffer),
           openFile: (filePath) => open(filePath, 'r')
         })

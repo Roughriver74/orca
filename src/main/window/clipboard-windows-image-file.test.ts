@@ -3,7 +3,20 @@ import {
   CLIPBOARD_IMAGE_MAX_PIXELS,
   CLIPBOARD_IMAGE_MAX_SOURCE_BYTES
 } from '../../shared/clipboard-image'
-import { readWindowsClipboardImageFileAsPng } from './clipboard-windows-image-file'
+import {
+  readWindowsCopiedImageFilePath,
+  type WindowsClipboardFileFormats
+} from './clipboard-windows-image-file'
+import { readCopiedImageFileAsPng } from './clipboard-copied-image-file'
+
+// Production resolves the copied path when it inspects the clipboard, then reads that file.
+function readWindowsClipboardImageFileAsPng(
+  formats: WindowsClipboardFileFormats,
+  deps: Parameters<typeof readCopiedImageFileAsPng>[1]
+): Promise<Buffer | null> {
+  const filePath = readWindowsCopiedImageFilePath(formats)
+  return filePath ? readCopiedImageFileAsPng(filePath, deps) : Promise.resolve(null)
+}
 
 function fileNameW(filePath: string): Buffer {
   return Buffer.from(`${filePath}\0`, 'utf16le')
