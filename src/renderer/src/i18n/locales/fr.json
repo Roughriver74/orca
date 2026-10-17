@@ -189,6 +189,8 @@
         "reset": "Réinitialiser",
         "matchTerminalInterface": "Utiliser l’interface du terminal",
         "matchTerminalInterfaceDescription": "Utilise la police et les couleurs de l’interface du terminal pour tout le chat. Les changements de thème du terminal sont appliqués automatiquement.",
+        "colorAccents": "Accents de couleur",
+        "colorAccentsDescription": "Colore vos messages, le code, les titres, les liens et le texte sélectionné avec les couleurs du thème.",
         "contrast": "Contraste",
         "contrastDescription": "Ajuste la luminosité du texte du chat sur le fond. L’extrémité droite retrouve l’ancien aspect, plus lumineux.",
         "softer": "Plus doux",

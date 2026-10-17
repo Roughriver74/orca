@@ -23,7 +23,7 @@ export function AppearanceChatContrastControls({
   forceVisiblePrimary
 }: ChatContrastControlsProps): React.JSX.Element {
   const entries = getChatContrastEntriesByKey()
-  const { contrast, matchTerminalInterface: matching } = appearance
+  const { contrast, matchTerminalInterface: matching, colorAccents } = appearance
   return (
     <>
       <SearchableSetting
@@ -36,6 +36,18 @@ export function AppearanceChatContrastControls({
           description={entries.matchTerminalInterface.description}
           checked={matching}
           onChange={() => onChange({ matchTerminalInterface: !matching })}
+        />
+      </SearchableSetting>
+      <SearchableSetting
+        id={entries.colorAccents.targetSectionId}
+        {...entries.colorAccents}
+        forceVisible={forceVisiblePrimary}
+      >
+        <SettingsSwitchRow
+          label={entries.colorAccents.title}
+          description={entries.colorAccents.description}
+          checked={colorAccents}
+          onChange={() => onChange({ colorAccents: !colorAccents })}
         />
       </SearchableSetting>
       <SearchableSetting

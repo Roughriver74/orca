@@ -88,6 +88,8 @@
         "reset": "重置",
         "matchTerminalInterface": "匹配终端外观",
         "matchTerminalInterfaceDescription": "整个聊天使用与终端相同的字体和配色。更改终端主题后，聊天会自动同步。",
+        "colorAccents": "彩色强调",
+        "colorAccentsDescription": "使用主题颜色突出显示你的消息、代码、标题、链接和选中的文本。",
         "contrast": "对比度",
         "contrastDescription": "调整聊天文字相对于背景的亮度。滑到最右端可恢复以前更明亮的外观。",
         "softer": "更柔和",

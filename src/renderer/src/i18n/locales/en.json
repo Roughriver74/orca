@@ -272,6 +272,8 @@
         "reset": "Reset",
         "matchTerminalInterface": "Match terminal interface",
         "matchTerminalInterfaceDescription": "Use your terminal interface's font and colors for the whole chat. Stays in sync if you change your terminal theme later.",
+        "colorAccents": "Color accents",
+        "colorAccentsDescription": "Tint your messages, code, headings, links and selected text with the theme colors.",
         "contrast": "Contrast",
         "contrastDescription": "How bright chat text is against the background. The right end matches the older, brighter look.",
         "softer": "Softer",

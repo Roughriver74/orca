@@ -51,22 +51,28 @@ describe('native chat appearance normalization', () => {
       codeFontSize: 12,
       width: 'comfortable',
       contrast: 100,
-      matchTerminalInterface: false
+      matchTerminalInterface: false,
+      colorAccents: false
     })
   })
-  it('resets all five known controls while keeping settings from a newer version', () => {
+  it('resets every known control while keeping settings from a newer version', () => {
     const fromNewerVersion = {
       fontSize: 18,
       codeFontSize: 16,
       width: 'wide' as const,
       contrast: 151,
       matchTerminalInterface: true,
+      colorAccents: true,
       futureSetting: { nested: 'keep' }
     }
     expect(resetNativeChatAppearanceSettings(fromNewerVersion)).toEqual({
       futureSetting: { nested: 'keep' }
     })
     expect(resetNativeChatAppearanceSettings({ fontSize: 18 })).toBeUndefined()
+    expect(normalizeNativeChatAppearanceSettings({ colorAccents: true })).toEqual({
+      colorAccents: true
+    })
+    expect(normalizeNativeChatAppearanceSettings({ colorAccents: 'yes' })).toBeUndefined()
   })
   it('clamps and rounds values on read', () => {
     expect(
@@ -76,7 +82,8 @@ describe('native chat appearance normalization', () => {
       codeFontSize: 10,
       width: 'full',
       contrast: 100,
-      matchTerminalInterface: false
+      matchTerminalInterface: false,
+      colorAccents: false
     })
     expect(
       normalizeNativeChatAppearanceSettings({ fontSize: 15.6, codeFontSize: 13.2, width: 'wide' })
