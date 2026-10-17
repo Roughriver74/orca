@@ -1,6 +1,8 @@
 import {
   normalizeNativeChatUserText,
-  normalizedNativeChatUserMessageText
+  normalizedNativeChatUserMessageText,
+  splitNativeChatUserMessageText,
+  splitNativeChatUserText
 } from '../../../../shared/native-chat-image-transcript-markers'
 import { isImageRefBlock, type NativeChatMessage } from '../../../../shared/native-chat-types'
 
@@ -21,11 +23,13 @@ export function normalizeNativeChatPendingText(text: string): string {
 export function nativeChatPendingContentKey(
   pending: Pick<NativeChatPendingOccurrence, 'text' | 'imagePaths'>
 ): string {
-  const text = normalizeNativeChatPendingText(pending.text)
+  const { text, imagePaths: mentioned } = splitNativeChatUserText(pending.text)
   if (text) {
     return `text:${text}`
   }
-  const imagePaths = pending.imagePaths?.filter(Boolean) ?? []
+  const attached = pending.imagePaths?.filter(Boolean) ?? []
+  // Why: a typed image mention keys like the same mention echoed by the transcript.
+  const imagePaths = attached.length > 0 ? attached : mentioned
   return imagePaths.length > 0 ? `images:${JSON.stringify(imagePaths)}` : 'empty'
 }
 
@@ -33,10 +37,11 @@ function nativeChatUserMessageContentKey(
   message: NativeChatMessage,
   sentImagePaths?: readonly string[]
 ): string | null {
-  if (message.role !== 'user') {
+  const split = splitNativeChatUserMessageText(message)
+  if (!split) {
     return null
   }
-  let text = normalizedNativeChatUserMessageText(message) ?? ''
+  let text = split.text
   // Some CLIs retain pasted attachment paths as prompt text instead of image markers.
   const paths = sentImagePaths?.filter(Boolean) ?? []
   const normalizedPaths = paths.map(normalizeNativeChatPendingText)
@@ -56,7 +61,10 @@ function nativeChatUserMessageContentKey(
     .filter(isImageRefBlock)
     .map((block) => block.path)
     .filter((path): path is string => Boolean(path))
-  const key = nativeChatPendingContentKey({ text: '', imagePaths })
+  const key = nativeChatPendingContentKey({
+    text: '',
+    imagePaths: imagePaths.length > 0 ? imagePaths : split.imagePaths
+  })
   return key === 'empty' ? null : key
 }
 
