@@ -46,7 +46,7 @@ import {
 } from './header-event-guards'
 import type { WorktreeSidebarHeaderDrag } from '../drag/use-header-drag'
 import { getWorktreeOptionId } from './option-dom'
-import { ProjectAttentionStatusIndicator } from './ProjectAttentionStatusIndicator'
+import { ProjectStatusIndicator } from './ProjectStatusIndicator'
 import {
   activateSectionHeader,
   getSectionHeaderExpansion,
@@ -323,7 +323,7 @@ export function renderWorktreeSectionHeaderRow(args: {
             )}
           >
             {row.projectWorktreeIds ? (
-              <ProjectAttentionStatusIndicator worktreeIds={row.projectWorktreeIds} />
+              <ProjectStatusIndicator worktreeIds={row.projectWorktreeIds} />
             ) : null}
             <div
               className={cn(
