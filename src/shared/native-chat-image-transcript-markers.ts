@@ -63,17 +63,10 @@ export function stripImagePromptMarker(text: string): string {
   return result
 }
 
-/** PTY-backed user text as the pending-echo comparison key, plus the images a
- *  mention-based agent (omp, …) got as leading `@path` text — the composer
- *  carries those separately, so the key must not include them. */
-export function splitNativeChatUserText(text: string): { text: string; imagePaths: string[] } {
-  // Strip sequences first so their printable tails cannot survive a lone-control pass.
-  let rest = stripImagePromptMarker(
-    stripAnsiEscapeSequences(unwrapClaudePastedContent(text)).replace(
-      TERMINAL_CONTROL_CHARACTER_PATTERN,
-      ''
-    )
-  ).trim()
+/** Mention-based agents (omp, …) get pasted images as `@path` text in front of
+ *  the prompt; split that run of image mentions off the (trimmed-start) text. */
+export function splitLeadingImageMentions(text: string): { imagePaths: string[]; rest: string } {
+  let rest = text.trimStart()
   const imagePaths: string[] = []
   for (
     let match = LEADING_FILE_MENTION.exec(rest);
@@ -88,7 +81,22 @@ export function splitNativeChatUserText(text: string): { text: string; imagePath
     imagePaths.push(path)
     rest = rest.slice(match[0].length)
   }
-  return { text: rest.replace(/\s+/g, ' '), imagePaths }
+  return imagePaths.length > 0 ? { imagePaths, rest } : { imagePaths, rest: text }
+}
+
+/** PTY-backed user text as the pending-echo comparison key, plus its leading
+ *  image mentions — the composer carries those separately, so the key must not include them. */
+export function splitNativeChatUserText(text: string): { text: string; imagePaths: string[] } {
+  // Strip sequences first so their printable tails cannot survive a lone-control pass.
+  const { imagePaths, rest } = splitLeadingImageMentions(
+    stripImagePromptMarker(
+      stripAnsiEscapeSequences(unwrapClaudePastedContent(text)).replace(
+        TERMINAL_CONTROL_CHARACTER_PATTERN,
+        ''
+      )
+    )
+  )
+  return { text: rest.trim().replace(/\s+/g, ' '), imagePaths }
 }
 
 export function normalizeNativeChatUserText(text: string): string {

@@ -40,6 +40,34 @@ describe('decodeOmpTranscriptLine', () => {
     })
   })
 
+  // Reported: a pasted screenshot showed in the user bubble as its raw `@"…png"` path.
+  it('shows image mentions leading a user turn as images', () => {
+    const shot = '/Users/me/Library/Application Support/orca/native-chat-pastes/orca-paste-1.png'
+    const decoded = decodeOmpTranscriptLine(
+      message('user', [{ type: 'text', text: `@"${shot}" @/tmp/b.jpg what is\n  wrong here?` }]),
+      'f'
+    )
+    expect(decoded?.blocks).toEqual([
+      { type: 'image-ref', path: shot },
+      { type: 'image-ref', path: '/tmp/b.jpg' },
+      { type: 'text', text: 'what is\n  wrong here?' }
+    ])
+  })
+
+  it('keeps a code-file mention and a mid-prompt image mention as text', () => {
+    const text = '@src/app.ts compare with @/tmp/b.png'
+    const decoded = decodeOmpTranscriptLine(message('user', [{ type: 'text', text }]), 'f')
+    expect(decoded?.blocks).toEqual([{ type: 'text', text }])
+  })
+
+  it('renders an image-only user turn as just the image', () => {
+    const decoded = decodeOmpTranscriptLine(
+      message('user', [{ type: 'text', text: '@/tmp/shot.png' }]),
+      'f'
+    )
+    expect(decoded?.blocks).toEqual([{ type: 'image-ref', path: '/tmp/shot.png' }])
+  })
+
   it('keeps thinking and tool calls together on a mixed assistant turn', () => {
     const decoded = decodeOmpTranscriptLine(
       message('assistant', [

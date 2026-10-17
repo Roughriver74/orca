@@ -13,6 +13,7 @@ import {
   type NativeChatMessage
 } from '../../shared/native-chat-types'
 import type { AgentSessionTokenUsage } from '../../shared/agent-session-context-usage'
+import { splitLeadingImageMentions } from '../../shared/native-chat-image-transcript-markers'
 import {
   asRecord,
   extractString,
@@ -149,7 +150,27 @@ export function decodeOmpTranscriptLine(
       ...ompServing(message)
     }
   }
-  return { id, role: role === 'user' ? 'user' : 'system', blocks, timestamp, source: 'transcript' }
+  if (role === 'user') {
+    return { id, role: 'user', blocks: ompUserBlocks(blocks), timestamp, source: 'transcript' }
+  }
+  return { id, role: 'system', blocks, timestamp, source: 'transcript' }
+}
+
+/** Orca hands omp pasted images as leading `@path` mentions; show them as images, not path text. */
+function ompUserBlocks(blocks: NativeChatBlock[]): NativeChatBlock[] {
+  const [first, ...rest] = blocks
+  if (first?.type !== 'text') {
+    return blocks
+  }
+  const { imagePaths, rest: text } = splitLeadingImageMentions(first.text)
+  if (imagePaths.length === 0) {
+    return blocks
+  }
+  return [
+    ...imagePaths.map((path): NativeChatBlock => ({ type: 'image-ref', path })),
+    ...(text.trim() ? [{ ...first, text }] : []),
+    ...rest
+  ]
 }
 
 /** Which provider/model served an assistant record, and what prompt it read. */
