@@ -17,12 +17,15 @@ export const INTERFACE_THEMES_DARK: readonly InterfaceThemeOption[] = [
   { id: 'dracula', label: 'Dracula', swatch: '#bd93f9' },
   { id: 'nord', label: 'Nord', swatch: '#88c0d0' },
   { id: 'gruvbox-dark', label: 'Gruvbox Dark', swatch: '#fe8019' },
+  { id: 'gruvbox-dark-hard', label: 'Gruvbox Dark Hard', swatch: '#fabd2f' },
   { id: 'one-dark', label: 'One Dark', swatch: '#61afef' },
   { id: 'rose-pine', label: 'Rosé Pine', swatch: '#c4a7e7' },
   { id: 'kanagawa', label: 'Kanagawa', swatch: '#957fb8' },
   { id: 'everforest-dark', label: 'Everforest Dark', swatch: '#a7c080' },
+  { id: 'everforest-dark-hard', label: 'Everforest Dark Hard', swatch: '#83c092' },
   { id: 'solarized-dark', label: 'Solarized Dark', swatch: '#268bd2' },
-  { id: 'github-dark', label: 'GitHub Dark', swatch: '#58a6ff' }
+  { id: 'github-dark', label: 'GitHub Dark', swatch: '#58a6ff' },
+  { id: 'github-dark-plus', label: 'GitHub Dark+', swatch: '#4493f8' }
 ]
 
 export const INTERFACE_THEMES_LIGHT: readonly InterfaceThemeOption[] = [
@@ -32,5 +35,6 @@ export const INTERFACE_THEMES_LIGHT: readonly InterfaceThemeOption[] = [
   { id: 'gruvbox-light', label: 'Gruvbox Light', swatch: '#af3a03' },
   { id: 'rose-pine-dawn', label: 'Rosé Pine Dawn', swatch: '#907aa9' },
   { id: 'github-light', label: 'GitHub Light', swatch: '#0969da' },
+  { id: 'github-light-plus', label: 'GitHub Light+', swatch: '#1f2328' },
   { id: 'everforest-light', label: 'Everforest Light', swatch: '#8da101' }
 ]
