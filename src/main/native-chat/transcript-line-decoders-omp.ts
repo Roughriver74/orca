@@ -14,6 +14,7 @@ import {
 } from '../../shared/native-chat-types'
 import type { AgentSessionTokenUsage } from '../../shared/agent-session-context-usage'
 import { splitLeadingImageMentions } from '../../shared/native-chat-image-transcript-markers'
+import { ompBackgroundJobBlocks } from './transcript-omp-background-jobs'
 import {
   asRecord,
   extractString,
@@ -59,7 +60,11 @@ export function decodeOmpTranscriptLine(
     // Why: these extension-authored turns reach the model, and omp's own
     // transcript renders them — but only when `display` is set; the rest are
     // extension state it never shows (CustomMessageEntry, session-entries.d.ts).
-    const customBlocks = record.display === true ? ompContentBlocks(record.content) : []
+    const customBlocks = [
+      ...(record.display === true ? ompContentBlocks(record.content) : []),
+      // Why: a job-delivery notice is where omp reports a background job finishing.
+      ...ompBackgroundJobBlocks(record.details, timestamp)
+    ]
     return customBlocks.length === 0
       ? null
       : { id, role: 'system', blocks: customBlocks, timestamp, source: 'transcript' }
@@ -80,7 +85,12 @@ export function decodeOmpTranscriptLine(
           type: 'tool-result',
           output: toolResultOutput(message.content),
           ...(message.isError === true ? { isError: true } : {})
-        }
+        },
+        ...ompBackgroundJobBlocks(
+          message.details,
+          timestamp,
+          extractString(message.toolCallId) ?? undefined
+        )
       ],
       timestamp,
       source: 'transcript'
@@ -287,7 +297,8 @@ function ompContentBlock(record: Record<string, unknown> | null): NativeChatBloc
     }
     case 'toolCall': {
       const name = extractString(record.name) ?? 'tool'
-      return { type: 'tool-call', name, input: record.arguments }
+      const callId = extractString(record.id)
+      return { type: 'tool-call', name, input: record.arguments, ...(callId ? { callId } : {}) }
     }
     case 'image':
       // Why: omp stores images as content-addressed blob handles

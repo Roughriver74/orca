@@ -81,7 +81,7 @@ describe('decodeOmpTranscriptLine', () => {
     expect(decoded?.blocks).toEqual([
       { type: 'text', text: 'Checking the goal' },
       { type: 'text', text: 'Reading it now.' },
-      { type: 'tool-call', name: 'goal', input: { op: 'get' } }
+      { type: 'tool-call', name: 'goal', input: { op: 'get' }, callId: 'call-1' }
     ])
   })
 
