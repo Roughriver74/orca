@@ -14,6 +14,7 @@ import type { SshConnectionStatus } from '../ssh-types'
 import type { Repo } from '../repo-types'
 import type { Row } from './row-types'
 import { getFolderWorkspaceHostId } from './folder-workspace-host-id'
+import { getProjectGroupExecutionHostIdForRows } from './worktree-list/listing/host-filtering'
 
 export type HostHeaderRow = {
   type: 'host-header'
@@ -69,7 +70,14 @@ function getRowHostId(row: Row, defaultHostId: ExecutionHostId): ExecutionHostId
     case 'folder-workspace':
       return getFolderWorkspaceHostId(row.folderWorkspace, row.projectGroup, defaultHostId)
     case 'header':
-      return row.repo ? getRepoHostId(row.repo, defaultHostId) : null
+      if (row.repo) {
+        return getRepoHostId(row.repo, defaultHostId)
+      }
+      // Why: a project group lives in one host's catalog; buffered like a lane header it floated
+      // above the host cards and capped that host's ungrouped projects.
+      return row.projectGroup && row.projectGroup.id !== null
+        ? getProjectGroupExecutionHostIdForRows(row.projectGroup, defaultHostId)
+        : null
   }
 }
 
