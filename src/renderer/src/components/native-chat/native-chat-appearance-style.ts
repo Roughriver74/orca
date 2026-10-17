@@ -152,6 +152,22 @@ export function nativeChatAppearanceStyle(
       '--chat-composer-border-mix': light ? '11%' : '9%'
     })
   }
+  if (appearance.colorAccents) {
+    // Callout tokens are the palette's own blue/purple in every light and dark scheme.
+    Object.assign(style, {
+      '--chat-user-surface': `color-mix(in srgb, var(--callout-note) ${light ? 11 : 20}%, var(--chat-canvas))`,
+      '--chat-user-border': 'color-mix(in srgb, var(--callout-note) 40%, transparent)',
+      '--chat-heading-foreground':
+        'color-mix(in srgb, var(--callout-note) 45%, var(--chat-foreground-strong))',
+      '--chat-link-foreground': 'var(--callout-note)',
+      '--chat-inline-code-foreground':
+        'color-mix(in srgb, var(--callout-important) 75%, var(--chat-foreground-strong))',
+      '--chat-inline-code-surface': `color-mix(in srgb, var(--callout-important) ${light ? 8 : 12}%, var(--chat-canvas))`,
+      '--chat-inline-code-border': 'color-mix(in srgb, var(--callout-important) 22%, transparent)',
+      '--chat-code-border': 'color-mix(in srgb, var(--callout-note) 30%, transparent)',
+      '--chat-selection': `color-mix(in srgb, var(--callout-note) ${light ? 28 : 40}%, transparent)`
+    })
+  }
   const bodyMix = matching ? 100 : nativeChatContrastMix(appearance.contrast, light)
   style['--chat-foreground-mix'] = `${bodyMix}%`
   style['--chat-strong-mix'] = `${Math.min(100, bodyMix + (light ? 10 : 12))}%`

@@ -138,6 +138,8 @@
         "reset": "초기화",
         "matchTerminalInterface": "터미널 모양에 맞추기",
         "matchTerminalInterfaceDescription": "전체 채팅에 터미널과 같은 글꼴과 색상을 사용합니다. 터미널 테마를 변경하면 채팅에도 반영됩니다.",
+        "colorAccents": "색상 강조",
+        "colorAccentsDescription": "내 메시지, 코드, 제목, 링크, 선택한 텍스트를 테마 색상으로 표시합니다.",
         "contrast": "대비",
         "contrastDescription": "배경에 대한 채팅 텍스트의 밝기를 조절합니다. 오른쪽 끝으로 이동하면 이전의 더 밝은 모습으로 표시됩니다.",
         "softer": "부드럽게",

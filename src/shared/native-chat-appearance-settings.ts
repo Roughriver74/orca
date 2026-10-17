@@ -11,6 +11,8 @@ export type NativeChatAppearanceSettings = {
   contrast?: number
   /** Follow the terminal interface font and theme; absent = false. */
   matchTerminalInterface?: boolean
+  /** Tint your messages, code, headings, links and selection with theme colors; absent = false. */
+  colorAccents?: boolean
 }
 
 export type NativeChatGlobalSettings = {
@@ -24,6 +26,14 @@ export type NativeChatGlobalSettings = {
 export const DEFAULT_NATIVE_CHAT_FONT_SIZE = 14
 export const DEFAULT_NATIVE_CHAT_CODE_FONT_SIZE = 12
 export const DEFAULT_NATIVE_CHAT_CONTRAST = 100
+const OWNED_KEYS = [
+  'fontSize',
+  'codeFontSize',
+  'width',
+  'contrast',
+  'matchTerminalInterface',
+  'colorAccents'
+]
 
 function normalizeSize(value: unknown, min: number, max: number, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value)
@@ -47,20 +57,17 @@ export function normalizeNativeChatAppearanceSettings(
   const contrast = normalizeSize('contrast' in value ? value.contrast : undefined, 50, 150, 100)
   const matchTerminalInterface =
     'matchTerminalInterface' in value && value.matchTerminalInterface === true
+  const colorAccents = 'colorAccents' in value && value.colorAccents === true
   const width =
     'width' in value && (value.width === 'wide' || value.width === 'full') ? value.width : undefined
   const normalized: NativeChatAppearanceSettings = {
-    ...Object.fromEntries(
-      Object.entries(value).filter(
-        ([key]) =>
-          !['fontSize', 'codeFontSize', 'width', 'contrast', 'matchTerminalInterface'].includes(key)
-      )
-    ),
+    ...Object.fromEntries(Object.entries(value).filter(([key]) => !OWNED_KEYS.includes(key))),
     ...(fontSize !== DEFAULT_NATIVE_CHAT_FONT_SIZE ? { fontSize } : {}),
     ...(codeFontSize !== DEFAULT_NATIVE_CHAT_CODE_FONT_SIZE ? { codeFontSize } : {}),
     ...(width ? { width } : {}),
     ...(contrast !== DEFAULT_NATIVE_CHAT_CONTRAST ? { contrast } : {}),
-    ...(matchTerminalInterface ? { matchTerminalInterface } : {})
+    ...(matchTerminalInterface ? { matchTerminalInterface } : {}),
+    ...(colorAccents ? { colorAccents } : {})
   }
   return Object.keys(normalized).length ? normalized : undefined
 }
@@ -74,7 +81,8 @@ export function resolveNativeChatAppearanceSettings(
     codeFontSize: normalized?.codeFontSize ?? DEFAULT_NATIVE_CHAT_CODE_FONT_SIZE,
     width: normalized?.width ?? 'comfortable',
     contrast: normalized?.contrast ?? DEFAULT_NATIVE_CHAT_CONTRAST,
-    matchTerminalInterface: normalized?.matchTerminalInterface ?? false
+    matchTerminalInterface: normalized?.matchTerminalInterface ?? false,
+    colorAccents: normalized?.colorAccents ?? false
   }
 }
 
@@ -83,10 +91,7 @@ export function resetNativeChatAppearanceSettings(
 ): NativeChatAppearanceSettings | undefined {
   return normalizeNativeChatAppearanceSettings(
     Object.fromEntries(
-      Object.entries(appearance ?? {}).filter(
-        ([key]) =>
-          !['fontSize', 'codeFontSize', 'width', 'contrast', 'matchTerminalInterface'].includes(key)
-      )
+      Object.entries(appearance ?? {}).filter(([key]) => !OWNED_KEYS.includes(key))
     )
   )
 }

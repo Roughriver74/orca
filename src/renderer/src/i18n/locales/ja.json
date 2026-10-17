@@ -138,6 +138,8 @@
         "reset": "リセット",
         "matchTerminalInterface": "ターミナルの外観に合わせる",
         "matchTerminalInterfaceDescription": "チャット全体にターミナルと同じフォントと配色を使用します。ターミナルのテーマを変更すると、チャットにも反映されます。",
+        "colorAccents": "カラーアクセント",
+        "colorAccentsDescription": "自分のメッセージ、コード、見出し、リンク、選択したテキストをテーマの色で色付けします。",
         "contrast": "コントラスト",
         "contrastDescription": "背景に対するチャットの文字の明るさを調整します。右端にすると、以前の明るい表示になります。",
         "softer": "柔らかく",

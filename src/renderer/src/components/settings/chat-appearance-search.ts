@@ -28,6 +28,14 @@ export const getChatContrastEntriesByKey = createLocalizedCatalog(
         ),
         targetSectionId: 'chat-match-terminal-interface'
       },
+      colorAccents: {
+        title: translate('settings.appearance.chat.colorAccents', 'Color accents'),
+        description: translate(
+          'settings.appearance.chat.colorAccentsDescription',
+          'Tint your messages, code, headings, links and selected text with the theme colors.'
+        ),
+        targetSectionId: 'chat-color-accents'
+      },
       contrast: {
         title: translate('settings.appearance.chat.contrast', 'Contrast'),
         description: translate(

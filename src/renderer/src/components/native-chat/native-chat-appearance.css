@@ -32,3 +32,8 @@
   inherits: false;
   initial-value: 0px;
 }
+
+/* Color accents tint the selection; otherwise the system highlight stays. */
+.native-chat-appearance ::selection {
+  background-color: var(--chat-selection, Highlight);
+}

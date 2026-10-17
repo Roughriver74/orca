@@ -138,6 +138,8 @@
         "reset": "Restablecer",
         "matchTerminalInterface": "Usar la interfaz del terminal",
         "matchTerminalInterfaceDescription": "Usa la fuente y los colores de la interfaz del terminal para todo el chat. Se mantiene sincronizado si cambias el tema del terminal.",
+        "colorAccents": "Acentos de color",
+        "colorAccentsDescription": "Colorea tus mensajes, el código, los títulos, los enlaces y el texto seleccionado con los colores del tema.",
         "contrast": "Contraste",
         "contrastDescription": "Ajusta el brillo del texto del chat sobre el fondo. El extremo derecho recupera el aspecto anterior, más brillante.",
         "softer": "Más suave",
