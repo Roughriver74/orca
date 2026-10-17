@@ -25,7 +25,8 @@ export const INTERFACE_THEMES_DARK: readonly InterfaceThemeOption[] = [
   { id: 'everforest-dark-hard', label: 'Everforest Dark Hard', swatch: '#83c092' },
   { id: 'solarized-dark', label: 'Solarized Dark', swatch: '#268bd2' },
   { id: 'github-dark', label: 'GitHub Dark', swatch: '#58a6ff' },
-  { id: 'github-dark-plus', label: 'GitHub Dark+', swatch: '#4493f8' }
+  { id: 'github-dark-plus', label: 'GitHub Dark+', swatch: '#4493f8' },
+  { id: 'neon', label: 'Dark Neon', swatch: '#e0409a' }
 ]
 
 export const INTERFACE_THEMES_LIGHT: readonly InterfaceThemeOption[] = [

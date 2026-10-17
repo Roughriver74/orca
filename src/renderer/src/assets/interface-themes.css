@@ -434,6 +434,22 @@
   --itp-yellow: #dfa000;
 }
 
+/* Dark Neon: near-black canvas, plum chrome, magenta accent, cyan secondary. */
+.dark.ui-dark-neon {
+  --itp-base: #0a090c;
+  --itp-mantle: #140e15;
+  --itp-text: #f2eff4;
+  --itp-subtext: #a59eab;
+  --itp-surface0: #2a1f2c;
+  --itp-surface1: #3a2a3e;
+  --itp-overlay0: #6b5570;
+  --itp-accent: #e0409a;
+  --itp-blue: #3cc8dc;
+  --itp-red: #ff4d6d;
+  --itp-green: #3ddc97;
+  --itp-yellow: #f5c04a;
+}
+
 /* Why: one role mapping shared by every `--itp-*` palette above, so each
    theme only declares colors once (mirrors the Catppuccin block above). */
 .dark.ui-dark-tokyo-night,
@@ -449,6 +465,7 @@
 .dark.ui-dark-solarized-dark,
 .dark.ui-dark-github-dark,
 .dark.ui-dark-github-dark-plus,
+.dark.ui-dark-neon,
 .light.ui-light-solarized-light,
 .light.ui-light-gruvbox-light,
 .light.ui-light-rose-pine-dawn,
@@ -494,4 +511,15 @@
   --git-decoration-deleted: var(--itp-red);
   --destructive: var(--itp-red);
   --destructive-foreground: var(--itp-base);
+}
+
+/* Neon keeps white text on its magenta buttons and drives chat accents with its own colors. */
+.dark.ui-dark-neon,
+.dark.ui-dark-neon .native-chat-appearance {
+  --primary-foreground: #ffffff;
+  --sidebar-primary: var(--itp-accent);
+  --sidebar-primary-foreground: #ffffff;
+  --ring: var(--itp-accent);
+  --callout-note: var(--itp-accent);
+  --callout-important: var(--itp-blue);
 }
