@@ -141,7 +141,8 @@ function localizePendingRowsForHost(
   const localized: Extract<Row, { type: 'header' }>[] = []
   for (const row of rows) {
     if (!row.hostWorktreeCounts) {
-      localized.push(row)
+      // Why: a cross-host group header repeats per host section; its hostId keeps render keys unique.
+      localized.push(row.hostId === hostId ? row : { ...row, hostId })
       continue
     }
     const count = row.hostWorktreeCounts.get(hostId)
