@@ -24,7 +24,7 @@ import { useNativeChatPromptCardPresentation } from './use-native-chat-prompt-ca
 import { NativeChatPromptStrip } from './NativeChatPromptCollapse'
 import { NativeChatEmptyState } from './NativeChatEmptyState'
 import { useNativeChatInteractiveSend } from './use-native-chat-interactive-send'
-import { shouldClearNativeChatWorkingSuppression } from './native-chat-working-suppression'
+import { useNativeChatWorkingSuppression } from './use-native-chat-working-suppression'
 import { resolveNativeChatTerminalTurn } from './native-chat-terminal-turn'
 import { useNativeChatTerminalTurnTiming } from './use-native-chat-terminal-turn-timing'
 import {
@@ -60,6 +60,10 @@ import { useNativeChatLocalCommandAnswer } from './use-native-chat-local-command
 import { matchNativeChatSplitShortcut } from './native-chat-split-shortcut'
 import { getShortcutPlatform } from '@/lib/shortcut-platform'
 import { formatShortcutLabel } from '@/hooks/useShortcutLabel'
+import {
+  NativeChatTranscriptBackgroundTasks,
+  useNativeChatTranscriptBackgroundTasks
+} from './NativeChatTranscriptBackgroundTasks'
 
 /** Renders the bridge UI after NativeChatSessionGate resolves its agent session. */
 export function NativeChatResolvedView({
@@ -81,7 +85,7 @@ export function NativeChatResolvedView({
   const selectOwner = useMemo(() => createNativeChatRuntimeSelector(terminalTabId), [terminalTabId])
   const runtimeEnvironmentId = useAppStore(selectOwner)
   const keybindings = useAppStore((s) => s.keybindings)
-  const session = useNativeChatRetainedSession({
+  const retainedSession = useNativeChatRetainedSession({
     paneKey,
     agent,
     sessionId,
@@ -89,6 +93,7 @@ export function NativeChatResolvedView({
     runtimeEnvironmentId,
     enabled: isVisible
   })
+  const { session, ...backgroundTasks } = useNativeChatTranscriptBackgroundTasks(retainedSession)
   const launchPrompt = useAppStore((s) => s.nativeChatLaunchPromptByTabId[terminalTabId] ?? null)
   const clearNativeChatLaunchPrompt = useAppStore((s) => s.clearNativeChatLaunchPrompt)
   const paneLaunchPrompt = launchPrompt?.agent === agent ? launchPrompt : null
@@ -124,8 +129,10 @@ export function NativeChatResolvedView({
   // Every send this pane makes brings the latest into view, wherever the reader had scrolled.
   const { messageListRef, revealLatest } = useNativeChatRevealLatest()
   const interactiveSend = useNativeChatInteractiveSendReveal(send, targetPtyId, revealLatest)
-  const [workingInterrupted, setWorkingInterrupted] = useState(false)
-  const previousWorkingEpochRef = useRef<number | null>(null)
+  const [workingInterrupted, setWorkingInterrupted] = useNativeChatWorkingSuppression(
+    liveWorking,
+    hookWorkingEpoch
+  )
   const rootRef = useRef<HTMLDivElement>(null)
   const composerRef = useRef<NativeChatComposerHandle>(null)
   // The question card's free-text row; keeps Paste working while the card
@@ -153,7 +160,7 @@ export function NativeChatResolvedView({
   useEffect(() => {
     setCommandMarkers(readCommandMarkerCache(commandMarkerScope))
     setWorkingInterrupted(false)
-  }, [commandMarkerScope])
+  }, [commandMarkerScope, setWorkingInterrupted])
   useEffect(() => {
     if (!paneLaunchPrompt || !shouldPruneLaunchPrompt(paneLaunchPrompt, session.messages)) {
       return
@@ -165,7 +172,7 @@ export function NativeChatResolvedView({
       setWorkingInterrupted(false)
       return record(text, imagePaths)
     },
-    [record]
+    [record, setWorkingInterrupted]
   )
   const onSlashCommand = useCallback(
     (command: string, output?: string) => {
@@ -274,24 +281,6 @@ export function NativeChatResolvedView({
   const viewState = selectNativeChatViewState(sessionWithPending)
 
   const isConversation = viewState.kind === 'ready'
-  useEffect(() => {
-    if (
-      shouldClearNativeChatWorkingSuppression({
-        working: liveWorking,
-        interrupted: workingInterrupted,
-        workingEpoch: hookWorkingEpoch,
-        previousWorkingEpoch: previousWorkingEpochRef.current
-      })
-    ) {
-      setWorkingInterrupted(false)
-    }
-    if (liveWorking && hookWorkingEpoch != null) {
-      previousWorkingEpochRef.current = hookWorkingEpoch
-    }
-    if (!liveWorking) {
-      previousWorkingEpochRef.current = null
-    }
-  }, [liveWorking, workingInterrupted, hookWorkingEpoch])
   const { isWorking, turnActive, awaitingInput } = resolveNativeChatTerminalTurn({
     isConversation,
     working: liveWorking,
@@ -309,7 +298,7 @@ export function NativeChatResolvedView({
     // the echo cache here so a cancelled prompt cannot stick as a ghost bubble.
     clear()
     interactiveSend.cancel()
-  }, [interactiveSend, clear])
+  }, [interactiveSend, clear, setWorkingInterrupted])
   const { onLinkClick, linkActionRequest, closeLinkActions } = useNativeChatLinkActions(
     fileLinkContext,
     rootRef,
@@ -414,6 +403,11 @@ export function NativeChatResolvedView({
       {collapsedCard ? (
         <NativeChatPromptStrip card={collapsedCard} onExpand={promptCardPresentation.expand} />
       ) : null}
+      <NativeChatTranscriptBackgroundTasks
+        {...backgroundTasks}
+        isVisible={isVisible}
+        turnActive={turnActive}
+      />
       {/* canSend reflects the mobile presence-lock: when a mobile client holds
           the pty, the composer shows its guarded state instead of racing the
           mobile driver (R8). Under a card it stays mounted but hidden, so its state survives;
