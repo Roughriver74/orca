@@ -153,7 +153,11 @@ export function getDefaultCompanionSettings(): CompanionSettings {
     tts: {
       ttsEnabled: true,
       ttsVoice: 'eugene',
-      ttsRate: 1
+      ttsRate: 1,
+      provider: 'silero',
+      yandexVoice: 'kirill',
+      maxSpokenChars: 250,
+      yandexMonthlyBudgetRub: 300
     },
     notify: {
       enabled: true,

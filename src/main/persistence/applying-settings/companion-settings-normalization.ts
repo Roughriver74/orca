@@ -2,8 +2,10 @@ import type {
   CompanionBrainModel,
   CompanionNotifySettings,
   CompanionSettings,
+  CompanionTtsProvider,
   CompanionTtsSettings,
-  CompanionTtsVoice
+  CompanionTtsVoice,
+  CompanionYandexVoice
 } from '../../../shared/companion-types'
 import { getDefaultCompanionSettings } from '../../../shared/constants'
 
@@ -19,6 +21,31 @@ const COMPANION_TTS_VOICES: Record<CompanionTtsVoice, true> = {
   kseniya: true,
   aidar: true
 }
+
+const COMPANION_TTS_PROVIDERS: Record<CompanionTtsProvider, true> = { silero: true, yandex: true }
+
+function isCompanionTtsProvider(value: unknown): value is CompanionTtsProvider {
+  return typeof value === 'string' && value in COMPANION_TTS_PROVIDERS
+}
+
+const COMPANION_YANDEX_VOICES: Record<CompanionYandexVoice, true> = {
+  filipp: true,
+  ermil: true,
+  zahar: true,
+  alexander: true,
+  kirill: true,
+  anton: true,
+  madirus: true
+}
+
+function isCompanionYandexVoice(value: unknown): value is CompanionYandexVoice {
+  return typeof value === 'string' && value in COMPANION_YANDEX_VOICES
+}
+
+const MIN_MAX_SPOKEN_CHARS = 60
+const MAX_MAX_SPOKEN_CHARS = 2000
+const MIN_YANDEX_BUDGET_RUB = 0
+const MAX_YANDEX_BUDGET_RUB = 100_000
 
 function isCompanionTtsVoice(value: unknown): value is CompanionTtsVoice {
   return typeof value === 'string' && value in COMPANION_TTS_VOICES
@@ -69,10 +96,30 @@ function normalizeCompanionTtsSettings(
       : defaults.ttsRate
   const ttsEnabledRaw = source && 'ttsEnabled' in source ? source.ttsEnabled : undefined
   const ttsVoiceRaw = source && 'ttsVoice' in source ? source.ttsVoice : undefined
+  const providerRaw = source && 'provider' in source ? source.provider : undefined
+  const yandexVoiceRaw = source && 'yandexVoice' in source ? source.yandexVoice : undefined
+  const maxSpokenCharsRaw = source && 'maxSpokenChars' in source ? source.maxSpokenChars : undefined
+  const maxSpokenChars =
+    typeof maxSpokenCharsRaw === 'number' && Number.isFinite(maxSpokenCharsRaw)
+      ? Math.min(
+          MAX_MAX_SPOKEN_CHARS,
+          Math.max(MIN_MAX_SPOKEN_CHARS, Math.round(maxSpokenCharsRaw))
+        )
+      : defaults.maxSpokenChars
+  const yandexBudgetRaw =
+    source && 'yandexMonthlyBudgetRub' in source ? source.yandexMonthlyBudgetRub : undefined
+  const yandexMonthlyBudgetRub =
+    typeof yandexBudgetRaw === 'number' && Number.isFinite(yandexBudgetRaw)
+      ? Math.min(MAX_YANDEX_BUDGET_RUB, Math.max(MIN_YANDEX_BUDGET_RUB, yandexBudgetRaw))
+      : defaults.yandexMonthlyBudgetRub
   return {
     ttsEnabled: typeof ttsEnabledRaw === 'boolean' ? ttsEnabledRaw : defaults.ttsEnabled,
     ttsVoice: isCompanionTtsVoice(ttsVoiceRaw) ? ttsVoiceRaw : defaults.ttsVoice,
-    ttsRate
+    ttsRate,
+    provider: isCompanionTtsProvider(providerRaw) ? providerRaw : defaults.provider,
+    yandexVoice: isCompanionYandexVoice(yandexVoiceRaw) ? yandexVoiceRaw : defaults.yandexVoice,
+    maxSpokenChars,
+    yandexMonthlyBudgetRub
   }
 }
 

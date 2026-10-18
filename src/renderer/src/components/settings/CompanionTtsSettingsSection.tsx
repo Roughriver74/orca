@@ -9,6 +9,7 @@ import { Switch } from '../ui/switch'
 import { Slider } from '../ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { translate } from '@/i18n/i18n'
+import { CompanionYandexTtsSettingsSection } from './CompanionYandexTtsSettingsSection'
 
 const TTS_VOICE_LABELS: Record<CompanionTtsVoice, string> = {
   eugene: 'Евгений',
@@ -143,6 +144,13 @@ export function CompanionTtsSettingsSection({
           onValueChange={([value]) => updateTtsSettings({ ttsRate: value })}
         />
       </div>
+
+      <Separator />
+
+      <CompanionYandexTtsSettingsSection
+        companionSettings={companionSettings}
+        updateTtsSettings={updateTtsSettings}
+      />
     </>
   )
 }

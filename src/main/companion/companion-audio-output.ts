@@ -28,6 +28,13 @@ export function stopAudio(utteranceId?: string): void {
   sendToCompanionWindow('companion:audio-stop', { utteranceId })
 }
 
+/** Reuses the panel's existing assistant-error display for a TTS failure that could not
+ *  be recovered (Yandex failed and Silero was unavailable too) — same channel
+ *  `companion-dialogue.ts` uses for brain errors, so the panel needs no new listener. */
+export function sendTtsError(message: string): void {
+  sendToCompanionWindow('companion:assistantError', message)
+}
+
 /** Reported by the panel via the `companion:audio-state` IPC handler. */
 export function reportAudioState(state: CompanionAudioState): void {
   audioStateEmitter.emit('audio-state', state)

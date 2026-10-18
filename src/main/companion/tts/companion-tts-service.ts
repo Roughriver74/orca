@@ -3,10 +3,14 @@
 // normalize text, split it into sentences, pipeline sentence synthesis one ahead of
 // what has been sent so sentence N+1 synthesizes while N is already streaming to the
 // panel, and push PCM chunks through the playback contract CompanionShell owns.
+//
+// The Yandex-provider branch of each entry point lives in
+// companion-tts-service-yandex.ts (split out to stay under the repo's per-file line
+// cap); `resolveEffectiveProvider()` below decides which branch a call takes.
 
 import { randomUUID } from 'node:crypto'
 import sidecarScriptPath from '../../../../resources/companion/tts-sidecar.py?asset&asarUnpack'
-import type { CompanionTtsVoice } from '../../../shared/companion-types'
+import type { CompanionTtsSettings, CompanionTtsVoice } from '../../../shared/companion-types'
 import { sendAudioChunk, stopAudio } from '../companion-audio-output'
 import { AsyncItemChannel } from './companion-tts-item-channel'
 import { getCompanionTtsPaths, readProvisionedModelPaths } from './companion-tts-provisioning'
@@ -18,6 +22,13 @@ import {
   type CompanionTtsSynthesisChunk
 } from './companion-tts-sidecar-process'
 import { normalizeForSpeech } from './companion-tts-text-normalization'
+import { getDefaultCompanionSettings } from '../../../shared/constants'
+import { CompanionTtsYandexSpeaker } from './companion-tts-yandex-speaker'
+import { isYandexTtsBudgetExceeded } from './companion-tts-usage'
+import {
+  createCompanionTtsYandexBranch,
+  type CompanionTtsYandexBranch
+} from './companion-tts-service-yandex'
 
 export type CompanionTtsSpeakOptions = {
   utteranceId: string
@@ -25,9 +36,9 @@ export type CompanionTtsSpeakOptions = {
   rate: number
 }
 
-type SynthesisHandle = Promise<CompanionTtsSynthesisChunk>
+export type SynthesisHandle = Promise<CompanionTtsSynthesisChunk>
 
-type UtteranceHandle = {
+export type UtteranceHandle = {
   requestIds: Set<string>
   cancelled: boolean
 }
@@ -40,16 +51,69 @@ export type CompanionTtsStreamHandle = {
 
 type SidecarFactory = (config: CompanionTtsSidecarConfig) => CompanionTtsSidecarProcess
 
+export type CompanionTtsProviderSettings = Pick<
+  CompanionTtsSettings,
+  'provider' | 'yandexVoice' | 'maxSpokenChars' | 'yandexMonthlyBudgetRub'
+>
+
+/** Read by `CompanionTtsService` on every `speak()`/`speakStream()` call so neither needs
+ *  a settings param the existing `speak(text, { utteranceId, voice, rate })` callers (the
+ *  dialogue orchestrator, `orca companion say`) do not pass. Wired once at startup via
+ *  `setCompanionTtsProviderSettingsSource` (see register-core-handlers.ts); defaults to
+ *  the Silero-only shipped defaults so a test or early-boot call never throws. */
+let companionTtsProviderSettingsSource: () => CompanionTtsProviderSettings = () =>
+  getDefaultCompanionSettings().tts
+
+export function setCompanionTtsProviderSettingsSource(
+  source: () => CompanionTtsProviderSettings
+): void {
+  companionTtsProviderSettingsSource = source
+}
+
 export class CompanionTtsService {
   private sidecar: CompanionTtsSidecarProcess | null = null
   private sidecarReady: Promise<CompanionTtsSidecarProcess> | null = null
   private readonly activeUtterances = new Map<string, UtteranceHandle>()
+  private yandexSpeaker: CompanionTtsYandexSpeaker | null = null
+  private readonly yandexBranch: CompanionTtsYandexBranch = createCompanionTtsYandexBranch({
+    beginUtterance: (utteranceId) => this.beginUtterance(utteranceId),
+    endUtterance: (utteranceId) => this.activeUtterances.delete(utteranceId),
+    drainAndSend: (channel, utteranceId) => this.drainAndSend(channel, utteranceId),
+    getYandexSpeaker: () => this.getYandexSpeaker(),
+    ensureSidecar: () => this.ensureSidecar(),
+    synthesizeSentence: (sidecar, sentence, options, handle) =>
+      this.synthesizeSentence(sidecar, sentence, options, handle)
+  })
 
   constructor(
     private readonly userDataDir: string,
     private readonly sidecarFactory: SidecarFactory = (config) =>
-      new CompanionTtsSidecarProcess(config)
+      new CompanionTtsSidecarProcess(config),
+    private readonly getProviderSettings: () => CompanionTtsProviderSettings = () =>
+      companionTtsProviderSettingsSource(),
+    private readonly yandexSpeakerFactory: () => CompanionTtsYandexSpeaker = () =>
+      new CompanionTtsYandexSpeaker(userDataDir)
   ) {}
+
+  private getYandexSpeaker(): CompanionTtsYandexSpeaker {
+    this.yandexSpeaker ??= this.yandexSpeakerFactory()
+    return this.yandexSpeaker
+  }
+
+  /** Yandex only when selected, a key is configured, and the 30-day spend estimate has
+   *  not reached the budget — any other case keeps using the local Silero sidecar. */
+  private resolveEffectiveProvider(settings: CompanionTtsProviderSettings): 'silero' | 'yandex' {
+    if (settings.provider !== 'yandex') {
+      return 'silero'
+    }
+    if (!this.getYandexSpeaker().isAvailable()) {
+      return 'silero'
+    }
+    if (isYandexTtsBudgetExceeded(this.userDataDir, settings.yandexMonthlyBudgetRub)) {
+      return 'silero'
+    }
+    return 'yandex'
+  }
 
   /** Resolves provisioned model paths and the venv interpreter, then builds the sidecar once. */
   private async ensureSidecar(): Promise<CompanionTtsSidecarProcess> {
@@ -76,6 +140,10 @@ export class CompanionTtsService {
 
   /** Synthesizes and streams a complete reply, resolving once every sentence has been sent. */
   async speak(text: string, options: CompanionTtsSpeakOptions): Promise<void> {
+    const providerSettings = this.getProviderSettings()
+    if (this.resolveEffectiveProvider(providerSettings) === 'yandex') {
+      return this.yandexBranch.speakYandex(text, options, providerSettings)
+    }
     const sidecar = await this.ensureSidecar()
     const { sentences } = splitIntoSentences(normalizeForSpeech(text))
     const resultChannel = new AsyncItemChannel<SynthesisHandle>()
@@ -93,6 +161,10 @@ export class CompanionTtsService {
 
   /** Opens a streaming handle: call `pushDelta` as brain text arrives, `finish()` once the turn ends. */
   speakStream(options: CompanionTtsSpeakOptions): CompanionTtsStreamHandle {
+    const providerSettings = this.getProviderSettings()
+    if (this.resolveEffectiveProvider(providerSettings) === 'yandex') {
+      return this.yandexBranch.speakStreamYandex(options, providerSettings)
+    }
     const chunker = new SentenceStreamChunker()
     const resultChannel = new AsyncItemChannel<SynthesisHandle>()
     const handle = this.beginUtterance(options.utteranceId)
@@ -136,6 +208,7 @@ export class CompanionTtsService {
       handle.cancelled = true
       for (const requestId of handle.requestIds) {
         this.sidecar?.cancel(requestId)
+        this.yandexSpeaker?.cancel(requestId)
       }
       this.activeUtterances.delete(id)
     }

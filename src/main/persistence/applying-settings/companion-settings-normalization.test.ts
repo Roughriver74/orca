@@ -17,7 +17,15 @@ describe('normalizeCompanionSettings', () => {
       endOfUtteranceMs: 2000,
       brainModel: 'opus',
       launchAtLogin: true,
-      tts: { ttsEnabled: false, ttsVoice: 'baya', ttsRate: 1.25 },
+      tts: {
+        ttsEnabled: false,
+        ttsVoice: 'baya',
+        ttsRate: 1.25,
+        provider: 'yandex',
+        yandexVoice: 'alexander',
+        maxSpokenChars: 180,
+        yandexMonthlyBudgetRub: 150
+      },
       notify: { enabled: false, quietFrom: '23:00', quietTo: '07:30', speak: true }
     }
     expect(normalizeCompanionSettings(persisted)).toEqual(persisted)
@@ -109,5 +117,46 @@ describe('normalizeCompanionSettings', () => {
     expect(normalizeCompanionSettings({ launchAtLogin: 'true' }).launchAtLogin).toBe(
       getDefaultCompanionSettings().launchAtLogin
     )
+  })
+
+  it('accepts a known provider and rejects an unknown one', () => {
+    expect(normalizeCompanionSettings({ tts: { provider: 'yandex' } }).tts.provider).toBe('yandex')
+    expect(normalizeCompanionSettings({ tts: { provider: 'eleven-labs' } }).tts.provider).toBe(
+      getDefaultCompanionSettings().tts.provider
+    )
+  })
+
+  it('accepts a known Yandex voice and rejects an unknown one', () => {
+    expect(normalizeCompanionSettings({ tts: { yandexVoice: 'filipp' } }).tts.yandexVoice).toBe(
+      'filipp'
+    )
+    expect(normalizeCompanionSettings({ tts: { yandexVoice: 'robot' } }).tts.yandexVoice).toBe(
+      getDefaultCompanionSettings().tts.yandexVoice
+    )
+  })
+
+  it('clamps maxSpokenChars into a sane range and rejects a non-number', () => {
+    expect(normalizeCompanionSettings({ tts: { maxSpokenChars: 10 } }).tts.maxSpokenChars).toBe(60)
+    expect(normalizeCompanionSettings({ tts: { maxSpokenChars: 9000 } }).tts.maxSpokenChars).toBe(
+      2000
+    )
+    expect(normalizeCompanionSettings({ tts: { maxSpokenChars: '250' } }).tts.maxSpokenChars).toBe(
+      getDefaultCompanionSettings().tts.maxSpokenChars
+    )
+  })
+
+  it('clamps yandexMonthlyBudgetRub into a non-negative range and rejects a non-number', () => {
+    expect(
+      normalizeCompanionSettings({ tts: { yandexMonthlyBudgetRub: -50 } }).tts
+        .yandexMonthlyBudgetRub
+    ).toBe(0)
+    expect(
+      normalizeCompanionSettings({ tts: { yandexMonthlyBudgetRub: 1_000_000 } }).tts
+        .yandexMonthlyBudgetRub
+    ).toBe(100_000)
+    expect(
+      normalizeCompanionSettings({ tts: { yandexMonthlyBudgetRub: 'free' } }).tts
+        .yandexMonthlyBudgetRub
+    ).toBe(getDefaultCompanionSettings().tts.yandexMonthlyBudgetRub)
   })
 })

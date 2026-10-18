@@ -6,9 +6,11 @@ vi.mock('../../../../resources/companion/tts-sidecar.py?asset&asarUnpack', () =>
 
 const sendAudioChunk = vi.fn()
 const stopAudio = vi.fn()
+const sendTtsError = vi.fn()
 vi.mock('../companion-audio-output', () => ({
   sendAudioChunk: (...args: unknown[]) => sendAudioChunk(...args),
-  stopAudio: (...args: unknown[]) => stopAudio(...args)
+  stopAudio: (...args: unknown[]) => stopAudio(...args),
+  sendTtsError: (...args: unknown[]) => sendTtsError(...args)
 }))
 
 vi.mock('./companion-tts-provisioning', () => ({
@@ -154,5 +156,181 @@ describe('CompanionTtsService', () => {
     await expect(
       service.speak('Привет.', { utteranceId: 'u4', voice: 'eugene', rate: 1 })
     ).rejects.toThrow(/not been provisioned/)
+  })
+})
+
+type FakeYandexSpeaker = {
+  isAvailable: ReturnType<typeof vi.fn>
+  synthesize: ReturnType<typeof vi.fn>
+  cancel: ReturnType<typeof vi.fn>
+}
+
+function fakeYandexSpeaker(
+  behavior: (id: string, text: string) => Promise<FakePcmChunk>
+): FakeYandexSpeaker {
+  return {
+    isAvailable: vi.fn(() => true),
+    synthesize: vi.fn(async (id: string, text: string) => behavior(id, text)),
+    cancel: vi.fn()
+  }
+}
+
+const YANDEX_PROVIDER_SETTINGS = {
+  provider: 'yandex' as const,
+  yandexVoice: 'kirill' as const,
+  maxSpokenChars: 250,
+  yandexMonthlyBudgetRub: 300
+}
+
+describe('CompanionTtsService — Yandex provider', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    sendAudioChunk.mockClear()
+    stopAudio.mockClear()
+    sendTtsError.mockClear()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+
+  it('packs short sentences into one request and sends one final chunk', async () => {
+    const yandex = fakeYandexSpeaker(async (_id, text) => pcmChunk([text.length]))
+    const sidecar = fakeSidecar(async () => pcmChunk([1]))
+    const service = new CompanionTtsService(
+      '/tmp/userData',
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: FakeSidecar mirrors only the methods CompanionTtsService calls on the sidecar.
+      () => sidecar as never,
+      () => YANDEX_PROVIDER_SETTINGS,
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: FakeYandexSpeaker mirrors only the methods CompanionTtsService calls on it.
+      () => yandex as never
+    )
+
+    await service.speak('Привет. Как дела?', { utteranceId: 'y1', voice: 'eugene', rate: 1 })
+
+    expect(yandex.synthesize).toHaveBeenCalledTimes(1)
+    expect(sidecar.synthesize).not.toHaveBeenCalled()
+    expect(sendAudioChunk).toHaveBeenCalledTimes(1)
+    expect(sendAudioChunk.mock.calls[0][0].final).toBe(true)
+  })
+
+  it('falls back to Silero for a chunk when Yandex synthesis fails and Silero is provisioned', async () => {
+    const yandex = fakeYandexSpeaker(async () => {
+      throw new Error('yandex down')
+    })
+    const sidecar = fakeSidecar(async (_id, text) => pcmChunk([text.length]))
+    const service = new CompanionTtsService(
+      '/tmp/userData',
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+      () => sidecar as never,
+      () => YANDEX_PROVIDER_SETTINGS,
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+      () => yandex as never
+    )
+
+    await service.speak('Привет.', { utteranceId: 'y2', voice: 'eugene', rate: 1 })
+
+    expect(yandex.synthesize).toHaveBeenCalledTimes(1)
+    expect(sidecar.synthesize).toHaveBeenCalledTimes(1)
+    expect(sendAudioChunk).toHaveBeenCalledTimes(1)
+    expect(sendTtsError).not.toHaveBeenCalled()
+  })
+
+  it('skips the chunk and tells the panel in Russian when Yandex fails and Silero is not provisioned', async () => {
+    vi.mocked(provisioning.readProvisionedModelPaths).mockResolvedValueOnce({
+      v5ModelPath: null,
+      v3ModelPath: null
+    })
+    const yandex = fakeYandexSpeaker(async () => {
+      throw new Error('yandex down')
+    })
+    const sidecar = fakeSidecar(async () => pcmChunk([1]))
+    const service = new CompanionTtsService(
+      '/tmp/userData',
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+      () => sidecar as never,
+      () => YANDEX_PROVIDER_SETTINGS,
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+      () => yandex as never
+    )
+
+    await service.speak('Привет.', { utteranceId: 'y3', voice: 'eugene', rate: 1 })
+
+    expect(sendAudioChunk).not.toHaveBeenCalled()
+    expect(sendTtsError).toHaveBeenCalledTimes(1)
+    expect(sendTtsError.mock.calls[0][0]).toMatch(/[а-яё]/i)
+  })
+
+  it('falls back to Silero entirely when no Yandex key is configured', async () => {
+    const yandex = fakeYandexSpeaker(async () => pcmChunk([1]))
+    yandex.isAvailable.mockReturnValue(false)
+    const sidecar = fakeSidecar(async (_id, text) => pcmChunk([text.length]))
+    const service = new CompanionTtsService(
+      '/tmp/userData',
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+      () => sidecar as never,
+      () => YANDEX_PROVIDER_SETTINGS,
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+      () => yandex as never
+    )
+
+    await service.speak('Привет.', { utteranceId: 'y4', voice: 'eugene', rate: 1 })
+
+    expect(yandex.synthesize).not.toHaveBeenCalled()
+    expect(sidecar.synthesize).toHaveBeenCalledTimes(1)
+  })
+
+  it('stop() cancels an in-flight Yandex request and stops playback', async () => {
+    const synthResolvers = Promise.withResolvers<FakePcmChunk>()
+    synthResolvers.promise.catch(() => {})
+    const yandex: FakeYandexSpeaker = {
+      isAvailable: vi.fn(() => true),
+      synthesize: vi.fn(() => synthResolvers.promise),
+      cancel: vi.fn(() => synthResolvers.reject(new CompanionTtsCancelledError('y5:req')))
+    }
+    const sidecar = fakeSidecar(async () => pcmChunk([1]))
+    const service = new CompanionTtsService(
+      '/tmp/userData',
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+      () => sidecar as never,
+      () => YANDEX_PROVIDER_SETTINGS,
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+      () => yandex as never
+    )
+
+    const speaking = service.speak('Одно.', { utteranceId: 'y5', voice: 'eugene', rate: 1 })
+    await flushAsync()
+    service.stop('y5')
+
+    expect(stopAudio).toHaveBeenCalledWith('y5')
+    expect(yandex.cancel).toHaveBeenCalled()
+    await speaking
+    expect(sendAudioChunk).not.toHaveBeenCalled()
+  })
+
+  it('speakStream() packs streamed sentences and stops speaking past maxSpokenChars', async () => {
+    const yandex = fakeYandexSpeaker(async (_id, text) => pcmChunk([text.length]))
+    const sidecar = fakeSidecar(async () => pcmChunk([1]))
+    const service = new CompanionTtsService(
+      '/tmp/userData',
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+      () => sidecar as never,
+      () => ({ ...YANDEX_PROVIDER_SETTINGS, maxSpokenChars: 20 }),
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+      () => yandex as never
+    )
+
+    const stream = service.speakStream({ utteranceId: 'y6', voice: 'eugene', rate: 1 })
+    stream.pushDelta('Первое предложение. ')
+    stream.pushDelta('Второе предложение совсем не короткое. ')
+    stream.pushDelta('Третье тоже.')
+    stream.finish()
+    await flushAsync()
+
+    // Only the first (short) sentence fits under a 20-char cap; later ones are dropped.
+    expect(yandex.synthesize).toHaveBeenCalledTimes(1)
+    expect(sendAudioChunk).toHaveBeenCalledTimes(1)
+    expect(sendAudioChunk.mock.calls[0][0].final).toBe(true)
   })
 })

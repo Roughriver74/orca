@@ -24,6 +24,7 @@ import type { AutomationsApi } from './api/automation-api'
 import type { BrowserApi } from './api/browser-api'
 import type { CliApi } from './api/cli-install-api'
 import type { CompanionApi } from './api/companion-api'
+import type { CompanionTtsApi } from './api/companion-tts-api'
 import type { CrashReportsApi, FeedbackApi } from './api/crash-report-api'
 import type { DashboardApi, TerminalPreviewApi } from './api/dashboard-api'
 import type { DocPreviewApi } from './api/doc-preview-api'
@@ -168,6 +169,7 @@ export type PreloadApi = {
   mobile: MobileApi
   speech: SpeechApi
   companion: CompanionApi
+  companionTts: CompanionTtsApi
 }
 
 export type {

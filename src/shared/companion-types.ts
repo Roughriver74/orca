@@ -30,11 +30,71 @@ export type CompanionNotifySettings = {
 
 export type CompanionTtsVoice = 'eugene' | 'xenia' | 'baya' | 'kseniya' | 'aidar'
 
+export type CompanionTtsProvider = 'silero' | 'yandex'
+
+/** Male Yandex SpeechKit voices verified to work for the companion: filipp/ermil/zahar
+ *  synthesize on both v1 and v3; alexander/kirill/anton/madirus require v3. */
+export type CompanionYandexVoice =
+  | 'filipp'
+  | 'ermil'
+  | 'zahar'
+  | 'alexander'
+  | 'kirill'
+  | 'anton'
+  | 'madirus'
+
+/** The SpeechKit API generation a voice requires — v3-only voices cannot fall back to v1. */
+export const YANDEX_VOICE_MIN_API: Record<CompanionYandexVoice, 'v1' | 'v3'> = {
+  filipp: 'v1',
+  ermil: 'v1',
+  zahar: 'v1',
+  alexander: 'v3',
+  kirill: 'v3',
+  anton: 'v3',
+  madirus: 'v3'
+}
+
+export const YANDEX_VOICE_LABELS: Record<CompanionYandexVoice, string> = {
+  filipp: 'Филипп',
+  ermil: 'Ермил',
+  zahar: 'Захар',
+  alexander: 'Александр',
+  kirill: 'Кирилл',
+  anton: 'Антон',
+  madirus: 'Мадирус'
+}
+
 export type CompanionTtsSettings = {
   ttsEnabled: boolean
   ttsVoice: CompanionTtsVoice
   /** Playback speed multiplier, 0.5–2.0. */
   ttsRate: number
+  provider: CompanionTtsProvider
+  yandexVoice: CompanionYandexVoice
+  /** Spoken text is cut off at the last whole sentence within this many characters once
+   *  the provider is Yandex (cost control) — the full reply still shows in the panel. */
+  maxSpokenChars: number
+  /** Once the trailing-30-day estimated Yandex spend reaches this many ₽, the service
+   *  falls back to Silero automatically for the rest of the period. */
+  yandexMonthlyBudgetRub: number
+}
+
+export type CompanionTtsUsagePeriod = {
+  characters: number
+  requestUnits: number
+  requests: number
+  costRub: number
+  cacheHitsSaved: number
+  cacheHitSavingsRub: number
+}
+
+/** Pushed to settings by `companion-tts-usage.ts`; prices are approximate (see
+ *  companion-tts-yandex-pricing.ts) and the UI must say so. */
+export type CompanionTtsUsageSnapshot = {
+  today: CompanionTtsUsagePeriod
+  last30Days: CompanionTtsUsagePeriod
+  budgetRub: number
+  budgetExceeded: boolean
 }
 
 /** Pushed by the TTS provisioner (model download/load) over `companion:ttsProvisioningStatus`. */

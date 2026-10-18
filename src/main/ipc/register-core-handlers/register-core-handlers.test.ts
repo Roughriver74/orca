@@ -65,6 +65,8 @@ const {
   registerTerminalPreviewHandlersMock,
   registerSpeechHandlersMock,
   registerCompanionHandlersMock,
+  registerCompanionTtsHandlersMock,
+  initCompanionTtsProviderSettingsMock,
   initCompanionHotkeyMock,
   initCompanionDialogueMock,
   initCompanionAgentWatchMock,
@@ -141,6 +143,8 @@ const {
   registerTerminalPreviewHandlersMock: vi.fn(),
   registerSpeechHandlersMock: vi.fn(),
   registerCompanionHandlersMock: vi.fn(),
+  registerCompanionTtsHandlersMock: vi.fn(),
+  initCompanionTtsProviderSettingsMock: vi.fn(),
   initCompanionHotkeyMock: vi.fn(() => () => {}),
   initCompanionDialogueMock: vi.fn(() => () => {}),
   initCompanionAgentWatchMock: vi.fn(() => () => {}),
@@ -199,6 +203,14 @@ vi.mock('../speech', () => ({
 
 vi.mock('../companion', () => ({
   registerCompanionHandlers: registerCompanionHandlersMock
+}))
+
+vi.mock('../companion-tts', () => ({
+  registerCompanionTtsHandlers: registerCompanionTtsHandlersMock
+}))
+
+vi.mock('../../companion/tts/companion-tts-provider-settings-wiring', () => ({
+  initCompanionTtsProviderSettings: initCompanionTtsProviderSettingsMock
 }))
 
 vi.mock('../../companion/companion-shortcut', () => ({

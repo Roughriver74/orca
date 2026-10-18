@@ -13441,6 +13441,30 @@
           "notifySpeak": "Озвучивать уведомления",
           "notifySpeakDescription": "Проговаривать уведомление вслух, а не только показывать текст."
         },
+        "CompanionYandexTts": {
+          "provider": "Озвучка",
+          "providerSilero": "Silero (локально, бесплатно)",
+          "providerYandex": "Яндекс SpeechKit (облако, платно)",
+          "voice": "Голос Яндекса",
+          "maxSpokenChars": "Сколько озвучивать вслух",
+          "maxSpokenCharsValue": "{{chars}} симв.",
+          "maxSpokenCharsHint": "Остальной ответ всё равно виден в панели текстом — голосом экономим на символах.",
+          "budget": "Бюджет на озвучку в месяц",
+          "budgetHint": "При достижении бюджета за 30 дней Джарвис автоматически переходит на Silero до конца периода.",
+          "apiKey": "Ключ API Яндекс SpeechKit",
+          "keyConfigured": "Ключ сохранён",
+          "keySaved": "Ключ сохранён",
+          "keyCleared": "Ключ удалён",
+          "test": "Проверить",
+          "testOk": "Яндекс SpeechKit работает",
+          "testFailed": "Проверка не удалась",
+          "clear": "Удалить",
+          "save": "Сохранить",
+          "usageToday": "Сегодня: {{chars}} симв. ≈ {{cost}} · запросов: {{requests}}",
+          "usage30d": "За 30 дней: {{chars}} симв. ≈ {{cost}} · сэкономлено кэшем: {{saved}}",
+          "budgetExceeded": "Бюджет на этот месяц исчерпан — Джарвис временно говорит голосом Silero.",
+          "pricesApproximate": "Цены приблизительные — официальная страница тарифов Яндекса недоступна напрямую."
+        },
         "companion": {
           "pane": {
             "search": {

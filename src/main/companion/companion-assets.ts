@@ -45,7 +45,10 @@ export function initCompanionAssets(
           sttInFlight = null
         })
     }
-    if (companion.tts.ttsEnabled && !ttsInFlight) {
+    // Why `provider !== 'yandex'`: Silero is an 850 MB, ~8-minute download the companion
+    // only needs as a fallback voice when the configured provider is the local one — a
+    // Yandex-only setup should not pay that cost just because `ttsEnabled` is true.
+    if (companion.tts.ttsEnabled && companion.tts.provider !== 'yandex' && !ttsInFlight) {
       // Why: provisioning reports its own error status to the settings pane; swallow the rejection here.
       ttsInFlight = deps
         .provisionTts(deps.reportTtsStatus)

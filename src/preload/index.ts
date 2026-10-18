@@ -40,6 +40,7 @@ import { cliApi } from './api/cli-bridge'
 import { codexConfigSyncApi } from './api/codex-config-sync-bridge'
 import { preflightApi } from './api/preflight-bridge'
 import { companionApi } from './api/companion-bridge'
+import { companionTtsApi } from './api/companion-tts-bridge'
 import { notificationsApi } from './api/notifications-bridge'
 import { onboardingApi } from './api/onboarding-bridge'
 import { dashboardApi } from './api/dashboard-bridge'
@@ -188,7 +189,8 @@ const api = {
   mobile: mobileApi,
   agentStatus: agentStatusApi,
   speech: speechApi,
-  companion: companionApi
+  companion: companionApi,
+  companionTts: companionTtsApi
 } satisfies PreloadApi
 
 if (process.contextIsolated) {
