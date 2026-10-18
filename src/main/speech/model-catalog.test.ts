@@ -45,4 +45,17 @@ describe('SPEECH_MODEL_CATALOG', () => {
     expect(model?.downloadFiles).toHaveLength(2)
     expect(model?.downloadFiles?.map(({ name }) => name)).toEqual(['model.int8.onnx', 'tokens.txt'])
   })
+
+  it('registers GigaAM v3 RU as a Russian NeMo transducer with the pinned download spec', () => {
+    const model = getCatalogModel('gigaam-v3-e2e-rnnt-ru')
+
+    expect(model).toBeDefined()
+    expect(model?.type).toBe('nemo-transducer')
+    expect(model?.provider).toBe('local')
+    expect(model?.language).toBe('ru')
+    expect(model?.streaming).toBe(false)
+    expect(model?.sampleRate).toBe(16000)
+    expect(model?.files).toEqual(['encoder.int8.onnx', 'decoder.onnx', 'joiner.onnx', 'tokens.txt'])
+    expect(model?.sizeBytes).toBe(226_431_823)
+  })
 })

@@ -143,6 +143,18 @@ export const SPEECH_MODEL_CATALOG: SpeechModelManifest[] = [
     language: 'multilingual',
     sampleRate: 16000,
     streaming: false
+  },
+  {
+    id: 'gigaam-v3-e2e-rnnt-ru',
+    label: 'GigaAM v3 RU',
+    description:
+      'Russian only. Punctuation, capitalization, and normalized numbers. Best accuracy for Russian.',
+    type: 'nemo-transducer',
+    provider: 'local',
+    language: 'ru',
+    ...getSpeechModelDownloadMetadata('gigaam-v3-e2e-rnnt-ru'),
+    sampleRate: 16000,
+    streaming: false
   }
 ]
 

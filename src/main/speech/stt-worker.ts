@@ -3,6 +3,7 @@ import { parentPort, workerData } from 'node:worker_threads'
 import { resampleToRate } from './stt-audio-resample'
 import { OfflineAudioChunker } from './stt-offline-audio-chunker'
 import { buildHotwordsConfig, resolveFile, resolveTokens } from './stt-worker-model-config'
+import { buildNemoTransducerRecognizerConfig } from './stt-nemo-transducer-config'
 
 type WorkerMessage =
   | {
@@ -109,6 +110,16 @@ function handleInit(msg: Extract<WorkerMessage, { type: 'init' }>): void {
         },
         decodingMethod: 'greedy_search'
       }
+      recognizer = sherpa.createOfflineRecognizer(config)
+      stream = sherpa.createOfflineStream(recognizer)
+    } else if (modelType === 'nemo-transducer') {
+      const config = buildNemoTransducerRecognizerConfig({
+        sampleRate,
+        encoder: resolveFile(files, 'encoder', modelDir),
+        decoder: resolveFile(files, 'decoder', modelDir),
+        joiner: resolveFile(files, 'joiner', modelDir),
+        tokens
+      })
       recognizer = sherpa.createOfflineRecognizer(config)
       stream = sherpa.createOfflineStream(recognizer)
     } else if (modelType === 'nemo-ctc') {

@@ -211,6 +211,24 @@ const MODEL_DOWNLOAD_FILES = {
       ],
       ['tokens.txt', 315_894, 'f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc']
     ]
+  ),
+  'gigaam-v3-e2e-rnnt-ru': huggingFaceFiles(
+    'Alexxerm/gigaam-v3-e2e-rnnt-sherpa-onnx',
+    'c0acd38c8aeb2bdc04da221bd661ffcdb9645f7d',
+    [
+      [
+        'encoder.int8.onnx',
+        224_571_327,
+        'aa4e9bd1d8f1b30534c0b56d743970be53fd102dba639c2b1cc06e2aa898ada0'
+      ],
+      [
+        'decoder.onnx',
+        1_159_351,
+        'ea08443676485385c0dd31d938233bffaed6e52d47d84844c9b568589f1c9b27'
+      ],
+      ['joiner.onnx', 687_791, 'ade116563dbf66e503b0994efab6b5861412743e52bf31c39fc3fffa3783d5d1'],
+      ['tokens.txt', 13_354, '39abae20e692998290c574e606f11a9edef2902a1995463fcff63d1490cf22b7']
+    ]
   )
 }
 
