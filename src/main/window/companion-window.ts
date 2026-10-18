@@ -80,7 +80,10 @@ function createCompanionWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
       partition: COMPANION_PANEL_PARTITION,
-      webviewTag: false
+      webviewTag: false,
+      // Why: wake listening runs in this window while it is hidden; Chromium otherwise throttles
+      // hidden timers (to ~1/min after 5 min), so the silence timer never finalizes an utterance.
+      backgroundThrottling: false
     }
   })
   installPrivilegedWindowNavigationPolicy(window.webContents)

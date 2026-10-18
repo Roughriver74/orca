@@ -108,6 +108,10 @@ describe('companion panel window', () => {
     expect(panel.options.webPreferences?.partition).toBeTruthy()
   })
 
+  it('keeps timers running while hidden so background wake listening can end utterances', () => {
+    expect(panel.options.webPreferences?.backgroundThrottling).toBe(false)
+  })
+
   it('grants microphone requests through the macOS media access check', async () => {
     const granted = Promise.withResolvers<boolean>()
     panel.requestHandler?.({}, 'media', granted.resolve, { mediaTypes: ['audio'] })
