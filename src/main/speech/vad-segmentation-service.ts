@@ -64,7 +64,9 @@ export class VadSegmentationService {
           break
       }
     })
-    this.worker.on('error', (error) => onError?.(error))
+    this.worker.on('error', (error: unknown) =>
+      onError?.(error instanceof Error ? error : new Error(String(error)))
+    )
 
     this.worker.postMessage({
       type: 'init',

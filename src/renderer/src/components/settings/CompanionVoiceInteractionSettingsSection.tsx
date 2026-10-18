@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { CompanionSettings } from '../../../../shared/companion-types'
+import type {
+  CompanionListeningStatus,
+  CompanionSettings
+} from '../../../../shared/companion-types'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Separator } from '../ui/separator'
@@ -10,6 +13,7 @@ import { translate } from '@/i18n/i18n'
 type CompanionVoiceInteractionSettingsSectionProps = {
   companionSettings: CompanionSettings
   updateCompanionSettings: (updates: Partial<CompanionSettings>) => void
+  listeningStatus: CompanionListeningStatus | null
 }
 
 function parsePhrases(draft: string): string[] {
@@ -23,7 +27,8 @@ function parsePhrases(draft: string): string[] {
  *  (enable, phrases, follow-up window), and where Latin-word pronunciations live. */
 export function CompanionVoiceInteractionSettingsSection({
   companionSettings,
-  updateCompanionSettings
+  updateCompanionSettings,
+  listeningStatus
 }: CompanionVoiceInteractionSettingsSectionProps): React.JSX.Element {
   const { wake } = companionSettings
   const updateWakeSettings = (updates: Partial<CompanionSettings['wake']>): void => {
@@ -86,6 +91,15 @@ export function CompanionVoiceInteractionSettingsSection({
               'Микрофон включён постоянно, но Джарвис отвечает, только когда к нему обратились по имени. Телевизор и чужие разговоры игнорируются и никуда не отправляются.'
             )}
           </p>
+          {wake.enabled && listeningStatus && !listeningStatus.ok && (
+            <p className="text-xs text-destructive">
+              {translate(
+                'auto.components.settings.CompanionPane.wakeListeningError',
+                'Фоновое прослушивание не работает: {{error}}',
+                { error: listeningStatus.error ?? '' }
+              )}
+            </p>
+          )}
         </div>
         <Switch
           checked={wake.enabled}

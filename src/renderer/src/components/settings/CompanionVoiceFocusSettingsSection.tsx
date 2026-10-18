@@ -27,6 +27,7 @@ const STRICTNESS_LABELS: Record<CompanionVoiceFocusStrictness, string> = {
 }
 
 function isCompanionVoiceFocusStrictness(value: string): value is CompanionVoiceFocusStrictness {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: widening the readonly strictness tuple to string[] only to use Array.includes' string overload.
   return (STRICTNESS_OPTIONS as string[]).includes(value)
 }
 

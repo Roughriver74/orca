@@ -5,6 +5,7 @@ import type {
   CompanionAudioState,
   CompanionConversationState,
   CompanionHotkeyStatus,
+  CompanionListeningStatus,
   CompanionSettings,
   CompanionTtsProvisioningStatus,
   CompanionVoiceActivityFrame
@@ -26,6 +27,10 @@ export const companionApi = {
   getSettings: (): Promise<CompanionSettings> => ipcRenderer.invoke('companion:getSettings'),
   getHotkeyStatus: (): Promise<CompanionHotkeyStatus> =>
     ipcRenderer.invoke('companion:getHotkeyStatus'),
+  getListeningStatus: (): Promise<CompanionListeningStatus> =>
+    ipcRenderer.invoke('companion:getListeningStatus'),
+  reportListeningHealth: (status: { ok: boolean; error?: string | null }): Promise<void> =>
+    ipcRenderer.invoke('companion:reportListeningHealth', status),
   getConversationState: (): Promise<CompanionConversationState> =>
     ipcRenderer.invoke('companion:getConversationState'),
   toggle: (): Promise<void> => ipcRenderer.invoke('companion:toggle'),
@@ -100,6 +105,14 @@ export const companionApi = {
     ): void => callback(status)
     ipcRenderer.on('companion:ttsProvisioningStatus', listener)
     return () => ipcRenderer.removeListener('companion:ttsProvisioningStatus', listener)
+  },
+  onListeningStatusChanged: (
+    callback: (status: CompanionListeningStatus) => void
+  ): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, status: CompanionListeningStatus): void =>
+      callback(status)
+    ipcRenderer.on('companion:listeningStatusChanged', listener)
+    return () => ipcRenderer.removeListener('companion:listeningStatusChanged', listener)
   },
   onNotice: (callback: (notice: CompanionAgentNotice) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, notice: CompanionAgentNotice): void =>

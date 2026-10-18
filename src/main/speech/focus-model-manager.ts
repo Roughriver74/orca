@@ -170,6 +170,7 @@ export class FocusModelManager extends SpeechModelDownloadTransport {
   }
 
   protected reportDownloadProgress(assetId: string, progress: number): void {
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the base class only forwards IDs this subclass registered as FocusModelId via its own download() calls.
     this.updateState(assetId as FocusModelId, 'downloading', progress)
   }
 }

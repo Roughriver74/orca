@@ -124,6 +124,7 @@ test('a dangling utterance is held and combined with its continuation into one r
         return bytes.buffer
       }
 
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: this closure runs in the companion renderer, which stamps these fields on window itself.
       const testWindow = window as unknown as CompanionTestWindow
       testWindow.__companionFinals = []
       testWindow.__companionUtterances = []
@@ -188,7 +189,9 @@ test('a dangling utterance is held and combined with its continuation into one r
     .poll(
       () =>
         companionPage.evaluate(
-          () => (window as unknown as CompanionTestWindow).__companionFinals.length
+          () =>
+            // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __companionFinals on window itself, set above.
+            (window as unknown as CompanionTestWindow).__companionFinals.length
         ),
       { timeout: 30_000, message: 'first final (seg1) never arrived from the real STT pipeline' }
     )
@@ -197,7 +200,9 @@ test('a dangling utterance is held and combined with its continuation into one r
   await expect(companionPage.getByText('…жду продолжения')).toBeVisible({ timeout: 5_000 })
   expect(
     await companionPage.evaluate(
-      () => (window as unknown as CompanionTestWindow).__companionUtterances.length
+      () =>
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __companionUtterances on window itself, set above.
+        (window as unknown as CompanionTestWindow).__companionUtterances.length
     )
   ).toBe(0)
 
@@ -211,7 +216,9 @@ test('a dangling utterance is held and combined with its continuation into one r
     .poll(
       () =>
         companionPage.evaluate(
-          () => (window as unknown as CompanionTestWindow).__companionFinals.length
+          () =>
+            // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __companionFinals on window itself, set above.
+            (window as unknown as CompanionTestWindow).__companionFinals.length
         ),
       { timeout: 20_000, message: 'second final (seg2) never arrived' }
     )
@@ -221,13 +228,16 @@ test('a dangling utterance is held and combined with its continuation into one r
     .poll(
       () =>
         companionPage.evaluate(
-          () => (window as unknown as CompanionTestWindow).__companionUtterances.length
+          () =>
+            // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __companionUtterances on window itself, set above.
+            (window as unknown as CompanionTestWindow).__companionUtterances.length
         ),
       { timeout: 20_000, message: 'the combined utterance never reached reportUtterance' }
     )
     .toBe(1)
 
   const [finals, utterances] = await companionPage.evaluate(() => {
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps these fields on window itself, set above.
     const testWindow = window as unknown as CompanionTestWindow
     return [testWindow.__companionFinals, testWindow.__companionUtterances] as const
   })

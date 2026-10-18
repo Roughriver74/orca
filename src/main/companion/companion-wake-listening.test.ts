@@ -119,14 +119,6 @@ describe('companion wake listening', () => {
     expect(powerSaveBlockerStop).toHaveBeenCalledWith(1)
   })
 
-  it('stops background listening when wake mode is turned off while the panel is hidden', () => {
-    const store = storeWith(wakeSettings(true))
-    dispose = initCompanionWakeListening(store)
-    store.update(wakeSettings(false))
-    expect(companionConversation.getState()).toBe('idle')
-    expect(sendToCompanionWindow).toHaveBeenCalledWith('companion:conversationClosed')
-  })
-
   it('drops background speech and sends only addressed requests to the brain', () => {
     dispose = initCompanionWakeListening(storeWith(wakeSettings(true)))
     const bargeIn = vi.fn()

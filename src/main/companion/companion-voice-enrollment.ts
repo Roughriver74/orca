@@ -27,6 +27,7 @@ function isVoiceEnrollmentProfile(value: unknown): value is VoiceEnrollmentProfi
   if (typeof value !== 'object' || value === null) {
     return false
   }
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: widening unknown to read optional properties before validating their shape below.
   const candidate = value as { phraseEmbeddings?: unknown; updatedAt?: unknown }
   return (
     Array.isArray(candidate.phraseEmbeddings) &&

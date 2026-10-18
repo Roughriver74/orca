@@ -4,6 +4,7 @@ import type {
   CompanionAudioState,
   CompanionConversationState,
   CompanionHotkeyStatus,
+  CompanionListeningStatus,
   CompanionSettings,
   CompanionTtsProvisioningStatus,
   CompanionVoiceActivityFrame
@@ -12,6 +13,11 @@ import type {
 export type CompanionApi = {
   getSettings: () => Promise<CompanionSettings>
   getHotkeyStatus: () => Promise<CompanionHotkeyStatus>
+  getListeningStatus: () => Promise<CompanionListeningStatus>
+  /** Reported by the panel after each `speech:startDictation` attempt — wake mode's
+   *  background listening never shows the panel, so this is the only way a failed mic
+   *  start there (permission, model load) reaches the Settings pane. */
+  reportListeningHealth: (status: { ok: boolean; error?: string | null }) => Promise<void>
   getConversationState: () => Promise<CompanionConversationState>
   /** Also the background-launch test entry point — no window show/focus. */
   toggle: () => Promise<void>
@@ -42,6 +48,7 @@ export type CompanionApi = {
   onTtsProvisioningStatus: (
     callback: (status: CompanionTtsProvisioningStatus) => void
   ) => () => void
+  onListeningStatusChanged: (callback: (status: CompanionListeningStatus) => void) => () => void
   onNotice: (callback: (notice: CompanionAgentNotice) => void) => () => void
   onNoticeDismiss: (callback: (payload: { id: string }) => void) => () => void
 }

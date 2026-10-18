@@ -15,6 +15,10 @@ import { reportAudioState, type CompanionAudioState } from '../companion/compani
 import { parseCompanionVoiceActivityFrame } from '../companion/companion-voice-barge-in'
 import { handleCompanionNoticeAction } from '../companion/companion-agent-watch'
 import {
+  getCompanionListeningStatus,
+  reportCompanionListeningHealth
+} from '../companion/companion-listening-health'
+import {
   dismissCompanionAddress,
   isCompanionWakeListeningEnabled,
   routeCompanionUtterance,
@@ -40,12 +44,26 @@ export function registerCompanionHandlers(store: CompanionHotkeySettingsStore): 
   ipcMain.removeHandler('companion:voiceActivity')
   ipcMain.removeHandler('companion:resetConversation')
   ipcMain.removeHandler('companion:noticeAction')
+  ipcMain.removeHandler('companion:getListeningStatus')
+  ipcMain.removeHandler('companion:reportListeningHealth')
 
   ipcMain.handle('companion:getSettings', () =>
     normalizeCompanionSettings(store.getSettings().companion)
   )
 
   ipcMain.handle('companion:getHotkeyStatus', () => getCompanionHotkeyStatus())
+
+  ipcMain.handle('companion:getListeningStatus', () => getCompanionListeningStatus())
+
+  // Why: wake mode's background listening never shows the panel, so a failed dictation
+  // start there has nowhere else to surface — this is how it reaches the Settings pane.
+  ipcMain.handle('companion:reportListeningHealth', (_event, payload: unknown) => {
+    const ok =
+      typeof payload === 'object' && payload !== null && 'ok' in payload && payload.ok === true
+    const error =
+      typeof payload === 'object' && payload !== null && 'error' in payload ? payload.error : null
+    reportCompanionListeningHealth(ok, typeof error === 'string' ? error : null)
+  })
 
   ipcMain.handle('companion:getConversationState', (): CompanionConversationState =>
     companionConversation.getState()

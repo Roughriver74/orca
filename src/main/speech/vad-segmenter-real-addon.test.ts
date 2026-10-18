@@ -41,6 +41,7 @@ describe.skipIf(!hasModel)(
   () => {
     // oxlint-disable-next-line typescript-eslint/no-explicit-any -- sherpa-onnx native addon has no type definitions
     const sherpa: any = require('sherpa-onnx-darwin-arm64')
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: sherpa-onnx native addon has no type definitions; VadBinding declares the subset this test exercises.
     const binding = sherpa as VadBinding
 
     it('segments speech-like audio and fires end-of-utterance after the configured trailing silence', () => {
