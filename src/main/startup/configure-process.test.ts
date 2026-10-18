@@ -961,6 +961,19 @@ describe('safe graphics mode startup switches', () => {
     )
   })
 
+  it('opts the companion wake-listening panel out of occlusion-based renderer backgrounding', async () => {
+    const { app } = await import('electron')
+    const { optOutOfBackgroundedRendererThrottling } = await import('./configure-process')
+
+    vi.mocked(app.commandLine.appendSwitch).mockClear()
+    optOutOfBackgroundedRendererThrottling()
+
+    expect(app.commandLine.appendSwitch).toHaveBeenCalledWith(
+      'disable-backgrounding-occluded-windows'
+    )
+    expect(app.commandLine.appendSwitch).toHaveBeenCalledWith('disable-renderer-backgrounding')
+  })
+
   // Why: Chromium enables IntensiveWakeUpThrottling on every desktop platform, so the opt-out
   // must never become reachable only through the GPU-feature path again.
   it('does not couple the throttling opt-out to GPU feature setup', async () => {

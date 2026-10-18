@@ -133,8 +133,11 @@ export function CompanionPanel(): React.JSX.Element {
       )
       await startCapture({ sessionId: COMPANION_SESSION_ID })
       setError(null)
+      void window.api.companion.reportListeningHealth({ ok: true })
     } catch (err) {
-      setError(describeListenStartError(err))
+      const panelError = describeListenStartError(err)
+      setError(panelError)
+      void window.api.companion.reportListeningHealth({ ok: false, error: panelError.message })
     }
   }, [startCapture])
 
@@ -177,7 +180,9 @@ export function CompanionPanel(): React.JSX.Element {
       // previously-denied mic falls straight to the Privacy pane instead of a silent stream.
       const permission = await window.api.developerPermissions.request({ id: 'microphone' })
       if (permission.status !== 'granted' && permission.status !== 'unsupported') {
-        setError(micPermissionError())
+        const panelError = micPermissionError()
+        setError(panelError)
+        void window.api.companion.reportListeningHealth({ ok: false, error: panelError.message })
         return
       }
       await beginDictationSession()

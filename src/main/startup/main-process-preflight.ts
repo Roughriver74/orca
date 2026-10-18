@@ -17,7 +17,8 @@ import {
   installDevParentSignalQuit,
   installDevParentWatchdog,
   patchPackagedProcessPath,
-  optOutOfHiddenPageWakeUpThrottling
+  optOutOfHiddenPageWakeUpThrottling,
+  optOutOfBackgroundedRendererThrottling
 } from './configure-process'
 import { installServeSupervisorDisconnectQuit } from '../serve-update-handoff'
 import {
@@ -374,6 +375,7 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
   disableUnsupportedChromiumFeatures()
   // Why: unconditional — a GPU-fallback launch skips enableMainProcessGpuFeatures() below.
   optOutOfHiddenPageWakeUpThrottling()
+  optOutOfBackgroundedRendererThrottling()
   configureElectronNetworkCompatibility()
   enableRendererHeapHeadroom()
   configureLinuxDevShmUsage()

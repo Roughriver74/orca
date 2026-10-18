@@ -3,19 +3,37 @@ import type { GlobalSettings } from '../../shared/global-settings-types'
 import type { CompanionSettings } from '../../shared/companion-types'
 import { getDefaultCompanionSettings } from '../../shared/constants'
 
-const { hideCompanionPanel, isCompanionPanelOpen, sendToCompanionWindow, showForNotice } =
-  vi.hoisted(() => ({
-    hideCompanionPanel: vi.fn(),
-    isCompanionPanelOpen: vi.fn(() => false),
-    sendToCompanionWindow: vi.fn(),
-    showForNotice: vi.fn()
-  }))
+const {
+  hideCompanionPanel,
+  isCompanionPanelOpen,
+  sendToCompanionWindow,
+  showForNotice,
+  powerSaveBlockerStart,
+  powerSaveBlockerStop,
+  powerSaveBlockerIsStarted
+} = vi.hoisted(() => ({
+  hideCompanionPanel: vi.fn(),
+  isCompanionPanelOpen: vi.fn(() => false),
+  sendToCompanionWindow: vi.fn(),
+  showForNotice: vi.fn(),
+  powerSaveBlockerStart: vi.fn(() => 1),
+  powerSaveBlockerStop: vi.fn(),
+  powerSaveBlockerIsStarted: vi.fn(() => true)
+}))
 
 vi.mock('../window/companion-window', () => ({
   hideCompanionPanel,
   isCompanionPanelOpen,
   sendToCompanionWindow,
   showCompanionPanelForNotice: showForNotice
+}))
+
+vi.mock('electron', () => ({
+  powerSaveBlocker: {
+    start: powerSaveBlockerStart,
+    stop: powerSaveBlockerStop,
+    isStarted: powerSaveBlockerIsStarted
+  }
 }))
 
 import { companionConversation, onCompanionUtterance } from './companion-conversation'
@@ -77,6 +95,28 @@ describe('companion wake listening', () => {
     expect(companionConversation.getState()).toBe('listening')
     expect(sendToCompanionWindow).toHaveBeenCalledWith('companion:conversationOpened')
     expect(showForNotice).not.toHaveBeenCalled()
+    // Why: macOS App Nap would otherwise throttle the hidden panel's mic capture once the
+    // process has no visible windows and is not frontmost (see companion-wake-listening.ts).
+    expect(powerSaveBlockerStart).toHaveBeenCalledWith('prevent-app-suspension')
+  })
+
+  it('stops background listening when wake mode is turned off while the panel is hidden', () => {
+    const store = storeWith(wakeSettings(true))
+    dispose = initCompanionWakeListening(store)
+    expect(powerSaveBlockerStart).toHaveBeenCalledWith('prevent-app-suspension')
+    store.update(wakeSettings(false))
+    expect(companionConversation.getState()).toBe('idle')
+    expect(sendToCompanionWindow).toHaveBeenCalledWith('companion:conversationClosed')
+    expect(powerSaveBlockerStop).toHaveBeenCalledWith(1)
+  })
+
+  it('releases the app-suspension block on dispose', () => {
+    const store = storeWith(wakeSettings(true))
+    dispose = initCompanionWakeListening(store)
+    expect(powerSaveBlockerStart).toHaveBeenCalledWith('prevent-app-suspension')
+    dispose()
+    dispose = null
+    expect(powerSaveBlockerStop).toHaveBeenCalledWith(1)
   })
 
   it('stops background listening when wake mode is turned off while the panel is hidden', () => {

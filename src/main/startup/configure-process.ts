@@ -88,6 +88,24 @@ export function optOutOfHiddenPageWakeUpThrottling(): void {
   appendDisabledChromiumFeatures(['IntensiveWakeUpThrottling'])
 }
 
+// Why: on macOS, Electron/Chromium 40.9+ can mark a never-shown, always-on-top panel
+// window (the companion's hidden wake-listening window) as backgrounded/occluded even
+// though `BrowserWindow`'s own Page Visibility contract says a `show: false` window
+// stays `visible` until actually shown (see electron/electron#51718 — a still-open
+// upstream regression for exactly this `transparent` + `alwaysOnTop` + `type: 'panel'`
+// window shape). Backgrounding drops the renderer process's scheduling priority, which
+// can starve the companion's WebAudio capture graph independently of `document.hidden`
+// (confirmed false the whole time in manual repros) and independently of
+// `backgroundThrottling: false` on the window itself (already set; addresses only
+// Chromium's hidden-timer clamp, not process-priority backgrounding). These two
+// switches are the fix Electron's own maintainers confirmed for the upstream issue.
+// Call site is unconditional (see main-process-preflight.ts), matching
+// `optOutOfHiddenPageWakeUpThrottling`.
+export function optOutOfBackgroundedRendererThrottling(): void {
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
+  app.commandLine.appendSwitch('disable-renderer-backgrounding')
+}
+
 function appendDisabledChromiumFeatures(features: string[]): void {
   const existingFeatures = app.commandLine
     .getSwitchValue('disable-features')

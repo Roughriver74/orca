@@ -3,6 +3,7 @@
 // through the gate, and turns "стоп" into "stop answering" instead of "stop listening".
 // Bare `companionConversation.reportUtterance` is still what runs with wake mode off.
 
+import { powerSaveBlocker } from 'electron'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import {
   isCompanionStopPhrase,
@@ -118,10 +119,33 @@ export function openCompanionConversationForNotice(): boolean {
   return true
 }
 
+let powerSaveBlockerId: number | null = null
+
+// Why: macOS App Nap throttles a backgrounded, never-shown process's whole render
+// pipeline — including the WebAudio graph feeding the hidden panel's STT capture — once
+// it has no visible windows and is not frontmost, independent of the window-level
+// mitigations in configure-process.ts (those address Chromium's own renderer-priority
+// and timer-throttling paths; this is the OS-level one). Mirrors agent-awake-service.ts's
+// use of the same API for a similar "must keep working while backgrounded" requirement.
+function startPreventingAppSuspension(): void {
+  if (powerSaveBlockerId !== null && powerSaveBlocker.isStarted(powerSaveBlockerId)) {
+    return
+  }
+  powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension')
+}
+
+function stopPreventingAppSuspension(): void {
+  if (powerSaveBlockerId !== null && powerSaveBlocker.isStarted(powerSaveBlockerId)) {
+    powerSaveBlocker.stop(powerSaveBlockerId)
+  }
+  powerSaveBlockerId = null
+}
+
 function startBackgroundListening(): void {
   if (companionConversation.getState() !== 'idle') {
     return
   }
+  startPreventingAppSuspension()
   companionConversation.start()
   // Why no show: the panel window is alive (hidden) whenever the companion is enabled,
   // and a renderer that loads later picks the open conversation up on mount.
@@ -145,9 +169,12 @@ export function initCompanionWakeListening(store: CompanionWakeListeningStore): 
     const enabled = isCompanionWakeListeningEnabled()
     if (enabled && !wasEnabled) {
       startBackgroundListening()
-    } else if (!enabled && wasEnabled && !isCompanionPanelOpen()) {
-      companionConversation.stop()
-      sendToCompanionWindow('companion:conversationClosed')
+    } else if (!enabled && wasEnabled) {
+      stopPreventingAppSuspension()
+      if (!isCompanionPanelOpen()) {
+        companionConversation.stop()
+        sendToCompanionWindow('companion:conversationClosed')
+      }
     }
     wasEnabled = enabled
   })
@@ -155,6 +182,7 @@ export function initCompanionWakeListening(store: CompanionWakeListeningStore): 
   return () => {
     offSettings()
     offState()
+    stopPreventingAppSuspension()
     activeStore = null
   }
 }
