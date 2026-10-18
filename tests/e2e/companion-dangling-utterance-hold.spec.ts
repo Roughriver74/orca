@@ -168,6 +168,7 @@ test('a dangling utterance is held and combined with its continuation into one r
           }
         })
 
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the override implements the single-overload call shape getUserMedia is actually invoked with in this suite.
         navigator.mediaDevices.getUserMedia = (async () => {
           // Why scheduled from inside the override, not before: the real capture
           // pipeline's own AudioContext only starts pulling samples from `dest.stream`

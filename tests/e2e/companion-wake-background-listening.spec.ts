@@ -233,6 +233,7 @@ for (const modelId of MODELS) {
               source.start()
             }
 
+            // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: this initScript runs in the companion renderer, which stamps these fields on window itself.
             const testWindow = window as unknown as CompanionTestWindow
             testWindow.__playWakeOnly = () => play(wakeOnlyBuffer)
             testWindow.__playAddressed = () => play(addressedBuffer)
@@ -240,6 +241,7 @@ for (const modelId of MODELS) {
             return dest.stream
           })()
 
+          // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the override implements the single-overload call shape getUserMedia is actually invoked with in this suite.
           navigator.mediaDevices.getUserMedia = ((constraints: MediaStreamConstraints) => {
             console.log('[DEBUG init] getUserMedia called', JSON.stringify(constraints))
             return destStreamPromise
@@ -256,6 +258,7 @@ for (const modelId of MODELS) {
       expect(await companionWindow.evaluate((window) => window.isVisible())).toBe(false)
 
       await companionPage.evaluate(() => {
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: this closure runs in the companion renderer, which stamps __wakeTrace on window itself.
         const testWindow = window as unknown as CompanionTestWindow
         testWindow.__wakeTrace = { finals: [], states: [] }
         console.log('[DEBUG] post-reload document.readyState', document.readyState)
@@ -293,7 +296,9 @@ for (const modelId of MODELS) {
         .poll(
           () =>
             companionPage.evaluate(
-              () => typeof (window as unknown as CompanionTestWindow).__playWakeOnly === 'function'
+              () =>
+                typeof // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __playWakeOnly on window itself via the initScript above.
+                (window as unknown as CompanionTestWindow).__playWakeOnly === 'function'
             ),
           { timeout: 15_000, message: 'fake mic buffers never finished decoding' }
         )
@@ -302,6 +307,7 @@ for (const modelId of MODELS) {
       // Bare wake phrase: shows the panel (showCompanionPanelForNotice), but must NOT reach the
       // brain — wake-only waits for the request in the follow-up window instead.
       await companionPage.evaluate(() =>
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __playWakeOnly on window itself via the initScript above.
         (window as unknown as CompanionTestWindow).__playWakeOnly()
       )
       await expect
@@ -311,7 +317,9 @@ for (const modelId of MODELS) {
         })
         .toBe(true)
       const statesAfterWakeOnly = await companionPage.evaluate(
-        () => (window as unknown as CompanionTestWindow).__wakeTrace.states
+        () =>
+          // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __wakeTrace on window itself, set above.
+          (window as unknown as CompanionTestWindow).__wakeTrace.states
       )
       expect(statesAfterWakeOnly).not.toContain('thinking')
 
@@ -319,7 +327,9 @@ for (const modelId of MODELS) {
         .poll(
           () =>
             companionPage.evaluate(
-              () => (window as unknown as CompanionTestWindow).__wakeTrace.finals.length
+              () =>
+                // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __wakeTrace on window itself, set above.
+                (window as unknown as CompanionTestWindow).__wakeTrace.finals.length
             ),
           { timeout: 20_000, message: 'the bare wake phrase was never finalized by STT' }
         )
@@ -333,12 +343,14 @@ for (const modelId of MODELS) {
       // routeCompanionUtterance's `addressed` path, observable as the dialogue orchestrator's
       // reportThinking() firing before any brain/network call (companion-dialogue.ts).
       await companionPage.evaluate(() =>
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __playAddressed on window itself via the initScript above.
         (window as unknown as CompanionTestWindow).__playAddressed()
       )
       await expect
         .poll(
           () =>
             companionPage.evaluate(() =>
+              // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __wakeTrace on window itself, set above.
               (window as unknown as CompanionTestWindow).__wakeTrace.states.includes('thinking')
             ),
           { timeout: 30_000, message: 'the addressed utterance never reached the brain' }
