@@ -64,6 +64,7 @@ import { registerEmulatorFrameStreamHandlers } from '../emulator-frame-stream'
 import { registerEmulatorVideoStreamHandlers } from '../emulator-video-stream'
 import { registerSpeechHandlers } from '../speech'
 import { registerCompanionHandlers } from '../companion'
+import { registerCompanionVoiceFocusHandlers } from '../companion-voice-focus'
 import { registerCompanionTtsHandlers } from '../companion-tts'
 import { initCompanionTtsProviderSettings } from '../../companion/tts/companion-tts-provider-settings-wiring'
 import { initCompanionHotkey } from '../../companion/companion-shortcut'
@@ -310,6 +311,7 @@ export function registerCoreHandlers(
   registerUpdaterHandlers(store)
   registerSpeechHandlers(store)
   registerCompanionHandlers(store)
+  registerCompanionVoiceFocusHandlers()
   const disposeCompanionHotkey = initCompanionHotkey(store)
   app.once('will-quit', disposeCompanionHotkey)
   const disposeCompanionDialogue = initCompanionDialogue(store)

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type {
+  CompanionListeningStatus,
   CompanionSettings,
   CompanionTtsProvisioningStatus
 } from '../../../../shared/companion-types'
@@ -17,6 +18,7 @@ import { useAppStore } from '@/store'
 import { CompanionBrainSettingsSection } from './CompanionBrainSettingsSection'
 import { CompanionTtsSettingsSection } from './CompanionTtsSettingsSection'
 import { CompanionVoiceInteractionSettingsSection } from './CompanionVoiceInteractionSettingsSection'
+import { CompanionVoiceFocusSettingsSection } from './CompanionVoiceFocusSettingsSection'
 
 type CompanionPaneProps = {
   settings: GlobalSettings
@@ -46,6 +48,7 @@ export function CompanionPane({ settings, updateSettings }: CompanionPaneProps):
   } | null>(null)
   const [ttsProvisioningStatus, setTtsProvisioningStatus] =
     useState<CompanionTtsProvisioningStatus | null>(null)
+  const [listeningStatus, setListeningStatus] = useState<CompanionListeningStatus | null>(null)
 
   useEffect(() => {
     setHotkeyDraft(companionSettings.hotkey)
@@ -69,6 +72,20 @@ export function CompanionPane({ settings, updateSettings }: CompanionPaneProps):
 
   useEffect(() => {
     return window.api.companion.onTtsProvisioningStatus(setTtsProvisioningStatus)
+  }, [])
+
+  useEffect(() => {
+    let disposed = false
+    void window.api.companion.getListeningStatus().then((status) => {
+      if (!disposed) {
+        setListeningStatus(status)
+      }
+    })
+    const off = window.api.companion.onListeningStatusChanged(setListeningStatus)
+    return () => {
+      disposed = true
+      off()
+    }
   }, [])
 
   const updateCompanionSettings = useCallback(
@@ -233,6 +250,12 @@ export function CompanionPane({ settings, updateSettings }: CompanionPaneProps):
       <Separator />
 
       <CompanionVoiceInteractionSettingsSection
+        companionSettings={companionSettings}
+        updateCompanionSettings={updateCompanionSettings}
+        listeningStatus={listeningStatus}
+      />
+
+      <CompanionVoiceFocusSettingsSection
         companionSettings={companionSettings}
         updateCompanionSettings={updateCompanionSettings}
       />

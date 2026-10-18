@@ -65,6 +65,7 @@ const {
   registerTerminalPreviewHandlersMock,
   registerSpeechHandlersMock,
   registerCompanionHandlersMock,
+  registerCompanionVoiceFocusHandlersMock,
   registerCompanionTtsHandlersMock,
   initCompanionTtsProviderSettingsMock,
   initCompanionHotkeyMock,
@@ -143,6 +144,7 @@ const {
   registerTerminalPreviewHandlersMock: vi.fn(),
   registerSpeechHandlersMock: vi.fn(),
   registerCompanionHandlersMock: vi.fn(),
+  registerCompanionVoiceFocusHandlersMock: vi.fn(),
   registerCompanionTtsHandlersMock: vi.fn(),
   initCompanionTtsProviderSettingsMock: vi.fn(),
   initCompanionHotkeyMock: vi.fn(() => () => {}),
@@ -203,6 +205,10 @@ vi.mock('../speech', () => ({
 
 vi.mock('../companion', () => ({
   registerCompanionHandlers: registerCompanionHandlersMock
+}))
+
+vi.mock('../companion-voice-focus', () => ({
+  registerCompanionVoiceFocusHandlers: registerCompanionVoiceFocusHandlersMock
 }))
 
 vi.mock('../companion-tts', () => ({
@@ -705,6 +711,7 @@ describe('registerCoreHandlers', () => {
     expect(registerBrowserHandlersMock).toHaveBeenCalled()
     expect(registerFilesystemWatcherHandlersMock).toHaveBeenCalled()
     expect(registerSpeechHandlersMock).toHaveBeenCalledWith(store)
+    expect(registerCompanionVoiceFocusHandlersMock).toHaveBeenCalled()
 
     await expect(
       aiVaultOptions.scanRuntimeAiVaultSessions(

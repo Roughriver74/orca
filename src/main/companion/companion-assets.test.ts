@@ -33,6 +33,7 @@ function makeDeps(overrides: Partial<CompanionAssetsDeps> = {}) {
     provisionTts: vi.fn(async () => undefined),
     reportTtsStatus: vi.fn(),
     prewarmTts: vi.fn(async () => undefined),
+    downloadFocusModel: vi.fn(async (_id: string) => undefined),
     ...overrides
   }
 }
@@ -122,5 +123,50 @@ describe('initCompanionAssets', () => {
       expect(provisionTts).toHaveBeenCalledTimes(1)
     })
     expect(deps.prewarmTts).not.toHaveBeenCalled()
+  })
+})
+
+describe('initCompanionAssets voiceFocus assets', () => {
+  it('does nothing when voiceFocus is disabled', () => {
+    const deps = makeDeps()
+    initCompanionAssets(makeStore(enabled()), deps)
+    expect(deps.downloadFocusModel).not.toHaveBeenCalled()
+  })
+
+  it('downloads the VAD and speaker-embedding models once voiceFocus is enabled', () => {
+    const companion = { ...enabled(), voiceFocus: { ...enabled().voiceFocus, enabled: true } }
+    const deps = makeDeps()
+    initCompanionAssets(makeStore(companion), deps)
+    expect(deps.downloadFocusModel).toHaveBeenCalledWith('silero-vad')
+    expect(deps.downloadFocusModel).toHaveBeenCalledWith('speaker-embedding-campplus')
+    expect(deps.downloadFocusModel).not.toHaveBeenCalledWith('gtcrn-denoiser')
+  })
+
+  it('also downloads the denoiser once that setting is on', () => {
+    const companion = {
+      ...enabled(),
+      voiceFocus: { ...enabled().voiceFocus, enabled: true, denoiserEnabled: true }
+    }
+    const deps = makeDeps()
+    initCompanionAssets(makeStore(companion), deps)
+    expect(deps.downloadFocusModel).toHaveBeenCalledWith('gtcrn-denoiser')
+  })
+
+  it('does not start a second round while one is still running', () => {
+    let resolveDownload: (() => void) | undefined
+    const deps = makeDeps({
+      downloadFocusModel: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveDownload = resolve
+          })
+      )
+    })
+    const companion = { ...enabled(), voiceFocus: { ...enabled().voiceFocus, enabled: true } }
+    const store = makeStore(companion)
+    initCompanionAssets(store, deps)
+    store.setCompanion({ ...companion })
+    expect(deps.downloadFocusModel).toHaveBeenCalledTimes(2)
+    resolveDownload?.()
   })
 })

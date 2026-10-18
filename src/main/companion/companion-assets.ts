@@ -6,6 +6,8 @@ import type {
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import type { VoiceSettings } from '../../shared/speech-types'
 import { getSpeechModelManager } from '../speech/speech-runtime-service'
+import type { FocusModelId } from '../speech/focus-model-catalog'
+import { getFocusModelManager } from '../speech/focus-model-manager'
 import { provisionCompanionTts } from './tts/companion-tts-provisioning'
 import { reportTtsProvisioningStatus } from './companion-tts-status'
 
@@ -23,6 +25,10 @@ export type CompanionAssetsDeps = {
   // while provisionTts covers both the STT model path's sibling concern and tests that
   // stub provisioning without caring about the sidecar at all.
   prewarmTts: () => Promise<void>
+  // Why its own dep rather than reusing downloadSttModel: these are not STT models (no
+  // SpeechModelManifest entry, never shown in the model picker) — see
+  // src/main/speech/focus-model-catalog.ts / focus-model-manager.ts.
+  downloadFocusModel: (id: FocusModelId) => Promise<void>
 }
 
 /**
@@ -36,6 +42,7 @@ export function initCompanionAssets(
 ): () => void {
   let ttsInFlight: Promise<unknown> | null = null
   let sttInFlight: Promise<void> | null = null
+  let voiceFocusInFlight: Promise<void> | null = null
 
   const ensure = (): void => {
     const companion = store.getSettings().companion
@@ -65,6 +72,30 @@ export function initCompanionAssets(
           ttsInFlight = null
         })
     }
+    // Why always silero-vad + the speaker-embedding model once voiceFocus is enabled
+    // (rather than gating speaker-embedding on enrollment existing): enrollment can
+    // happen the moment Settings opens, and that recording flow needs the model
+    // downloaded already, not kicked off then. gtcrn-denoiser is the one asset gated
+    // further, on its own setting, since most rooms will not need it.
+    if (companion.voiceFocus.enabled && !voiceFocusInFlight) {
+      const assetIds: FocusModelId[] = ['silero-vad', 'speaker-embedding-campplus']
+      if (companion.voiceFocus.denoiserEnabled) {
+        assetIds.push('gtcrn-denoiser')
+      }
+      voiceFocusInFlight = Promise.all(
+        assetIds.map((id) =>
+          deps
+            .downloadFocusModel(id)
+            .catch((error: unknown) =>
+              console.error('[voiceFocus] model download failed', id, error)
+            )
+        )
+      )
+        .then(() => undefined)
+        .finally(() => {
+          voiceFocusInFlight = null
+        })
+    }
   }
 
   ensure()
@@ -88,6 +119,7 @@ function createDefaultDeps(store: CompanionAssetsStore): CompanionAssetsDeps {
     prewarmTts: async () => {
       const { getCompanionTtsService } = await import('./tts/companion-tts-service')
       await getCompanionTtsService(userDataDir).prewarm()
-    }
+    },
+    downloadFocusModel: (id) => getFocusModelManager().download(id)
   }
 }

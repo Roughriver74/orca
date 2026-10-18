@@ -5,6 +5,7 @@ import type {
   CompanionTtsProvider,
   CompanionTtsSettings,
   CompanionTtsVoice,
+  CompanionVoiceFocusStrictness,
   CompanionYandexVoice
 } from '../../../shared/companion-types'
 import { getDefaultCompanionSettings } from '../../../shared/constants'
@@ -16,6 +17,20 @@ const MAX_TTS_RATE = 1.6
 const MAX_WAKE_FOLLOW_UP_MS = 30_000
 const MAX_WAKE_PHRASES = 10
 const MAX_WAKE_PHRASE_LENGTH = 40
+const MIN_VOICE_FOCUS_END_OF_UTTERANCE_SECONDS = 0.3
+const MAX_VOICE_FOCUS_END_OF_UTTERANCE_SECONDS = 5
+const MIN_VOICE_FOCUS_MAX_UTTERANCE_SECONDS = 10
+const MAX_VOICE_FOCUS_MAX_UTTERANCE_SECONDS = 180
+
+const COMPANION_VOICE_FOCUS_STRICTNESS: Record<CompanionVoiceFocusStrictness, true> = {
+  low: true,
+  medium: true,
+  high: true
+}
+
+function isCompanionVoiceFocusStrictness(value: unknown): value is CompanionVoiceFocusStrictness {
+  return typeof value === 'string' && value in COMPANION_VOICE_FOCUS_STRICTNESS
+}
 
 const COMPANION_TTS_VOICES: Record<CompanionTtsVoice, true> = {
   eugene: true,
@@ -152,6 +167,45 @@ function normalizeCompanionWakeSettings(
   }
 }
 
+function normalizeCompanionVoiceFocusSettings(
+  value: unknown,
+  defaults: CompanionSettings['voiceFocus']
+): CompanionSettings['voiceFocus'] {
+  const source = typeof value === 'object' && value !== null ? value : undefined
+  const enabledRaw = source && 'enabled' in source ? source.enabled : undefined
+  const endOfUtteranceSecondsRaw =
+    source && 'endOfUtteranceSeconds' in source ? source.endOfUtteranceSeconds : undefined
+  const maxUtteranceSecondsRaw =
+    source && 'maxUtteranceSeconds' in source ? source.maxUtteranceSeconds : undefined
+  const denoiserEnabledRaw =
+    source && 'denoiserEnabled' in source ? source.denoiserEnabled : undefined
+  const strictnessRaw = source && 'strictness' in source ? source.strictness : undefined
+  const showDroppedRaw = source && 'showDropped' in source ? source.showDropped : undefined
+  return {
+    enabled: typeof enabledRaw === 'boolean' ? enabledRaw : defaults.enabled,
+    endOfUtteranceSeconds:
+      typeof endOfUtteranceSecondsRaw === 'number' && Number.isFinite(endOfUtteranceSecondsRaw)
+        ? Math.min(
+            MAX_VOICE_FOCUS_END_OF_UTTERANCE_SECONDS,
+            Math.max(MIN_VOICE_FOCUS_END_OF_UTTERANCE_SECONDS, endOfUtteranceSecondsRaw)
+          )
+        : defaults.endOfUtteranceSeconds,
+    maxUtteranceSeconds:
+      typeof maxUtteranceSecondsRaw === 'number' && Number.isFinite(maxUtteranceSecondsRaw)
+        ? Math.min(
+            MAX_VOICE_FOCUS_MAX_UTTERANCE_SECONDS,
+            Math.max(MIN_VOICE_FOCUS_MAX_UTTERANCE_SECONDS, maxUtteranceSecondsRaw)
+          )
+        : defaults.maxUtteranceSeconds,
+    denoiserEnabled:
+      typeof denoiserEnabledRaw === 'boolean' ? denoiserEnabledRaw : defaults.denoiserEnabled,
+    strictness: isCompanionVoiceFocusStrictness(strictnessRaw)
+      ? strictnessRaw
+      : defaults.strictness,
+    showDropped: typeof showDroppedRaw === 'boolean' ? showDroppedRaw : defaults.showDropped
+  }
+}
+
 /**
  * Field-by-field like `normalizeNotificationSettings`: a blanket spread would let a
  * type-flipped persisted value (e.g. `enabled: "false"`, `endOfUtteranceMs: "fast"`)
@@ -189,6 +243,7 @@ export function normalizeCompanionSettings(value: unknown): CompanionSettings {
   const ttsRaw = source && 'tts' in source ? source.tts : undefined
   const notifyRaw = source && 'notify' in source ? source.notify : undefined
   const wakeRaw = source && 'wake' in source ? source.wake : undefined
+  const voiceFocusRaw = source && 'voiceFocus' in source ? source.voiceFocus : undefined
   const voiceBargeInRaw = source && 'voiceBargeIn' in source ? source.voiceBargeIn : undefined
 
   return {
@@ -206,6 +261,7 @@ export function normalizeCompanionSettings(value: unknown): CompanionSettings {
       typeof launchAtLoginRaw === 'boolean' ? launchAtLoginRaw : defaults.launchAtLogin,
     tts: normalizeCompanionTtsSettings(ttsRaw, defaults.tts),
     notify: normalizeCompanionNotifySettings(notifyRaw, defaults.notify),
-    wake: normalizeCompanionWakeSettings(wakeRaw, defaults.wake)
+    wake: normalizeCompanionWakeSettings(wakeRaw, defaults.wake),
+    voiceFocus: normalizeCompanionVoiceFocusSettings(voiceFocusRaw, defaults.voiceFocus)
   }
 }

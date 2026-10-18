@@ -28,7 +28,15 @@ describe('normalizeCompanionSettings', () => {
         yandexMonthlyBudgetRub: 150
       },
       notify: { enabled: false, quietFrom: '23:00', quietTo: '07:30', speak: true },
-      wake: { enabled: true, phrases: ['джарвис', 'эй компьютер'], followUpMs: 5000 }
+      wake: { enabled: true, phrases: ['джарвис', 'эй компьютер'], followUpMs: 5000 },
+      voiceFocus: {
+        enabled: true,
+        endOfUtteranceSeconds: 1.5,
+        maxUtteranceSeconds: 45,
+        denoiserEnabled: true,
+        strictness: 'high',
+        showDropped: true
+      }
     }
     expect(normalizeCompanionSettings(persisted)).toEqual(persisted)
   })
@@ -182,5 +190,32 @@ describe('normalizeCompanionSettings', () => {
     expect(wake).toEqual({ enabled: true, phrases: ['Пятница'], followUpMs: 30_000 })
     expect(normalizeCompanionSettings({ wake: { phrases: [] } }).wake.phrases).toEqual(['джарвис'])
     expect(normalizeCompanionSettings({ wake: { followUpMs: -5 } }).wake.followUpMs).toBe(0)
+  })
+
+  it('clamps voiceFocus numeric fields and validates strictness', () => {
+    const voiceFocus = normalizeCompanionSettings({
+      voiceFocus: {
+        enabled: true,
+        endOfUtteranceSeconds: 100,
+        maxUtteranceSeconds: 1,
+        denoiserEnabled: 'yes',
+        strictness: 'extreme',
+        showDropped: 'yes'
+      }
+    }).voiceFocus
+    expect(voiceFocus).toEqual({
+      enabled: true,
+      endOfUtteranceSeconds: 5,
+      maxUtteranceSeconds: 10,
+      denoiserEnabled: getDefaultCompanionSettings().voiceFocus.denoiserEnabled,
+      strictness: getDefaultCompanionSettings().voiceFocus.strictness,
+      showDropped: getDefaultCompanionSettings().voiceFocus.showDropped
+    })
+  })
+
+  it('defaults a missing voiceFocus block entirely', () => {
+    expect(normalizeCompanionSettings({}).voiceFocus).toEqual(
+      getDefaultCompanionSettings().voiceFocus
+    )
   })
 })

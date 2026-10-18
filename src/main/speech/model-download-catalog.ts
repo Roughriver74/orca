@@ -1,8 +1,8 @@
 import type { SpeechModelDownloadFile } from '../../shared/speech-types'
 
-type DownloadFileSpec = readonly [name: string, sizeBytes: number, sha256: string]
+export type DownloadFileSpec = readonly [name: string, sizeBytes: number, sha256: string]
 
-function huggingFaceFiles(
+export function huggingFaceFiles(
   repository: string,
   revision: string,
   specs: DownloadFileSpec[]

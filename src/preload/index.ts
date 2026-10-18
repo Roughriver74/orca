@@ -40,6 +40,7 @@ import { cliApi } from './api/cli-bridge'
 import { codexConfigSyncApi } from './api/codex-config-sync-bridge'
 import { preflightApi } from './api/preflight-bridge'
 import { companionApi } from './api/companion-bridge'
+import { companionVoiceFocusApi } from './api/companion-voice-focus-bridge'
 import { companionTtsApi } from './api/companion-tts-bridge'
 import { notificationsApi } from './api/notifications-bridge'
 import { onboardingApi } from './api/onboarding-bridge'
@@ -190,6 +191,7 @@ const api = {
   agentStatus: agentStatusApi,
   speech: speechApi,
   companion: companionApi,
+  companionVoiceFocus: companionVoiceFocusApi,
   companionTts: companionTtsApi
 } satisfies PreloadApi
 

@@ -17,6 +17,13 @@ export function getSttWorkerPath(): string {
   return resolveWorkerThreadEntryPath(currentWorkerEntryLayout(__dirname), 'stt-worker.js')
 }
 
+export function getVadWorkerPath(): string {
+  if (getAppEnvironment().isPackaged()) {
+    return join(process.resourcesPath, 'app.asar', 'out', 'main', 'vad-worker.js')
+  }
+  return join(__dirname, 'vad-worker.js')
+}
+
 /** The recognizer addon's directory, or null on a host that has none (an orcad slot alone). */
 export function getSherpaModulePath(): string | null {
   const nativePackage = speechRecognizerPackageName(process.platform, process.arch)

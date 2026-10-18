@@ -7,8 +7,8 @@ import type { WorkspaceSessionState } from './workspace-session-state-types'
 import { EMPTY_CODEX_RESET_CREDIT_ATTEMPT_LEDGER } from './codex-reset-credit-attempt-ledger'
 import { DEFAULT_STATUS_BAR_ITEMS } from './status-bar-defaults'
 import type { VoiceSettings } from './speech-types'
-import type { CompanionSettings } from './companion-types'
 import { cloneDefaultWorkspaceStatuses } from './workspace-statuses'
+import { getDefaultCompanionSettings } from './companion-defaults'
 import { DEFAULT_WORKTREE_CARD_PROPERTIES } from './worktree/card-properties'
 import { DEFAULT_AGENTS_GROUP_BY, DEFAULT_AGENTS_READ_FILTER } from './agents-view-thread-filters'
 import { DEFAULT_USAGE_PERCENTAGE_DISPLAY } from './usage-percentage-display'
@@ -141,41 +141,7 @@ export function getDefaultVoiceSettings(): VoiceSettings {
   }
 }
 
-export function getDefaultCompanionSettings(): CompanionSettings {
-  return {
-    enabled: false,
-    hotkey: 'Alt+Space',
-    homeDir: '',
-    sttModel: 'gigaam-v3-e2e-rnnt-ru',
-    // Why 2.5s (up from a legacy 1.6s): natural mid-sentence thinking pauses in Russian
-    // speech routinely run 1.5-2s, and the offline STT model needs a stop/restart cycle
-    // to flush its buffer — 1.6s was cutting people off before they finished a thought.
-    endOfUtteranceSeconds: 2.5,
-    voiceBargeIn: false,
-    brainModel: 'sonnet',
-    launchAtLogin: false,
-    tts: {
-      ttsEnabled: true,
-      ttsVoice: 'eugene',
-      ttsRate: 1,
-      provider: 'silero',
-      yandexVoice: 'kirill',
-      maxSpokenChars: 250,
-      yandexMonthlyBudgetRub: 300
-    },
-    notify: {
-      enabled: true,
-      quietFrom: '22:00',
-      quietTo: '08:00',
-      speak: false
-    },
-    wake: {
-      enabled: false,
-      phrases: ['джарвис'],
-      followUpMs: 8000
-    }
-  }
-}
+export { getDefaultCompanionSettings }
 
 export function getDefaultRepoHookSettings(): RepoHookSettings {
   return {

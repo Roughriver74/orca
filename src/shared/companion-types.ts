@@ -19,6 +19,7 @@ export type CompanionSettings = {
   tts: CompanionTtsSettings
   notify: CompanionNotifySettings
   wake: CompanionWakeSettings
+  voiceFocus: CompanionVoiceFocusSettings
 }
 
 /** Always-on listening that answers only when addressed by name. */
@@ -28,6 +29,36 @@ export type CompanionWakeSettings = {
   phrases: string[]
   /** After a reply, follow-ups without the name are accepted this long; 0 = always say the name. */
   followUpMs: number
+}
+
+/** How aggressively "Голос владельца" verification drops audio that is not the
+ *  enrolled owner's voice. Mapped to a cosine-similarity threshold — see
+ *  VOICE_FOCUS_STRICTNESS_THRESHOLDS in companion-voice-focus.ts. */
+export type CompanionVoiceFocusStrictness = 'low' | 'medium' | 'high'
+
+/** VAD end-of-utterance + speaker verification, layered on the legacy energy-threshold
+ *  silence timer above (CompanionSettings.endOfUtteranceSeconds): once the Silero VAD
+ *  model is downloaded, it decides end-of-speech instead of the energy timer, which a TV
+ *  or room noise defeats (energy stays the fallback when the model is missing). */
+export type CompanionVoiceFocusSettings = {
+  enabled: boolean
+  /** Trailing silence (s) the VAD requires before it reports end-of-speech. */
+  endOfUtteranceSeconds: number
+  /** Safety cap: an utterance this long finalizes even without silence. */
+  maxUtteranceSeconds: number
+  /** Run the GTCRN denoiser ahead of VAD/STT. */
+  denoiserEnabled: boolean
+  strictness: CompanionVoiceFocusStrictness
+  /** Show a dim debug line in the panel for dropped (non-owner) segments. */
+  showDropped: boolean
+}
+
+/** Enrolled "Голос владельца" profile status; computed from a userData file, not a
+ *  persisted setting (the embeddings themselves never go through settings sync). */
+export type CompanionVoiceEnrollmentStatus = {
+  enrolled: boolean
+  phraseCount: number
+  updatedAt: number | null
 }
 
 export type CompanionBrainModel = 'sonnet' | 'opus' | 'haiku'
@@ -123,6 +154,16 @@ export type CompanionHotkeyStatus = {
   registered: boolean
   hotkey: string | null
   error: string | null
+}
+
+/** Pushed over `companion:listeningStatusChanged` whenever the panel's dictation capture
+ *  starts or fails to start (mic permission, model load). Wake mode's background
+ *  listening never shows the panel, so this is the only way a silent failure there
+ *  (e.g. the user's wake phrase landing on a dead mic) reaches the user at all. */
+export type CompanionListeningStatus = {
+  ok: boolean
+  error: string | null
+  updatedAt: number
 }
 
 /** Pushed over `companion:notice` when another agent's hook status (not the companion's own
