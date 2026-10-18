@@ -165,6 +165,8 @@ function buildHarness(overrides: Partial<CompanionDialogueDeps> = {}) {
     sendStateChanged: (state) => stateChanges.push(state),
     takeDiscussionContext: () => null,
     isVoiceBargeInEnabled: () => false,
+    isWakeModeActive: () => false,
+    pickThinkingAckPhrase: () => 'Секунду, смотрю…',
     randomUUID: () => `uuid-${(uuidCounter += 1)}`,
     ...overrides
   }
@@ -490,5 +492,138 @@ describe('createCompanionDialogue voice barge-in', () => {
     h.dialogue.bargeIn()
     expect(h.conversation.getState()).toBe('listening')
     expect(reportVoiceFor(h.dialogue, 1000, 0.9, 0.2)).toBe(false)
+  })
+})
+
+describe('createCompanionDialogue wake-mode echo gating', () => {
+  it('in wake mode, confirmed speech marks hasConfirmedRealSpeech() but does not barge in by itself', async () => {
+    const h = await speakingHarness({
+      isVoiceBargeInEnabled: () => true,
+      isWakeModeActive: () => true
+    })
+    expect(h.dialogue.hasConfirmedRealSpeech()).toBe(false)
+    reportVoiceFor(h.dialogue, 600, 0.06, 0.2) // calibration
+    expect(reportVoiceFor(h.dialogue, 300, 0.35, 0.2)).toBe(false)
+    expect(h.conversation.getState()).toBe('speaking')
+    expect(h.tts.stop).not.toHaveBeenCalled()
+    expect(h.dialogue.hasConfirmedRealSpeech()).toBe(true)
+  })
+
+  it('does not confirm on its own echo in wake mode either', async () => {
+    const h = await speakingHarness({
+      isVoiceBargeInEnabled: () => true,
+      isWakeModeActive: () => true
+    })
+    reportVoiceFor(h.dialogue, 600, 0.06, 0.2)
+    reportVoiceFor(h.dialogue, 3000, 0.12, 0.4)
+    expect(h.dialogue.hasConfirmedRealSpeech()).toBe(false)
+  })
+
+  it('resets hasConfirmedRealSpeech on every new reply', async () => {
+    const h = await speakingHarness({
+      isVoiceBargeInEnabled: () => true,
+      isWakeModeActive: () => true
+    })
+    reportVoiceFor(h.dialogue, 600, 0.06, 0.2)
+    reportVoiceFor(h.dialogue, 300, 0.35, 0.2)
+    expect(h.dialogue.hasConfirmedRealSpeech()).toBe(true)
+    h.emitAudioState({ utteranceId: 'uuid-1', state: 'ended' })
+
+    h.emitUtterance('а ещё?')
+    const turn = await h.nextTurn()
+    turn.emit({ type: 'final', text: 'Ещё...' })
+    turn.resolve()
+    await Promise.resolve()
+    h.emitAudioState({ utteranceId: 'uuid-2', state: 'playing' })
+
+    expect(h.dialogue.hasConfirmedRealSpeech()).toBe(false)
+  })
+})
+
+describe('createCompanionDialogue thinking-ack', () => {
+  it('speaks the cached ack phrase once the delay passes with no text yet', async () => {
+    vi.useFakeTimers()
+    try {
+      const h = buildHarness()
+      h.conversation.start()
+      h.emitUtterance('как дела по проектам?')
+      const turn = await h.nextTurn()
+      expect(h.pushed).toEqual([])
+
+      await vi.advanceTimersByTimeAsync(1200)
+      expect(h.pushed).toEqual(['Секунду, смотрю…'])
+
+      turn.emit({ type: 'delta', text: 'Всё хорошо.' })
+      turn.emit({ type: 'final', text: 'Всё хорошо.' })
+      turn.resolve()
+      await Promise.resolve()
+      expect(h.pushed).toEqual(['Секунду, смотрю…', 'Всё хорошо.'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('never speaks the ack once real text has already started', async () => {
+    vi.useFakeTimers()
+    try {
+      const h = buildHarness()
+      h.conversation.start()
+      h.emitUtterance('как дела?')
+      const turn = await h.nextTurn()
+      turn.emit({ type: 'delta', text: 'Привет' })
+
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(h.pushed).toEqual(['Привет'])
+
+      turn.emit({ type: 'final', text: 'Привет' })
+      turn.resolve()
+      await Promise.resolve()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("speaks the ack immediately on the brain's first tool call, skipping the delay", async () => {
+    vi.useFakeTimers()
+    try {
+      const h = buildHarness()
+      h.conversation.start()
+      h.emitUtterance('что по задачам?')
+      const turn = await h.nextTurn()
+
+      turn.emit({ type: 'tool-start' })
+      expect(h.pushed).toEqual(['Секунду, смотрю…'])
+
+      // A second tool call in the same turn must not speak a second ack, and the
+      // delay timer (already cleared) must not fire one either.
+      turn.emit({ type: 'tool-start' })
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(h.pushed).toEqual(['Секунду, смотрю…'])
+
+      turn.emit({ type: 'final', text: 'Готово.' })
+      turn.resolve()
+      await Promise.resolve()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('never speaks the ack when TTS is unavailable for the turn', async () => {
+    vi.useFakeTimers()
+    try {
+      const h = buildHarness({ getTts: () => null })
+      h.conversation.start()
+      h.emitUtterance('привет')
+      const turn = await h.nextTurn()
+
+      await vi.advanceTimersByTimeAsync(5000)
+      turn.emit({ type: 'final', text: 'Привет!' })
+      turn.resolve()
+      await Promise.resolve()
+
+      expect(h.pushed).toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

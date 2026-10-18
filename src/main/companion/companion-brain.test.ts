@@ -80,6 +80,18 @@ function resultFrame(text: string, isError = false): Record<string, unknown> {
   }
 }
 
+function toolUseStart(name: string): Record<string, unknown> {
+  return {
+    type: 'stream_event',
+    event: {
+      type: 'content_block_start',
+      index: 0,
+      content_block: { type: 'tool_use', id: 'toolu_1', name, input: {} }
+    },
+    parent_tool_use_id: null
+  }
+}
+
 describe('resolveCompanionHomeDir', () => {
   it('resolves an empty/unset home dir to ~/assistant', () => {
     expect(resolveCompanionHomeDir(undefined)).toBe(join(homedir(), 'assistant'))
@@ -121,6 +133,29 @@ describe('CompanionBrain', () => {
       parent_tool_use_id: null
     })
     expect(first.launch.cwd).toBe('/home/assistant')
+  })
+
+  it('emits a tool-start event once when the turn opens a tool_use content block', async () => {
+    const { openConnection, opened } = fakeOpenConnection()
+    const brain = new CompanionBrain('/home/assistant', 'sonnet', {
+      openConnection,
+      resolveCommand: () => 'claude'
+    })
+    const events: CompanionBrainEvent[] = []
+
+    const sendPromise = brain.send('Как дела по проектам?', (event) => events.push(event))
+    await vi.waitFor(() => expect(opened).toHaveLength(1))
+    const [first] = opened
+    first.handlers.onMessage?.(toolUseStart('Bash'))
+    first.handlers.onMessage?.(textDelta('Сейчас посмотрел'))
+    first.handlers.onMessage?.(resultFrame('Сейчас посмотрел'))
+    await sendPromise
+
+    expect(events).toEqual([
+      { type: 'tool-start' },
+      { type: 'delta', text: 'Сейчас посмотрел' },
+      { type: 'final', text: 'Сейчас посмотрел' }
+    ])
   })
 
   it('ignores subagent frames (a string parent_tool_use_id) when tracking the root turn', async () => {

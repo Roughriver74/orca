@@ -122,14 +122,22 @@ describe('companion wake listening', () => {
   it('drops background speech and sends only addressed requests to the brain', () => {
     dispose = initCompanionWakeListening(storeWith(wakeSettings(true)))
     const bargeIn = vi.fn()
+    const isRealSpeechConfirmed = vi.fn(() => true)
 
-    expect(routeCompanionUtterance('по телевизору прогноз погоды', 0.4, { bargeIn })).toEqual({
+    expect(
+      routeCompanionUtterance('по телевизору прогноз погоды', 0.4, {
+        bargeIn,
+        isRealSpeechConfirmed
+      })
+    ).toEqual({
       stopped: false,
       ignored: true
     })
     expect(utterances).toEqual([])
 
-    expect(routeCompanionUtterance('Джарвис, какая погода?', 0.4, { bargeIn })).toEqual({
+    expect(
+      routeCompanionUtterance('Джарвис, какая погода?', 0.4, { bargeIn, isRealSpeechConfirmed })
+    ).toEqual({
       stopped: false
     })
     expect(utterances).toEqual(['какая погода?'])
@@ -142,18 +150,39 @@ describe('companion wake listening', () => {
     companionConversation.reportThinking()
     companionConversation.reportSpeaking()
     const bargeIn = vi.fn()
+    const isRealSpeechConfirmed = vi.fn(() => true)
 
-    routeCompanionUtterance('реклама из телевизора', 0.4, { bargeIn })
+    routeCompanionUtterance('реклама из телевизора', 0.4, { bargeIn, isRealSpeechConfirmed })
     expect(bargeIn).not.toHaveBeenCalled()
 
-    routeCompanionUtterance('Джарвис, подожди', 0.4, { bargeIn })
+    routeCompanionUtterance('Джарвис, подожди', 0.4, { bargeIn, isRealSpeechConfirmed })
     expect(bargeIn).toHaveBeenCalledTimes(1)
     expect(utterances).toEqual(['подожди'])
   })
 
+  it('does not let a wake-phrase match alone interrupt Jarvis — it must also be confirmed as real (not his own echo)', () => {
+    dispose = initCompanionWakeListening(storeWith(wakeSettings(true)))
+    companionConversation.reportThinking()
+    companionConversation.reportSpeaking()
+    const bargeIn = vi.fn()
+
+    const result = routeCompanionUtterance('Джарвис, подожди', 0.4, {
+      bargeIn,
+      isRealSpeechConfirmed: () => false
+    })
+
+    expect(bargeIn).not.toHaveBeenCalled()
+    expect(result).toEqual({ stopped: false, ignored: true })
+    expect(utterances).toEqual([])
+    expect(companionConversation.getState()).toBe('speaking')
+  })
+
   it('"стоп" ends the exchange but keeps listening for the name', () => {
     dispose = initCompanionWakeListening(storeWith(wakeSettings(true)))
-    const result = routeCompanionUtterance('Джарвис, стоп', undefined, { bargeIn: vi.fn() })
+    const result = routeCompanionUtterance('Джарвис, стоп', undefined, {
+      bargeIn: vi.fn(),
+      isRealSpeechConfirmed: () => true
+    })
     expect(result).toEqual({ stopped: false })
     expect(utterances).toEqual([])
     expect(companionConversation.getState()).toBe('listening')
@@ -163,17 +192,28 @@ describe('companion wake listening', () => {
   it('treats the hotkey as an address so the next request needs no name', () => {
     dispose = initCompanionWakeListening(storeWith(wakeSettings(true)))
     addressCompanion()
-    routeCompanionUtterance('включи свет', undefined, { bargeIn: vi.fn() })
+    routeCompanionUtterance('включи свет', undefined, {
+      bargeIn: vi.fn(),
+      isRealSpeechConfirmed: () => true
+    })
     expect(utterances).toEqual(['включи свет'])
   })
 
   it('keeps the old behaviour with wake mode off: every utterance passes, a stop phrase closes', () => {
     dispose = initCompanionWakeListening(storeWith(wakeSettings(false)))
     companionConversation.start()
-    routeCompanionUtterance('просто фраза', undefined, { bargeIn: vi.fn() })
+    routeCompanionUtterance('просто фраза', undefined, {
+      bargeIn: vi.fn(),
+      isRealSpeechConfirmed: () => true
+    })
     expect(utterances).toEqual(['просто фраза'])
 
-    expect(routeCompanionUtterance('стоп', undefined, { bargeIn: vi.fn() })).toEqual({
+    expect(
+      routeCompanionUtterance('стоп', undefined, {
+        bargeIn: vi.fn(),
+        isRealSpeechConfirmed: () => true
+      })
+    ).toEqual({
       stopped: true
     })
     expect(companionConversation.getState()).toBe('idle')

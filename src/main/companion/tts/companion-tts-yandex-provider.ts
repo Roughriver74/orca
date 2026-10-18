@@ -121,7 +121,16 @@ export class CompanionTtsYandexProvider {
   ): Promise<CompanionTtsYandexSynthesisResult> {
     const controller = new AbortController()
     this.controllers.set(requestId, controller)
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+    // Why a separate flag, not just `controller.signal.aborted`: `cancel()` (user barge-in/
+    // stop()) and this timeout both abort the same controller, but only a user cancel should
+    // be swallowed silently — a timeout is a real failure the caller must fall back/report on,
+    // same as a 5xx. Conflating them used to drop the chunk with no Silero fallback and no
+    // error toast whenever Yandex merely took >15s to answer.
+    let timedOut = false
+    const timeout = setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, REQUEST_TIMEOUT_MS)
     try {
       const apiKey = this.readApiKey()
       const api = YANDEX_VOICE_MIN_API[voice]
@@ -130,6 +139,9 @@ export class CompanionTtsYandexProvider {
         : await synthesizeV3(text, voice, apiKey, rate, controller.signal)
     } catch (error) {
       if (controller.signal.aborted) {
+        if (timedOut) {
+          throw new CompanionTtsYandexError('network', 'Yandex SpeechKit request timed out')
+        }
         throw new CompanionTtsCancelledError(requestId)
       }
       throw error

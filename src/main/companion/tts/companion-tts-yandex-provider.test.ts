@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { isRecord } from '../../../shared/agent-status-child-work-value-guards'
 import { CompanionTtsYandexProvider } from './companion-tts-yandex-provider'
 import { CompanionTtsCancelledError } from './companion-tts-sidecar-process'
+import { CompanionTtsYandexError } from './companion-tts-yandex-errors'
 
 const originalFetch = globalThis.fetch
 
@@ -139,6 +140,30 @@ describe('CompanionTtsYandexProvider', () => {
     await expect(provider.synthesize('req-6', 'привет', 'filipp', 1)).rejects.toBeInstanceOf(
       TypeError
     )
+  })
+
+  it('a request timeout rejects with a CompanionTtsYandexError("network"), not a silent cancel', async () => {
+    vi.useFakeTimers()
+    try {
+      globalThis.fetch = vi.fn<typeof fetch>((_url, init) => {
+        const { promise, reject } = Promise.withResolvers<Response>()
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+        return promise
+      })
+      const provider = new CompanionTtsYandexProvider(() => 'test-key')
+
+      const pending = provider.synthesize('req-timeout', 'привет', 'filipp', 1)
+      const settled = pending.catch((error: unknown) => error)
+      await vi.advanceTimersByTimeAsync(15_000)
+
+      const error = await settled
+      expect(error).toBeInstanceOf(CompanionTtsYandexError)
+      expect(error).toMatchObject({ code: 'network' })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('cancel() aborts the in-flight request, rejecting with CompanionTtsCancelledError', async () => {

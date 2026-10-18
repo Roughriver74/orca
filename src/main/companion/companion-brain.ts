@@ -43,6 +43,10 @@ const COMPANION_SPOKEN_REPLY_ADDENDUM =
 
 export type CompanionBrainEvent =
   | { type: 'delta'; text: string }
+  // Measured real turn: the ~15s gap users notice is almost entirely Claude thinking/
+  // running tools before any text — fired once, on the turn's first tool call, so the
+  // dialogue orchestrator can speak a cached "Секунду, смотрю…" instead of dead air.
+  | { type: 'tool-start' }
   | { type: 'final'; text: string }
   | { type: 'error'; message: string }
 
@@ -200,6 +204,15 @@ export class CompanionBrain {
     }
     if (frame.type === 'stream_event') {
       const event = frame.event
+      if (
+        isRecord(event) &&
+        event.type === 'content_block_start' &&
+        isRecord(event.content_block) &&
+        event.content_block.type === 'tool_use'
+      ) {
+        this.activeTurn.onEvent({ type: 'tool-start' })
+        return
+      }
       const delta = isRecord(event) ? event.delta : null
       if (isRecord(delta) && delta.type === 'text_delta' && typeof delta.text === 'string') {
         this.activeTurn.onEvent({ type: 'delta', text: delta.text })

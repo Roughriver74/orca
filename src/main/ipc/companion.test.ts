@@ -113,6 +113,7 @@ describe('registerCompanionHandlers', () => {
     companionDialogueHandle.current = {
       bargeIn: vi.fn(),
       reportVoiceActivity: vi.fn(() => false),
+      hasConfirmedRealSpeech: vi.fn(() => false),
       resetConversation,
       dispose: vi.fn()
     }
@@ -133,6 +134,7 @@ describe('registerCompanionHandlers', () => {
     companionDialogueHandle.current = {
       bargeIn: vi.fn(),
       reportVoiceActivity,
+      hasConfirmedRealSpeech: vi.fn(() => false),
       resetConversation: vi.fn(),
       dispose: vi.fn()
     }
@@ -147,6 +149,7 @@ describe('registerCompanionHandlers', () => {
     companionDialogueHandle.current = {
       bargeIn: vi.fn(),
       reportVoiceActivity,
+      hasConfirmedRealSpeech: vi.fn(() => false),
       resetConversation: vi.fn(),
       dispose: vi.fn()
     }

@@ -259,6 +259,7 @@ describe('companion hotkey', () => {
     companionDialogueHandle.current = {
       bargeIn,
       reportVoiceActivity: vi.fn(() => false),
+      hasConfirmedRealSpeech: vi.fn(() => false),
       resetConversation: vi.fn(),
       dispose: vi.fn()
     }

@@ -34,6 +34,10 @@ import type { CompanionTtsService } from './tts/companion-tts-service'
 import { COMPANION_TTS_PRONUNCIATIONS_FILE_NAME } from './tts/companion-tts-pronunciation-dictionary'
 import { takePendingDiscussionContext } from './companion-agent-watch'
 import { createCompanionVoiceBargeInDetector } from './companion-voice-barge-in'
+import {
+  pickCompanionThinkingAckPhrase,
+  scheduleCompanionThinkingAck
+} from './companion-dialogue-thinking-ack'
 
 // Why a fixed phrase rather than speaking `event.message`: brain errors are often raw
 // English exception text (connection drops, provider errors) — unfit for a Russian voice
@@ -97,8 +101,17 @@ export type CompanionDialogueDeps = {
   /** Read-once-and-clear context from an agent-status "Обсудить" action; `null` for an
    *  ordinary hotkey-opened conversation. */
   takeDiscussionContext: () => CompanionDiscussionContext | null
-  /** Read per frame so toggling the setting takes effect mid-conversation. */
+  /** Read per frame so toggling the setting takes effect mid-conversation. Gates whether
+   *  `reportVoiceActivity` feeds the echo-margin detector at all (the `voiceBargeIn`
+   *  setting) — see `isWakeModeActive` for what feeding it then does. */
   isVoiceBargeInEnabled: () => boolean
+  /** In wake mode, loudness alone must never interrupt a reply (a TV could trigger it) —
+   *  only an utterance naming Jarvis does, via companion-wake-listening.ts. So confirmed
+   *  frames there only mark `hasConfirmedRealSpeech()`; outside wake mode they barge in
+   *  immediately, as before. */
+  isWakeModeActive: () => boolean
+  /** One of a small fixed set so companion-tts-yandex-cache.ts caches it after first use. */
+  pickThinkingAckPhrase: () => string
   randomUUID: () => string
 }
 
@@ -107,9 +120,17 @@ export type CompanionDialogue = {
    *  to listening without closing the conversation or touching the brain session. No-op
    *  outside 'speaking'. */
   bargeIn(): void
-  /** One mic frame from the panel while a reply plays; barges in once user speech is
-   *  confirmed over the companion's own echo. Returns whether this frame barged in. */
+  /** One mic frame from the panel while a reply plays. Outside wake mode, barges in once
+   *  user speech is confirmed over the companion's own echo and returns whether this frame
+   *  did. In wake mode it never barges in by itself (see `isWakeModeActive`) — it only
+   *  updates what `hasConfirmedRealSpeech()` reports, and always returns `false`. */
   reportVoiceActivity(frame: CompanionVoiceActivityFrame): boolean
+  /** Whether this reply's playback has had mic speech confirmed as real (echo-margin +
+   *  sustain), not Jarvis's own voice coming back through the mic. Consulted by
+   *  companion-wake-listening.ts before honoring a wake-phrase interrupt while speaking —
+   *  text matching the wake phrase alone is not proof it was the user, since with no
+   *  headphones Jarvis can say his own name and hear himself. */
+  hasConfirmedRealSpeech(): boolean
   /** Drops the brain session and any in-flight turn/audio; the next utterance starts fresh. */
   resetConversation(): void
   dispose(): void
@@ -122,6 +143,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
   let activeUtteranceId: string | null = null
   let previousState: CompanionConversationState = deps.conversation.getState()
   let firstTurnPending = false
+  let realSpeechConfirmed = false
   const voiceBargeIn = createCompanionVoiceBargeInDetector()
 
   function ttsOptions(
@@ -161,6 +183,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
       // WebAudio playback — reported back here — is the only true signal that the user
       // is now hearing Jarvis and should stop being transcribed.
       voiceBargeIn.reset()
+      realSpeechConfirmed = false
       deps.conversation.reportSpeaking()
       return
     }
@@ -190,22 +213,36 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
       activeUtteranceId = utteranceId
     }
 
+    const ack = streamHandle
+      ? scheduleCompanionThinkingAck({
+          speak: (phrase) => streamHandle.pushDelta(phrase),
+          pickPhrase: deps.pickThinkingAckPhrase,
+          isCurrent: () => generation === turnGeneration
+        })
+      : null
+
     let hadError = false
     await deps.brain.send(prompt, (event: CompanionBrainEvent) => {
       if (generation !== turnGeneration) {
         return
       }
       if (event.type === 'delta') {
+        ack?.onDelta()
         deps.sendAssistantDelta(event.text)
         streamHandle?.pushDelta(event.text)
+      } else if (event.type === 'tool-start') {
+        ack?.onToolStart()
       } else if (event.type === 'final') {
+        ack?.dispose()
         deps.sendAssistantFinal(event.text)
         deps.conversation.reportAssistantFinal(event.text)
       } else {
+        ack?.dispose()
         hadError = true
         deps.sendAssistantError(event.message)
       }
     })
+    ack?.dispose()
     if (generation !== turnGeneration) {
       return
     }
@@ -247,8 +284,18 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
     if (!voiceBargeIn.feed(frame)) {
       return false
     }
+    realSpeechConfirmed = true
+    if (deps.isWakeModeActive()) {
+      // Loudness alone must not interrupt in wake mode (a TV could trigger it) — only
+      // marks confirmation; companion-wake-listening.ts's wake-phrase path barges in.
+      return false
+    }
     bargeIn()
     return true
+  }
+
+  function hasConfirmedRealSpeech(): boolean {
+    return realSpeechConfirmed
   }
 
   function resetConversation(): void {
@@ -264,7 +311,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
     offAudio()
   }
 
-  return { bargeIn, reportVoiceActivity, resetConversation, dispose }
+  return { bargeIn, reportVoiceActivity, hasConfirmedRealSpeech, resetConversation, dispose }
 }
 
 type CompanionDialogueSettingsStore = {
@@ -322,12 +369,11 @@ export function initCompanionDialogue(store: CompanionDialogueSettingsStore): ()
       const context = takePendingDiscussionContext()
       return context ? { text: context.notice.text } : null
     },
-    // Why not in wake mode: loudness cannot tell the user from a TV, so there only an
-    // utterance that names Jarvis interrupts him (see companion-wake-listening.ts).
-    isVoiceBargeInEnabled: () => {
-      const companion = store.getSettings().companion
-      return companion?.voiceBargeIn === true && companion.wake.enabled !== true
-    },
+    // Feeds the echo-margin detector whenever voice barge-in is on, wake mode included —
+    // what a confirmed frame then does differs by mode (see isWakeModeActive/reportVoiceActivity).
+    isVoiceBargeInEnabled: () => store.getSettings().companion?.voiceBargeIn === true,
+    isWakeModeActive: () => store.getSettings().companion?.wake.enabled === true,
+    pickThinkingAckPhrase: pickCompanionThinkingAckPhrase,
     randomUUID
   })
 

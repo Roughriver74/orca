@@ -17,8 +17,12 @@ type CompanionPlaybackMicHandoffDeps = {
  * Owns what the mic does while a reply plays. Default: STT capture pauses so the companion
  * never transcribes itself. Voice barge-in: a separate monitor stream watches for the user
  * talking over Jarvis, and the words it heard are handed to STT once playback stops. Wake
- * mode + barge-in: STT keeps running through playback ("Джарвис, …" interrupts) — main
- * ignores anything else, Jarvis's own voice included. Also plays the TTS audio.
+ * mode + barge-in: STT keeps running through playback so a wake-phrase utterance
+ * ("Джарвис, …") can interrupt — but with no headphones the mic hears Jarvis's own TTS
+ * too, so the same echo-margin monitor used for plain voice barge-in also runs
+ * concurrently here, purely to confirm real (non-echo) speech for
+ * companion-dialogue.ts's `hasConfirmedRealSpeech()`; its own preRoll is discarded since
+ * STT already heard the utterance live. Also plays the TTS audio.
  */
 export function useCompanionPlaybackMicHandoff({
   sessionId,
@@ -51,6 +55,9 @@ export function useCompanionPlaybackMicHandoff({
     refreshSettings()
     if (listeningThroughPlaybackRef.current) {
       listeningThroughPlaybackRef.current = false
+      // Why discard the preRoll: wake mode's STT capture already heard this reply live —
+      // this monitor instance only ran to confirm real speech for hasConfirmedRealSpeech().
+      await stopVoiceMonitor()
       return
     }
     const preRoll = await stopVoiceMonitor()
@@ -89,6 +96,7 @@ export function useCompanionPlaybackMicHandoff({
         const { voiceBargeIn, wake } = settingsRef.current
         if (wake.enabled && voiceBargeIn) {
           listeningThroughPlaybackRef.current = true
+          void startVoiceMonitor()
           return
         }
         stopCapture()
