@@ -18,6 +18,11 @@ export type CompanionAssetsDeps = {
   downloadSttModel: (modelId: string) => Promise<void>
   provisionTts: (onStatus: (status: CompanionTtsProvisioningStatus) => void) => Promise<unknown>
   reportTtsStatus: (status: CompanionTtsProvisioningStatus) => void
+  // Why its own dep rather than chained inside provisionTts: prewarming is specific to
+  // the Silero sidecar (CompanionTtsService.prewarm() itself skips the Yandex provider),
+  // while provisionTts covers both the STT model path's sibling concern and tests that
+  // stub provisioning without caring about the sidecar at all.
+  prewarmTts: () => Promise<void>
 }
 
 /**
@@ -50,8 +55,11 @@ export function initCompanionAssets(
     // Yandex-only setup should not pay that cost just because `ttsEnabled` is true.
     if (companion.tts.ttsEnabled && companion.tts.provider !== 'yandex' && !ttsInFlight) {
       // Why: provisioning reports its own error status to the settings pane; swallow the rejection here.
+      // Prewarming only after a successful provision: an unprovisioned sidecar has no model
+      // paths to spawn with, and CompanionTtsService.ensureSidecar() would just throw.
       ttsInFlight = deps
         .provisionTts(deps.reportTtsStatus)
+        .then(() => deps.prewarmTts())
         .catch(() => undefined)
         .finally(() => {
           ttsInFlight = null
@@ -68,10 +76,18 @@ export function initCompanionAssets(
 }
 
 function createDefaultDeps(store: CompanionAssetsStore): CompanionAssetsDeps {
+  const userDataDir = getAppEnvironment().getPath('userData')
   return {
     downloadSttModel: (modelId) => getSpeechModelManager(store).downloadModel(modelId),
-    provisionTts: (onStatus) =>
-      provisionCompanionTts(getAppEnvironment().getPath('userData'), onStatus),
-    reportTtsStatus: reportTtsProvisioningStatus
+    provisionTts: (onStatus) => provisionCompanionTts(userDataDir, onStatus),
+    reportTtsStatus: reportTtsProvisioningStatus,
+    // Why dynamic: the TTS module pulls in the bundled `.py?asset&asarUnpack` sidecar path
+    // at import time (see companion-dialogue.ts for the same pattern), which only resolves
+    // inside a real (or asset-mocked) Vite/electron-vite build — a static import here would
+    // force that resolution on every test that merely imports this file for `initCompanionAssets`.
+    prewarmTts: async () => {
+      const { getCompanionTtsService } = await import('./tts/companion-tts-service')
+      await getCompanionTtsService(userDataDir).prewarm()
+    }
   }
 }

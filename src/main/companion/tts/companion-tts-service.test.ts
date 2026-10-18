@@ -42,6 +42,7 @@ type FakeSidecar = {
   cancel: ReturnType<typeof vi.fn>
   shutdown: ReturnType<typeof vi.fn>
   isHealthy: ReturnType<typeof vi.fn>
+  warmUp: ReturnType<typeof vi.fn>
 }
 
 type FakePcmChunk = { sampleRate: number; pcm: Float32Array; final: boolean }
@@ -66,7 +67,8 @@ function fakeSidecar(behavior: (id: string, text: string) => Promise<FakePcmChun
     ),
     cancel: vi.fn(),
     shutdown: vi.fn().mockResolvedValue(undefined),
-    isHealthy: vi.fn().mockReturnValue(true)
+    isHealthy: vi.fn().mockReturnValue(true),
+    warmUp: vi.fn().mockResolvedValue(undefined)
   }
 }
 
@@ -136,7 +138,8 @@ describe('CompanionTtsService', () => {
       synthesize: vi.fn(() => synthResolvers.promise),
       cancel: vi.fn(),
       shutdown: vi.fn().mockResolvedValue(undefined),
-      isHealthy: vi.fn().mockReturnValue(true)
+      isHealthy: vi.fn().mockReturnValue(true),
+      warmUp: vi.fn().mockResolvedValue(undefined)
     }
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: FakeSidecar mirrors only the methods CompanionTtsService calls on the sidecar.
     const service = new CompanionTtsService('/tmp/userData', () => sidecar as never)
@@ -212,6 +215,36 @@ describe('CompanionTtsService', () => {
     const calls = sendAudioChunk.mock.calls.map((c) => c[0])
     expect(calls.map((c) => c.final)).toEqual([false, true])
     expect(calls[1].pcm.every((sample: number) => sample === 0)).toBe(true)
+  })
+
+  it('prewarm() spawns and warms the Silero sidecar without synthesizing anything', async () => {
+    const sidecar = fakeSidecar(async (_id, text) => pcmChunk([text.length]))
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: FakeSidecar mirrors only the methods CompanionTtsService calls on the sidecar.
+    const service = new CompanionTtsService('/tmp/userData', () => sidecar as never)
+
+    await service.prewarm()
+
+    expect(sidecar.warmUp).toHaveBeenCalledTimes(1)
+    expect(sidecar.synthesize).not.toHaveBeenCalled()
+  })
+
+  it('prewarm() does nothing when the configured provider is Yandex', async () => {
+    const sidecar = fakeSidecar(async (_id, text) => pcmChunk([text.length]))
+    const service = new CompanionTtsService(
+      '/tmp/userData',
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: FakeSidecar mirrors only the methods CompanionTtsService calls on the sidecar.
+      () => sidecar as never,
+      () => ({
+        provider: 'yandex',
+        yandexVoice: 'kirill',
+        maxSpokenChars: 250,
+        yandexMonthlyBudgetRub: 300
+      })
+    )
+
+    await service.prewarm()
+
+    expect(sidecar.warmUp).not.toHaveBeenCalled()
   })
 })
 

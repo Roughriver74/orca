@@ -70,6 +70,14 @@ export class CompanionTtsSidecarProcess {
     return this.child !== null && !this.stopping
   }
 
+  /** Spawns the child and waits for its `ready` frame (model load included) without
+   *  synthesizing anything — used to prewarm the sidecar ahead of the first reply so the
+   *  ~1.4-2s cold start doesn't sit in that reply's critical path. Idempotent: a sidecar
+   *  that is already starting or running just resolves the existing `ensureStarted()`. */
+  async warmUp(): Promise<void> {
+    await this.ensureStarted()
+  }
+
   private async ensureStarted(): Promise<void> {
     if (this.readyPromise) {
       return this.readyPromise

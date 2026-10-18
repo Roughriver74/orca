@@ -32,6 +32,7 @@ function makeDeps(overrides: Partial<CompanionAssetsDeps> = {}) {
     downloadSttModel: vi.fn(async (_modelId: string) => undefined),
     provisionTts: vi.fn(async () => undefined),
     reportTtsStatus: vi.fn(),
+    prewarmTts: vi.fn(async () => undefined),
     ...overrides
   }
 }
@@ -88,5 +89,38 @@ describe('initCompanionAssets', () => {
       store.setCompanion({ ...enabled(), hotkey: 'Control+J' })
       expect(provisionTts).toHaveBeenCalledTimes(2)
     })
+  })
+
+  it('prewarms the Silero sidecar once TTS provisioning succeeds', async () => {
+    const deps = makeDeps()
+    const store = makeStore(getDefaultCompanionSettings())
+    initCompanionAssets(store, deps)
+    store.setCompanion(enabled())
+    await vi.waitFor(() => {
+      expect(deps.prewarmTts).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('does not prewarm when the provider is Yandex', async () => {
+    const deps = makeDeps()
+    const settings = enabled()
+    initCompanionAssets(
+      makeStore({ ...settings, tts: { ...settings.tts, provider: 'yandex' } }),
+      deps
+    )
+    expect(deps.provisionTts).not.toHaveBeenCalled()
+    expect(deps.prewarmTts).not.toHaveBeenCalled()
+  })
+
+  it('does not prewarm when provisioning fails', async () => {
+    const provisionTts = vi.fn(async () => {
+      throw new Error('network down')
+    })
+    const deps = makeDeps({ provisionTts })
+    initCompanionAssets(makeStore(enabled()), deps)
+    await vi.waitFor(() => {
+      expect(provisionTts).toHaveBeenCalledTimes(1)
+    })
+    expect(deps.prewarmTts).not.toHaveBeenCalled()
   })
 })

@@ -58,4 +58,53 @@ describe('SentenceStreamChunker', () => {
     chunker.reset()
     expect(chunker.flush()).toEqual([])
   })
+
+  it('earlyClauseSplit emits the first clause once the buffer passes the threshold', () => {
+    const chunker = new SentenceStreamChunker({ earlyClauseSplit: true })
+    const clause = 'а'.repeat(30)
+    expect(chunker.push(`${clause}, `)).toEqual([`${clause},`])
+  })
+
+  it('earlyClauseSplit does nothing before MIN_EARLY_CLAUSE_CHARS is reached', () => {
+    const chunker = new SentenceStreamChunker({ earlyClauseSplit: true })
+    const shortClause = 'а'.repeat(10)
+    expect(chunker.push(`${shortClause}, ещё`)).toEqual([])
+  })
+
+  it('earlyClauseSplit recognizes colon, semicolon, and a space-delimited dash', () => {
+    const clause = 'а'.repeat(30)
+    expect(new SentenceStreamChunker({ earlyClauseSplit: true }).push(`${clause}: ещё`)).toEqual([
+      `${clause}:`
+    ])
+    expect(new SentenceStreamChunker({ earlyClauseSplit: true }).push(`${clause}; ещё`)).toEqual([
+      `${clause};`
+    ])
+    expect(new SentenceStreamChunker({ earlyClauseSplit: true }).push(`${clause} — ещё`)).toEqual([
+      `${clause} —`
+    ])
+  })
+
+  it('earlyClauseSplit only applies to the first chunk of the utterance, not later ones', () => {
+    const chunker = new SentenceStreamChunker({ earlyClauseSplit: true })
+    const clause = 'а'.repeat(30)
+    expect(chunker.push(`${clause}, `)).toEqual([`${clause},`])
+    // Another clause boundary arrives, but a chunk was already emitted for this utterance:
+    // it must wait for the sentence terminator like the non-early path does.
+    expect(chunker.push('ещё, слова')).toEqual([])
+    expect(chunker.push(' тут.')).toEqual(['ещё, слова тут.'])
+  })
+
+  it("earlyClauseSplit is off by default, matching today's Yandex-path behavior", () => {
+    const chunker = new SentenceStreamChunker()
+    const clause = 'а'.repeat(30)
+    expect(chunker.push(`${clause}, ещё слова.`)).toEqual([`${clause}, ещё слова.`])
+  })
+
+  it('earlyClauseSplit resets with the chunker', () => {
+    const chunker = new SentenceStreamChunker({ earlyClauseSplit: true })
+    const clause = 'а'.repeat(30)
+    expect(chunker.push(`${clause}, `)).toEqual([`${clause},`])
+    chunker.reset()
+    expect(chunker.push(`${clause}, ещё`)).toEqual([`${clause},`])
+  })
 })

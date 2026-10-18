@@ -152,6 +152,26 @@ export class CompanionTtsService {
     return this.sidecarReady
   }
 
+  /** Starts the Silero sidecar (spawn + model warm-up) ahead of the first reply, so the
+   *  cold start measured at 1.4-2s doesn't sit in that reply's time-to-first-audio. Called
+   *  from companion-assets.ts on app start / settings change / once provisioning finishes.
+   *  Skipped for the Yandex provider: Yandex replies don't need the Silero sidecar, and a
+   *  Yandex setup that later falls back to Silero (budget/outage) is already too rare and
+   *  too far from "first reply" for a preemptive spawn to be worth the memory. Swallows
+   *  errors — provisioning may not have finished yet, in which case the real speak() call
+   *  that follows will retry and surface them. */
+  async prewarm(): Promise<void> {
+    if (this.getProviderSettings().provider === 'yandex') {
+      return
+    }
+    try {
+      const sidecar = await this.ensureSidecar()
+      await sidecar.warmUp()
+    } catch (error) {
+      console.error('[companion] TTS sidecar prewarm failed', error)
+    }
+  }
+
   /** Synthesizes and streams a complete reply, resolving once every sentence has been sent. */
   async speak(text: string, options: CompanionTtsSpeakOptions): Promise<void> {
     const providerSettings = this.getProviderSettings()
@@ -180,7 +200,7 @@ export class CompanionTtsService {
     if (this.resolveEffectiveProvider(providerSettings) === 'yandex') {
       return this.yandexBranch.speakStreamYandex(options, providerSettings)
     }
-    const chunker = new SentenceStreamChunker()
+    const chunker = new SentenceStreamChunker({ earlyClauseSplit: true })
     const fenceFilter = new SpeechCodeFenceFilter()
     const resultChannel = new AsyncItemChannel<SynthesisHandle>()
     const handle = this.beginUtterance(options.utteranceId)

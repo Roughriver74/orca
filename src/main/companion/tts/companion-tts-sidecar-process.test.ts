@@ -99,6 +99,22 @@ describe('CompanionTtsSidecarProcess', () => {
     expect(child.writes[0]).toContain('"id":"r1"')
   })
 
+  it('warmUp spawns the child and resolves once ready, without synthesizing', async () => {
+    const child = fakeChild()
+    const spawn = vi.fn().mockReturnValue(child)
+    const sidecar = new CompanionTtsSidecarProcess(config, spawn)
+
+    const warming = sidecar.warmUp()
+    expect(spawn).toHaveBeenCalledTimes(1)
+    emitReady(child)
+    await warming
+
+    expect(child.writes).toHaveLength(0)
+    // A second warmUp reuses the already-started child instead of respawning.
+    await sidecar.warmUp()
+    expect(spawn).toHaveBeenCalledTimes(1)
+  })
+
   it('reuses the running child for a second request instead of respawning', async () => {
     const child = fakeChild()
     const spawn = vi.fn().mockReturnValue(child)

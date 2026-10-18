@@ -47,19 +47,71 @@ export function splitLongSentence(sentence: string): string[] {
   return parts
 }
 
+const MIN_EARLY_CLAUSE_CHARS = 25
+
+// Comma/colon/semicolon anywhere, or a dash only when it sits between spaces (so a
+// hyphenated word like "по-английски" is never mistaken for a clause break).
+const CLAUSE_BOUNDARY = /[,;:]|(?<=\s)[-—–](?=\s)/g
+
 /**
  * Stateful accumulator for brain text deltas: feed arrives in arbitrary-sized chunks,
  * `push` returns every sentence that became complete, `flush` forces out the remainder
  * once the turn ends (a reply with no trailing punctuation still has to be spoken).
+ *
+ * `earlyClauseSplit` (Silero streaming path only, see companion-tts-service.ts) trims the
+ * audible delay before the first sentence: while nothing has been emitted yet for the
+ * current utterance, a long first sentence often has a comma/colon/dash well before its
+ * final terminator, and starting Silero on that clause lets audio begin while the brain
+ * is still writing the rest of the sentence. The Yandex path leaves this off — Yandex v3
+ * bills per request (up to 250 chars each), so splitting a sentence early there would
+ * turn one billed request into two for no latency benefit (Yandex synthesizes a whole
+ * sentence fast enough that the cold-start problem this solves does not apply).
  */
 export class SentenceStreamChunker {
   private buffer = ''
+  private hasEmitted = false
+  private readonly earlyClauseSplit: boolean
+
+  constructor(options: { earlyClauseSplit?: boolean } = {}) {
+    this.earlyClauseSplit = options.earlyClauseSplit ?? false
+  }
 
   push(delta: string): string[] {
     this.buffer += delta
     const { sentences, remainder } = splitIntoSentences(this.buffer)
     this.buffer = remainder
-    return sentences
+    if (sentences.length > 0) {
+      this.hasEmitted = true
+      return sentences
+    }
+    if (this.earlyClauseSplit && !this.hasEmitted) {
+      const earlyClause = this.takeEarlyClause()
+      if (earlyClause !== null) {
+        this.hasEmitted = true
+        return [earlyClause]
+      }
+    }
+    return []
+  }
+
+  /** Cuts the buffer at the first clause boundary occurring at or after
+   *  `MIN_EARLY_CLAUSE_CHARS`, or returns null if the buffer is too short or has none yet. */
+  private takeEarlyClause(): string | null {
+    if (this.buffer.length < MIN_EARLY_CLAUSE_CHARS) {
+      return null
+    }
+    CLAUSE_BOUNDARY.lastIndex = 0
+    let match: RegExpExecArray | null
+    while ((match = CLAUSE_BOUNDARY.exec(this.buffer)) !== null) {
+      if (match.index < MIN_EARLY_CLAUSE_CHARS) {
+        continue
+      }
+      const cut = match.index + match[0].length
+      const clause = this.buffer.slice(0, cut).trim()
+      this.buffer = this.buffer.slice(cut)
+      return clause.length > 0 ? clause : null
+    }
+    return null
   }
 
   flush(): string[] {
@@ -73,6 +125,7 @@ export class SentenceStreamChunker {
 
   reset(): void {
     this.buffer = ''
+    this.hasEmitted = false
   }
 }
 
