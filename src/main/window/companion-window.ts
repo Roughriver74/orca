@@ -1,7 +1,7 @@
 import { BrowserWindow, screen } from 'electron'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
-import { showWindowWithoutStealingFocus } from './foreground-activation-policy'
+import { isWindowlessLaunch } from './foreground-activation-policy'
 import { installPrivilegedWindowNavigationPolicy } from './privileged-window-navigation'
 import { hasSystemMediaAccess, requestSystemMediaAccess } from '../browser/browser-media-access'
 
@@ -61,7 +61,20 @@ function createCompanionWindow(): BrowserWindow {
     movable: false,
     fullscreenable: false,
     skipTaskbar: true,
-    focusable: true,
+    // Why: macOS NSPanel (NSWindowStyleMaskNonactivatingPanel) — unlike a
+    // normal window, showing/raising a panel never calls
+    // activateIgnoringOtherApps, so the hotkey can never pull the user out
+    // of a fullscreen Space or steal the OS foreground. No effect on other
+    // platforms (an unrecognized `type` is ignored there).
+    type: 'panel',
+    // Why: voice capture needs no keyboard focus; keeping the panel
+    // unfocusable means it can never become the key window either, so
+    // BrowserWindow.getFocusedWindow() never changes when it appears.
+    focusable: false,
+    // Why: with focusable:false the panel can never become key, so without
+    // this its buttons (reset conversation, open mic settings) would eat
+    // the first click instead of registering it.
+    acceptFirstMouse: true,
     backgroundColor: '#00000000',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -109,21 +122,32 @@ export function ensureCompanionWindowAlive(): BrowserWindow {
   return getCompanionWindow() ?? createCompanionWindow()
 }
 
-/** Shows (or re-shows at the current cursor display) the panel without stealing OS focus. */
+/** Shows (or re-shows at the current cursor display) the panel without ever
+ *  activating Orca, raising it to key window, or changing the current
+ *  macOS Space — `showInactive()` on a non-activating panel does none of
+ *  that, unlike the shared `showWindowWithoutStealingFocus()` (which calls
+ *  `window.show()` for ordinary windows in normal interactive runs). */
 export function showCompanionPanel(): BrowserWindow {
   const window = ensureCompanionWindowAlive()
   window.setBounds(resolvePanelBounds())
+  const reveal = (): void => {
+    // Why: automated/background runs must still stay entirely off screen.
+    if (!isWindowlessLaunch()) {
+      window.showInactive()
+    }
+  }
   if (window.webContents.isLoading()) {
-    window.once('ready-to-show', () => showWindowWithoutStealingFocus(window))
+    window.once('ready-to-show', reveal)
   } else {
-    showWindowWithoutStealingFocus(window)
+    reveal()
   }
   return window
 }
 
-/** Shows the panel for a passive agent-watch notice: always `showInactive()`, unlike
- *  `showCompanionPanel()`'s user-initiated hotkey open, which may take the OS foreground
- *  under the normal (non-background) launch policy. A notice must never steal focus. */
+/** Shows the panel for a passive agent-watch notice: `showInactive()`
+ *  unconditionally, unlike `showCompanionPanel()`'s hotkey open, which still
+ *  suppresses reveal entirely under background/E2E-headless launch policy.
+ *  Neither path ever activates Orca or changes the key window. */
 export function showCompanionPanelForNotice(): BrowserWindow {
   const window = ensureCompanionWindowAlive()
   window.setBounds(resolvePanelBounds())
