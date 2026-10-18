@@ -61,4 +61,23 @@ describe('companionConversation', () => {
     companionConversation.reportSpeaking()
     expect(companionConversation.getState()).toBe('idle')
   })
+
+  it('tracks lastUserText/lastAssistantText/updatedAt through a full turn', () => {
+    companionConversation.start()
+    const beforeUtterance = companionConversation.getSnapshot().updatedAt
+
+    companionConversation.reportUtterance('напиши заметку про проект')
+    const afterUtterance = companionConversation.getSnapshot()
+    expect(afterUtterance.lastUserText).toBe('напиши заметку про проект')
+    expect(afterUtterance.lastAssistantText).toBeNull()
+    expect(afterUtterance.updatedAt).toBeGreaterThanOrEqual(beforeUtterance)
+
+    companionConversation.reportAssistantFinal('Готово, записал.')
+    const afterFinal = companionConversation.getSnapshot()
+    expect(afterFinal.lastAssistantText).toBe('Готово, записал.')
+    expect(afterFinal.lastUserText).toBe('напиши заметку про проект')
+    expect(afterFinal.state).toBe('listening')
+
+    companionConversation.stop()
+  })
 })

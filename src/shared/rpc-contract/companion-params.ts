@@ -9,3 +9,7 @@ export const CompanionAsk = z.object({
 export const CompanionSay = z.object({
   text: requiredString('Missing text')
 })
+
+export const CompanionStatus = z.object({})
+
+export const CompanionToggle = z.object({})

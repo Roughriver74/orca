@@ -88,6 +88,8 @@ export type RuntimeServiceCommandSurface = {
   cancelMessageWaiters: RuntimeMessageWaiters['cancel']
   companionAsk: RuntimeCompanionController['ask']
   companionSay: RuntimeCompanionController['say']
+  companionStatus: RuntimeCompanionController['status']
+  companionToggle: RuntimeCompanionController['toggle']
 }
 
 type RuntimeServiceCommandOwners = {
@@ -200,6 +202,8 @@ export function installRuntimeServiceCommandSurface(
     waitForMessage: waiters.wait.bind(waiters),
     cancelMessageWaiters: waiters.cancel.bind(waiters),
     companionAsk: companion.ask.bind(companion),
-    companionSay: companion.say.bind(companion)
+    companionSay: companion.say.bind(companion),
+    companionStatus: companion.status.bind(companion),
+    companionToggle: companion.toggle.bind(companion)
   })
 }

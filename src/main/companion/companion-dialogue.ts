@@ -37,6 +37,7 @@ export type CompanionDialogueConversation = {
   reportThinking(): void
   reportListening(): void
   reportSpeaking(): void
+  reportAssistantFinal(text: string): void
 }
 
 export type CompanionDialogueBrain = {
@@ -171,6 +172,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
         streamHandle?.pushDelta(event.text)
       } else if (event.type === 'final') {
         deps.sendAssistantFinal(event.text)
+        deps.conversation.reportAssistantFinal(event.text)
       } else {
         hadError = true
         deps.sendAssistantError(event.message)

@@ -26,5 +26,24 @@ export const COMPANION_COMMAND_SPECS: CommandSpec[] = [
       'TTS must be provisioned first — enable the companion in settings and wait for provisioning to finish.'
     ],
     examples: ['orca companion say --text "Привет! Проверка связи."']
+  },
+  {
+    path: ['companion', 'status'],
+    summary:
+      'Show the Джарвис companion status: on/off, conversation state, hotkey, last turn, TTS readiness',
+    usage: 'orca companion status [--json]',
+    allowedFlags: [...GLOBAL_FLAGS],
+    examples: ['orca companion status --json']
+  },
+  {
+    path: ['companion', 'toggle'],
+    summary: 'Toggle the Джарвис companion conversation — same action as the global hotkey',
+    usage: 'orca companion toggle [--json]',
+    allowedFlags: [...GLOBAL_FLAGS],
+    notes: [
+      'Opens a fresh conversation when idle, closes it when listening/thinking, or barges in while it is speaking.',
+      'Fails if the companion is disabled in settings.'
+    ],
+    examples: ['orca companion toggle --json']
   }
 ]

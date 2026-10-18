@@ -274,7 +274,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
   },
   {
     name: 'companion',
-    keys: ['companion ask', 'companion say'],
+    keys: ['companion ask', 'companion say', 'companion status', 'companion toggle'],
     load: async () => (await import('./handlers/companion.js')).COMPANION_HANDLERS
   },
   {

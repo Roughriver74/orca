@@ -75,6 +75,12 @@ class FakeConversation {
       this.setState('speaking')
     }
   }
+
+  lastAssistantText: string | null = null
+
+  reportAssistantFinal(text: string): void {
+    this.lastAssistantText = text
+  }
 }
 
 /** Queues deferred turns FIFO: `nextTurn()` called before `send()` waits for it, and vice versa. */
