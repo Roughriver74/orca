@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { CompanionUtteranceHold } from '../../../../shared/companion-utterance-hold'
 
 // Extra silence tolerated after a clearly cut-off utterance ("...и,", "...чтобы") before
@@ -92,5 +92,19 @@ export function useCompanionUtteranceHoldWiring(): CompanionUtteranceHoldWiring 
     [hold, submitUtterance]
   )
 
-  return { isHolding, depsRef, handleFinalText, cancelHoldOnSpeaking, clearHold }
+  // Why useMemo: CompanionPanel's mic-meter callback depends on `cancelHoldOnSpeaking`
+  // via this object (`useCallback(..., [hold])`); without memoizing the returned object,
+  // every CompanionPanel render (including the ~15/s re-renders the live meter level
+  // triggers) produced a brand-new `hold` reference even though nothing in it actually
+  // changed. That cascaded through useAudioCapture's `publishMeter` dependency into
+  // `startCapture` -> `beginDictationSession` -> `restartForNextUtterance`, which in turn
+  // is a dependency of CompanionPanel's silence-driven end-of-utterance `useEffect` — so
+  // that effect tore down and recreated its 150ms interval on every meter tick, almost
+  // never letting a single tick actually fire. The offline GigaAM model's finalization
+  // (which only happens via that interval calling `restartForNextUtterance`) silently
+  // never ran: utterances never finalized at all. See companion-utterance-hold-wiring.test.ts.
+  return useMemo(
+    () => ({ isHolding, depsRef, handleFinalText, cancelHoldOnSpeaking, clearHold }),
+    [isHolding, depsRef, handleFinalText, cancelHoldOnSpeaking, clearHold]
+  )
 }
