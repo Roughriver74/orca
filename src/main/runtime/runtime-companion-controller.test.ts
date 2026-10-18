@@ -125,9 +125,8 @@ describe('RuntimeCompanionController status/toggle', () => {
   it('reports enabled: false with no store-backed companion settings', async () => {
     vi.mocked(getCompanionTtsProvisioningStatus).mockResolvedValue({ status: 'idle' })
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the controller only reads `getSettings().companion`.
-    const controller = new RuntimeCompanionController(
-      () => ({ getSettings: () => ({}) }) as unknown as RuntimeStore
-    )
+    const storeWithoutCompanion = { getSettings: () => ({}) } as unknown as RuntimeStore
+    const controller = new RuntimeCompanionController(() => storeWithoutCompanion)
 
     const status = await controller.status()
 
