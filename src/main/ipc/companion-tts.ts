@@ -56,7 +56,7 @@ export function registerCompanionTtsHandlers(store: CompanionTtsIpcStore): void 
       const tts = store.getSettings().companion?.tts ?? getDefaultCompanionSettings().tts
       const provider = new CompanionTtsYandexProvider(readYandexSpeechKitApiKey)
       try {
-        await provider.synthesize('settings-test', 'тест', tts.yandexVoice)
+        await provider.synthesize('settings-test', 'тест', tts.yandexVoice, tts.ttsRate)
         return { ok: true }
       } catch (error) {
         return { ok: false, message: describeYandexErrorRu(error) }

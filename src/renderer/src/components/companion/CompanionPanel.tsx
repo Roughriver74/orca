@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Mic, RotateCcw, Volume2 } from 'lucide-react'
+import { DictationGrapes } from '@/components/dictation/DictationGrapes'
 import { useAudioCapture } from '@/hooks/use-audio-capture'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
@@ -9,8 +10,12 @@ import type {
   CompanionSettings
 } from '../../../../shared/companion-types'
 import { getDefaultCompanionSettings } from '../../../../shared/constants'
+import { useCompanionUtteranceHoldWiring } from './companion-utterance-hold-wiring'
+import { useCompanionAssistantReplyStream } from './companion-assistant-reply-stream'
+import { useCompanionStartupHydration } from './companion-startup-hydration'
 import { useCompanionPlaybackMicHandoff } from './companion-playback-mic-handoff'
 import { CompanionNoticeToast } from './CompanionNoticeToast'
+import { CompanionTurnList } from './CompanionTurnList'
 import {
   describeListenStartError,
   micPermissionError,
@@ -19,7 +24,7 @@ import {
 
 const COMPANION_SESSION_ID = 'companion'
 
-type CompanionTurn = {
+export type CompanionTurn = {
   id: number
   role: 'user' | 'assistant'
   text: string
@@ -40,12 +45,26 @@ export function CompanionPanel(): React.JSX.Element {
   const [turnState, setTurnState] = useState<CompanionConversationState>('listening')
   const [error, setError] = useState<CompanionPanelError | null>(null)
   const [notice, setNotice] = useState<CompanionAgentNotice | null>(null)
-
+  // Why: the default offline GigaAM model never emits `speech:partial` (see
+  // CompanionPanel's `restartForNextUtterance` comment), so this live mic
+  // level is the only moment-to-moment feedback the user gets while
+  // speaking — rendered as a small level meter next to "Слушаю…".
+  const [meterLevel, setMeterLevel] = useState(0)
+  const hold = useCompanionUtteranceHoldWiring()
   const { start: startCapture, stop: stopCapture } = useAudioCapture(
-    useCallback((meter) => {
-      meterStateRef.current = meter
-      utterancePeakLevelRef.current = Math.max(utterancePeakLevelRef.current, meter.level)
-    }, [])
+    useCallback(
+      (meter) => {
+        meterStateRef.current = meter
+        setMeterLevel(meter.level)
+        utterancePeakLevelRef.current = Math.max(utterancePeakLevelRef.current, meter.level)
+        // The user resumed talking during a dangling-utterance hold — cancel the pending
+        // submit-as-is timeout; the normal end-of-utterance flow takes over from here.
+        if (meter.isSpeaking) {
+          hold.cancelHoldOnSpeaking()
+        }
+      },
+      [hold]
+    )
   )
 
   const settingsRef = useRef<CompanionSettings>(getDefaultCompanionSettings())
@@ -95,12 +114,15 @@ export function CompanionPanel(): React.JSX.Element {
 
   const stopListening = useCallback((): void => {
     resetSilenceTracking()
+    hold.clearHold()
     isActiveRef.current = false
     setIsActive(false)
     setPartialText('')
+    setMeterLevel(0)
     stopCapture()
     void window.api.speech.stopDictation(COMPANION_SESSION_ID)
-  }, [resetSilenceTracking, stopCapture])
+  }, [resetSilenceTracking, hold, stopCapture])
+  hold.depsRef.current = { appendUserTurn, stopListening }
 
   const beginDictationSession = useCallback(async (): Promise<void> => {
     try {
@@ -192,7 +214,10 @@ export function CompanionPanel(): React.JSX.Element {
       // Why 150ms poll instead of a nested setTimeout: a timer scheduled from
       // inside this interval can't be unmount-cleaned reliably by static
       // analysis, and a poll is just as accurate within the 150ms slack below.
-      if (Date.now() - silenceStartedAtRef.current >= settingsRef.current.endOfUtteranceMs) {
+      if (
+        Date.now() - silenceStartedAtRef.current >=
+        settingsRef.current.endOfUtteranceSeconds * 1000
+      ) {
         silenceStartedAtRef.current = null
         void restartForNextUtterance()
       }
@@ -203,7 +228,7 @@ export function CompanionPanel(): React.JSX.Element {
   }, [isActive, listeningThroughPlaybackRef, resetSilenceTracking, restartForNextUtterance])
 
   const handleFinalText = useCallback(
-    async (text: string): Promise<void> => {
+    (text: string): void => {
       const trimmed = text.trim()
       if (trimmed === '') {
         return
@@ -211,17 +236,9 @@ export function CompanionPanel(): React.JSX.Element {
       setPartialText('')
       const level = utterancePeakLevelRef.current
       utterancePeakLevelRef.current = 0
-      const result = await window.api.companion.reportUtterance(trimmed, { level })
-      if (result.ignored) {
-        // Wake mode: background speech (TV, other people) never enters the transcript.
-        return
-      }
-      appendUserTurn(trimmed)
-      if (result.stopped) {
-        stopListening()
-      }
+      hold.handleFinalText(trimmed, level)
     },
-    [appendUserTurn, stopListening]
+    [hold]
   )
 
   useEffect(() => {
@@ -232,7 +249,7 @@ export function CompanionPanel(): React.JSX.Element {
     })
     const offFinal = window.api.speech.onFinalTranscript((data) => {
       if (data.sessionId === COMPANION_SESSION_ID) {
-        void handleFinalText(data.text)
+        handleFinalText(data.text)
       }
     })
     return () => {
@@ -256,69 +273,10 @@ export function CompanionPanel(): React.JSX.Element {
 
   // Why: hydrate settings + catalog once, and pick up an already-open
   // conversation if the panel remounts (HMR, or a fresh window) mid-session.
-  useEffect(() => {
-    let disposed = false
-    void window.api.companion.getSettings().then((settings) => {
-      if (disposed) {
-        return
-      }
-      settingsRef.current = settings
-      void window.api.speech.getCatalog().then((catalog) => {
-        if (disposed) {
-          return
-        }
-        isStreamingModelRef.current =
-          catalog.find((m) => m.id === settings.sttModel)?.streaming ?? false
-      })
-    })
-    void window.api.companion.getConversationState().then((state) => {
-      if (!disposed && state !== 'idle') {
-        void startListening(false)
-      }
-    })
-    return () => {
-      disposed = true
-    }
-  }, [startListening])
+  useCompanionStartupHydration({ settingsRef, isStreamingModelRef, startListening })
 
   // Streamed reply state, pushed by main's dialogue orchestrator.
-  useEffect(() => {
-    const offDelta = window.api.companion.onAssistantDelta((text) => {
-      const id = ensureAssistantTurn()
-      setTurns((prev) =>
-        prev.map((turn) => (turn.id === id ? { ...turn, text: turn.text + text } : turn))
-      )
-    })
-    const offFinal = window.api.companion.onAssistantFinal((text) => {
-      const id = ensureAssistantTurn()
-      setTurns((prev) => prev.map((turn) => (turn.id === id ? { ...turn, text } : turn)))
-      currentAssistantTurnIdRef.current = null
-    })
-    const offAssistantError = window.api.companion.onAssistantError((message) => {
-      const id = ensureAssistantTurn()
-      setTurns((prev) =>
-        prev.map((turn) =>
-          turn.id === id
-            ? {
-                ...turn,
-                text: translate(
-                  'companion.panel.brainError',
-                  'Не получилось ответить: {{message}}',
-                  { message }
-                ),
-                isError: true
-              }
-            : turn
-        )
-      )
-      currentAssistantTurnIdRef.current = null
-    })
-    return () => {
-      offDelta()
-      offFinal()
-      offAssistantError()
-    }
-  }, [ensureAssistantTurn])
+  useCompanionAssistantReplyStream({ ensureAssistantTurn, setTurns, currentAssistantTurnIdRef })
 
   useEffect(() => {
     return window.api.companion.onStateChanged(setTurnState)
@@ -329,8 +287,9 @@ export function CompanionPanel(): React.JSX.Element {
       setTurns([])
       currentAssistantTurnIdRef.current = null
       setPartialText('')
+      hold.clearHold()
     })
-  }, [])
+  }, [hold])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -390,10 +349,7 @@ export function CompanionPanel(): React.JSX.Element {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-white/60">
           {turnState === 'listening' ? (
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-status-success opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-status-success" />
-            </span>
+            <DictationGrapes level={meterLevel} active={isActive} transitioning={false} />
           ) : (
             <StateIcon className={cn('size-3', turnState === 'thinking' && 'animate-spin')} />
           )}
@@ -410,23 +366,7 @@ export function CompanionPanel(): React.JSX.Element {
         </button>
       </div>
 
-      <div className="scrollbar-sleek flex-1 space-y-1.5 overflow-y-auto">
-        {turns.map((turn) => (
-          <div
-            key={turn.id}
-            className={cn(
-              'rounded-lg px-2.5 py-1.5 whitespace-pre-wrap',
-              turn.role === 'user' ? 'bg-white/5 text-white/90' : 'bg-white/10 text-white',
-              turn.isError && 'text-destructive'
-            )}
-          >
-            {turn.text}
-          </div>
-        ))}
-        {partialText !== '' && (
-          <div className="rounded-lg px-2.5 py-1.5 text-white/50 italic">{partialText}</div>
-        )}
-      </div>
+      <CompanionTurnList turns={turns} isHolding={hold.isHolding} partialText={partialText} />
 
       {error && (
         <div className="flex flex-col items-start gap-1.5 text-xs text-destructive">

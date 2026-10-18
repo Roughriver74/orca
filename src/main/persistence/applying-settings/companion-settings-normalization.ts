@@ -9,10 +9,10 @@ import type {
 } from '../../../shared/companion-types'
 import { getDefaultCompanionSettings } from '../../../shared/constants'
 
-const MIN_END_OF_UTTERANCE_MS = 300
-const MAX_END_OF_UTTERANCE_MS = 10_000
-const MIN_TTS_RATE = 0.5
-const MAX_TTS_RATE = 2
+const MIN_END_OF_UTTERANCE_SECONDS = 1
+const MAX_END_OF_UTTERANCE_SECONDS = 5
+const MIN_TTS_RATE = 0.7
+const MAX_TTS_RATE = 1.6
 const MAX_WAKE_FOLLOW_UP_MS = 30_000
 const MAX_WAKE_PHRASES = 10
 const MAX_WAKE_PHRASE_LENGTH = 40
@@ -161,12 +161,24 @@ export function normalizeCompanionSettings(value: unknown): CompanionSettings {
   const defaults = getDefaultCompanionSettings()
   const source = typeof value === 'object' && value !== null ? value : undefined
 
-  const endOfUtteranceMsRaw =
+  const endOfUtteranceSecondsRaw =
+    source && 'endOfUtteranceSeconds' in source ? source.endOfUtteranceSeconds : undefined
+  // Migrates settings persisted before the ms->seconds rename (see CompanionSettings):
+  // an old endOfUtteranceMs value still applies once, converted, until the user resaves.
+  const legacyEndOfUtteranceMsRaw =
     source && 'endOfUtteranceMs' in source ? source.endOfUtteranceMs : undefined
-  const endOfUtteranceMs =
-    typeof endOfUtteranceMsRaw === 'number' && Number.isFinite(endOfUtteranceMsRaw)
-      ? Math.min(MAX_END_OF_UTTERANCE_MS, Math.max(MIN_END_OF_UTTERANCE_MS, endOfUtteranceMsRaw))
-      : defaults.endOfUtteranceMs
+  const endOfUtteranceSeconds =
+    typeof endOfUtteranceSecondsRaw === 'number' && Number.isFinite(endOfUtteranceSecondsRaw)
+      ? Math.min(
+          MAX_END_OF_UTTERANCE_SECONDS,
+          Math.max(MIN_END_OF_UTTERANCE_SECONDS, endOfUtteranceSecondsRaw)
+        )
+      : typeof legacyEndOfUtteranceMsRaw === 'number' && Number.isFinite(legacyEndOfUtteranceMsRaw)
+        ? Math.min(
+            MAX_END_OF_UTTERANCE_SECONDS,
+            Math.max(MIN_END_OF_UTTERANCE_SECONDS, legacyEndOfUtteranceMsRaw / 1000)
+          )
+        : defaults.endOfUtteranceSeconds
 
   const enabledRaw = source && 'enabled' in source ? source.enabled : undefined
   const hotkeyRaw = source && 'hotkey' in source ? source.hotkey : undefined
@@ -187,7 +199,7 @@ export function normalizeCompanionSettings(value: unknown): CompanionSettings {
       typeof sttModelRaw === 'string' && sttModelRaw.trim() !== ''
         ? sttModelRaw
         : defaults.sttModel,
-    endOfUtteranceMs,
+    endOfUtteranceSeconds,
     voiceBargeIn: typeof voiceBargeInRaw === 'boolean' ? voiceBargeInRaw : defaults.voiceBargeIn,
     brainModel: isCompanionBrainModel(brainModelRaw) ? brainModelRaw : defaults.brainModel,
     launchAtLogin:

@@ -32,6 +32,7 @@ async function synthesizeV1(
   text: string,
   voice: CompanionYandexVoice,
   apiKey: string,
+  rate: number,
   signal: AbortSignal
 ): Promise<CompanionTtsYandexSynthesisResult> {
   const body = new URLSearchParams({
@@ -39,7 +40,9 @@ async function synthesizeV1(
     lang: 'ru-RU',
     voice,
     format: 'lpcm',
-    sampleRateHertz: String(SAMPLE_RATE)
+    sampleRateHertz: String(SAMPLE_RATE),
+    // Verified 2026-10-18 against the real API with the user's key: speed in [0.1, 3.0], 1.0 = normal.
+    speed: String(rate)
   })
   const response = await fetch(V1_URL, {
     method: 'POST',
@@ -61,6 +64,7 @@ async function synthesizeV3(
   text: string,
   voice: CompanionYandexVoice,
   apiKey: string,
+  rate: number,
   signal: AbortSignal
 ): Promise<CompanionTtsYandexSynthesisResult> {
   const response = await fetch(V3_URL, {
@@ -71,7 +75,8 @@ async function synthesizeV3(
       outputAudioSpec: {
         rawAudio: { audioEncoding: 'LINEAR16_PCM', sampleRateHertz: SAMPLE_RATE }
       },
-      hints: [{ voice }],
+      // Verified against the real API: a separate hint, not nested under the voice hint.
+      hints: [{ voice }, { speed: rate }],
       loudnessNormalizationType: 'LUFS'
     }),
     signal
@@ -111,7 +116,8 @@ export class CompanionTtsYandexProvider {
   async synthesize(
     requestId: string,
     text: string,
-    voice: CompanionYandexVoice
+    voice: CompanionYandexVoice,
+    rate: number
   ): Promise<CompanionTtsYandexSynthesisResult> {
     const controller = new AbortController()
     this.controllers.set(requestId, controller)
@@ -120,8 +126,8 @@ export class CompanionTtsYandexProvider {
       const apiKey = this.readApiKey()
       const api = YANDEX_VOICE_MIN_API[voice]
       return api === 'v1'
-        ? await synthesizeV1(text, voice, apiKey, controller.signal)
-        : await synthesizeV3(text, voice, apiKey, controller.signal)
+        ? await synthesizeV1(text, voice, apiKey, rate, controller.signal)
+        : await synthesizeV3(text, voice, apiKey, rate, controller.signal)
     } catch (error) {
       if (controller.signal.aborted) {
         throw new CompanionTtsCancelledError(requestId)

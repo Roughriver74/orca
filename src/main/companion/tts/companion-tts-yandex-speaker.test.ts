@@ -54,6 +54,27 @@ describe('CompanionTtsYandexSpeaker', () => {
     expect(snapshot.today.costRub).toBeGreaterThan(0)
   })
 
+  it('passes the rate through to the provider so the API actually speeds up/down', async () => {
+    const provider = fakeProvider()
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+    const speaker = new CompanionTtsYandexSpeaker(dir, { provider: provider as never })
+
+    await speaker.synthesize('req-1', 'привет', 'kirill', 1.3)
+
+    expect(provider.synthesize).toHaveBeenCalledWith('req-1', 'привет', 'kirill', 1.3)
+  })
+
+  it('does not cache across different rates for the same text', async () => {
+    const provider = fakeProvider()
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+    const speaker = new CompanionTtsYandexSpeaker(dir, { provider: provider as never })
+
+    await speaker.synthesize('req-1', 'привет', 'kirill', 1)
+    await speaker.synthesize('req-2', 'привет', 'kirill', 1.3)
+
+    expect(provider.synthesize).toHaveBeenCalledTimes(2)
+  })
+
   it('serves a repeated request from cache without calling the provider again', async () => {
     const provider = fakeProvider()
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.

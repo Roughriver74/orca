@@ -7,8 +7,9 @@ export type CompanionSettings = {
   homeDir: string
   /** Speech model id from the speech model catalog, used for the always-listening dictation session. */
   sttModel: string
-  /** Trailing silence (ms) after which an in-progress utterance is finalized. */
-  endOfUtteranceMs: number
+  /** Trailing silence (s) after which an in-progress utterance is finalized — unless the
+   *  text looks cut off (see isCompanionUtteranceDangling), which holds it a bit longer. */
+  endOfUtteranceSeconds: number
   /** Interrupt a spoken reply by talking over it (the hotkey barge-in always works). */
   voiceBargeIn: boolean
   /** Claude model the brain conversation runs on. */

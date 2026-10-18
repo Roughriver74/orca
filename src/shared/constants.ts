@@ -147,7 +147,10 @@ export function getDefaultCompanionSettings(): CompanionSettings {
     hotkey: 'Alt+Space',
     homeDir: '',
     sttModel: 'gigaam-v3-e2e-rnnt-ru',
-    endOfUtteranceMs: 1600,
+    // Why 2.5s (up from a legacy 1.6s): natural mid-sentence thinking pauses in Russian
+    // speech routinely run 1.5-2s, and the offline STT model needs a stop/restart cycle
+    // to flush its buffer — 1.6s was cutting people off before they finished a thought.
+    endOfUtteranceSeconds: 2.5,
     voiceBargeIn: false,
     brainModel: 'sonnet',
     launchAtLogin: false,

@@ -60,7 +60,7 @@ export class CompanionTtsYandexSpeaker {
       return cached
     }
 
-    const result = await this.provider.synthesize(requestId, text, voice)
+    const result = await this.provider.synthesize(requestId, text, voice, rate)
     await this.cache.put(key, result)
     recordYandexTtsUsage(this.userDataDir, {
       characters: text.length,

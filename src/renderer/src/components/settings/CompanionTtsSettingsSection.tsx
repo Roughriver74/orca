@@ -8,7 +8,7 @@ import { Separator } from '../ui/separator'
 import { Switch } from '../ui/switch'
 import { Slider } from '../ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { translate } from '@/i18n/i18n'
+import { getIntlLocale, translate } from '@/i18n/i18n'
 import { CompanionYandexTtsSettingsSection } from './CompanionYandexTtsSettingsSection'
 
 const TTS_VOICE_LABELS: Record<CompanionTtsVoice, string> = {
@@ -133,12 +133,16 @@ export function CompanionTtsSettingsSection({
             {translate('auto.components.settings.CompanionPane.ttsRate', 'Скорость озвучки')}
           </Label>
           <span className="text-xs text-muted-foreground">
-            {companionSettings.tts.ttsRate.toFixed(2)}×
+            {new Intl.NumberFormat(getIntlLocale(), {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }).format(companionSettings.tts.ttsRate)}
+            ×
           </span>
         </div>
         <Slider
-          min={0.5}
-          max={2}
+          min={0.7}
+          max={1.6}
           step={0.05}
           value={[companionSettings.tts.ttsRate]}
           onValueChange={([value]) => updateTtsSettings({ ttsRate: value })}

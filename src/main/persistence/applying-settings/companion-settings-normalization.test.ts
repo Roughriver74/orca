@@ -14,7 +14,7 @@ describe('normalizeCompanionSettings', () => {
       hotkey: 'Control+Space',
       homeDir: '/Users/evgenijsikunov/assistant',
       sttModel: 'gigaam-v3-e2e-rnnt-ru',
-      endOfUtteranceMs: 2000,
+      endOfUtteranceSeconds: 2,
       voiceBargeIn: true,
       brainModel: 'opus',
       launchAtLogin: true,
@@ -39,7 +39,7 @@ describe('normalizeCompanionSettings', () => {
       hotkey: 42,
       homeDir: 42,
       sttModel: null,
-      endOfUtteranceMs: 'fast',
+      endOfUtteranceSeconds: 'fast',
       brainModel: 'gpt-5',
       launchAtLogin: 'yes',
       tts: { ttsEnabled: 'yes', ttsVoice: 'robot', ttsRate: 'fast' },
@@ -56,12 +56,23 @@ describe('normalizeCompanionSettings', () => {
     expect(normalized.sttModel).toBe(getDefaultCompanionSettings().sttModel)
   })
 
-  it('clamps endOfUtteranceMs into a sane range', () => {
-    expect(normalizeCompanionSettings({ endOfUtteranceMs: 10 }).endOfUtteranceMs).toBe(300)
-    expect(normalizeCompanionSettings({ endOfUtteranceMs: 999_999 }).endOfUtteranceMs).toBe(10_000)
-    expect(normalizeCompanionSettings({ endOfUtteranceMs: Number.NaN }).endOfUtteranceMs).toBe(
-      getDefaultCompanionSettings().endOfUtteranceMs
-    )
+  it('clamps endOfUtteranceSeconds into a sane range', () => {
+    expect(normalizeCompanionSettings({ endOfUtteranceSeconds: 0.1 }).endOfUtteranceSeconds).toBe(1)
+    expect(normalizeCompanionSettings({ endOfUtteranceSeconds: 999 }).endOfUtteranceSeconds).toBe(5)
+    expect(
+      normalizeCompanionSettings({ endOfUtteranceSeconds: Number.NaN }).endOfUtteranceSeconds
+    ).toBe(getDefaultCompanionSettings().endOfUtteranceSeconds)
+  })
+
+  it('migrates a legacy endOfUtteranceMs value to seconds, clamped', () => {
+    expect(normalizeCompanionSettings({ endOfUtteranceMs: 2000 }).endOfUtteranceSeconds).toBe(2)
+    expect(normalizeCompanionSettings({ endOfUtteranceMs: 100 }).endOfUtteranceSeconds).toBe(1)
+    expect(normalizeCompanionSettings({ endOfUtteranceMs: 999_999 }).endOfUtteranceSeconds).toBe(5)
+    // A new-format value present alongside the legacy one wins.
+    expect(
+      normalizeCompanionSettings({ endOfUtteranceMs: 4000, endOfUtteranceSeconds: 1.5 })
+        .endOfUtteranceSeconds
+    ).toBe(1.5)
   })
 
   it('ignores a non-object value entirely', () => {
@@ -70,8 +81,8 @@ describe('normalizeCompanionSettings', () => {
   })
 
   it('clamps ttsRate and rejects an unknown voice', () => {
-    expect(normalizeCompanionSettings({ tts: { ttsRate: 0.1 } }).tts.ttsRate).toBe(0.5)
-    expect(normalizeCompanionSettings({ tts: { ttsRate: 10 } }).tts.ttsRate).toBe(2)
+    expect(normalizeCompanionSettings({ tts: { ttsRate: 0.1 } }).tts.ttsRate).toBe(0.7)
+    expect(normalizeCompanionSettings({ tts: { ttsRate: 10 } }).tts.ttsRate).toBe(1.6)
     expect(normalizeCompanionSettings({ tts: { ttsVoice: 'robot' } }).tts.ttsVoice).toBe(
       getDefaultCompanionSettings().tts.ttsVoice
     )

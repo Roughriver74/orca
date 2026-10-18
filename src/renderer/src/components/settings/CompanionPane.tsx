@@ -209,16 +209,16 @@ export function CompanionPane({ settings, updateSettings }: CompanionPaneProps):
             {translate(
               'auto.components.settings.CompanionPane.endOfUtteranceSeconds',
               '{{seconds}} с',
-              { seconds: (companionSettings.endOfUtteranceMs / 1000).toFixed(1) }
+              { seconds: companionSettings.endOfUtteranceSeconds.toFixed(1) }
             )}
           </span>
         </div>
         <Slider
-          min={300}
-          max={5000}
-          step={100}
-          value={[companionSettings.endOfUtteranceMs]}
-          onValueChange={([value]) => updateCompanionSettings({ endOfUtteranceMs: value })}
+          min={1}
+          max={5}
+          step={0.1}
+          value={[companionSettings.endOfUtteranceSeconds]}
+          onValueChange={([value]) => updateCompanionSettings({ endOfUtteranceSeconds: value })}
         />
       </div>
 

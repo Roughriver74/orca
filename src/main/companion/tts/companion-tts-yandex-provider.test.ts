@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { isRecord } from '../../../shared/agent-status-child-work-value-guards'
 import { CompanionTtsYandexProvider } from './companion-tts-yandex-provider'
 import { CompanionTtsCancelledError } from './companion-tts-sidecar-process'
 
@@ -39,10 +40,27 @@ describe('CompanionTtsYandexProvider', () => {
     globalThis.fetch = fetchMock
     const provider = new CompanionTtsYandexProvider(() => 'test-key')
 
-    const result = await provider.synthesize('req-1', 'привет', 'filipp')
+    const result = await provider.synthesize('req-1', 'привет', 'filipp', 1)
 
     expect(result.sampleRate).toBe(48_000)
     expect(result.pcm).toHaveLength(2)
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it('sends the rate as the v1 form-encoded "speed" field', async () => {
+    const fetchMock = vi.fn<typeof fetch>(async (_url, init) => {
+      const body = init?.body
+      if (!(body instanceof URLSearchParams)) {
+        throw new Error('expected a URLSearchParams body')
+      }
+      expect(body.get('speed')).toBe('1.3')
+      return new Response(new Uint8Array(pcmBuffer([0])), { status: 200 })
+    })
+    globalThis.fetch = fetchMock
+    const provider = new CompanionTtsYandexProvider(() => 'test-key')
+
+    await provider.synthesize('req-1b', 'привет', 'filipp', 1.3)
+
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
@@ -56,10 +74,27 @@ describe('CompanionTtsYandexProvider', () => {
     globalThis.fetch = fetchMock
     const provider = new CompanionTtsYandexProvider(() => 'test-key')
 
-    const result = await provider.synthesize('req-2', 'привет', 'kirill')
+    const result = await provider.synthesize('req-2', 'привет', 'kirill', 1)
 
     expect(result.sampleRate).toBe(48_000)
     expect(result.pcm).toHaveLength(2)
+  })
+
+  it('sends the rate as a v3 "speed" hint alongside the voice hint', async () => {
+    const fetchMock = vi.fn<typeof fetch>(async (_url, init) => {
+      const parsed: unknown = JSON.parse(String(init?.body))
+      if (!isRecord(parsed) || !Array.isArray(parsed.hints)) {
+        throw new Error('expected a hints array in the v3 request body')
+      }
+      expect(parsed.hints).toContainEqual({ speed: 1.3 })
+      return new Response(v3NdjsonStream([]), { status: 200 })
+    })
+    globalThis.fetch = fetchMock
+    const provider = new CompanionTtsYandexProvider(() => 'test-key')
+
+    await provider.synthesize('req-2b', 'привет', 'kirill', 1.3)
+
+    expect(fetchMock).toHaveBeenCalledOnce()
   })
 
   it('reassembles PCM split across multiple NDJSON audio chunks in order', async () => {
@@ -70,7 +105,7 @@ describe('CompanionTtsYandexProvider', () => {
     )
     const provider = new CompanionTtsYandexProvider(() => 'test-key')
 
-    const result = await provider.synthesize('req-3', 'текст', 'kirill')
+    const result = await provider.synthesize('req-3', 'текст', 'kirill', 1)
 
     expect(Array.from(result.pcm)).toHaveLength(4)
   })
@@ -79,7 +114,7 @@ describe('CompanionTtsYandexProvider', () => {
     globalThis.fetch = vi.fn<typeof fetch>(async () => new Response('bad key', { status: 401 }))
     const provider = new CompanionTtsYandexProvider(() => 'bad-key')
 
-    await expect(provider.synthesize('req-4', 'привет', 'filipp')).rejects.toMatchObject({
+    await expect(provider.synthesize('req-4', 'привет', 'filipp', 1)).rejects.toMatchObject({
       code: 'auth'
     })
   })
@@ -90,7 +125,7 @@ describe('CompanionTtsYandexProvider', () => {
     )
     const provider = new CompanionTtsYandexProvider(() => 'test-key')
 
-    await expect(provider.synthesize('req-5', 'привет', 'filipp')).rejects.toMatchObject({
+    await expect(provider.synthesize('req-5', 'привет', 'filipp', 1)).rejects.toMatchObject({
       code: 'quota'
     })
   })
@@ -101,7 +136,9 @@ describe('CompanionTtsYandexProvider', () => {
     })
     const provider = new CompanionTtsYandexProvider(() => 'test-key')
 
-    await expect(provider.synthesize('req-6', 'привет', 'filipp')).rejects.toBeInstanceOf(TypeError)
+    await expect(provider.synthesize('req-6', 'привет', 'filipp', 1)).rejects.toBeInstanceOf(
+      TypeError
+    )
   })
 
   it('cancel() aborts the in-flight request, rejecting with CompanionTtsCancelledError', async () => {
@@ -114,7 +151,7 @@ describe('CompanionTtsYandexProvider', () => {
     })
     const provider = new CompanionTtsYandexProvider(() => 'test-key')
 
-    const pending = provider.synthesize('req-7', 'привет', 'filipp')
+    const pending = provider.synthesize('req-7', 'привет', 'filipp', 1)
     provider.cancel('req-7')
 
     await expect(pending).rejects.toBeInstanceOf(CompanionTtsCancelledError)

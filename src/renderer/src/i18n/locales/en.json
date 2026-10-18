@@ -21198,6 +21198,7 @@
     "panel": {
       "thinking": "Думаю…",
       "listening": "Слушаю…",
+      "holdingContinuation": "…жду продолжения",
       "notice": {
         "discuss": "Обсудить",
         "later": "Позже"
