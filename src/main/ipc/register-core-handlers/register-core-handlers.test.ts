@@ -213,6 +213,10 @@ vi.mock('../../companion/companion-agent-watch', () => ({
   initCompanionAgentWatch: initCompanionAgentWatchMock
 }))
 
+vi.mock('../../companion/companion-assets', () => ({
+  initCompanionAssets: () => () => {}
+}))
+
 vi.mock('../cli', () => ({
   registerCliHandlers: registerCliHandlersMock
 }))

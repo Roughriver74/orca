@@ -67,6 +67,7 @@ import { registerCompanionHandlers } from '../companion'
 import { initCompanionHotkey } from '../../companion/companion-shortcut'
 import { initCompanionDialogue } from '../../companion/companion-dialogue'
 import { initCompanionAgentWatch } from '../../companion/companion-agent-watch'
+import { initCompanionAssets } from '../../companion/companion-assets'
 import { registerTerminalRenderDesyncEvidenceHandler } from '../terminal-render-desync-evidence'
 import { registerOrcaProfileHandlers } from '../orca-profiles'
 import { registerCodexAccountHandlers } from '../codex-accounts'
@@ -312,4 +313,5 @@ export function registerCoreHandlers(
   app.once('will-quit', disposeCompanionDialogue)
   const disposeCompanionAgentWatch = initCompanionAgentWatch(store)
   app.once('will-quit', disposeCompanionAgentWatch)
+  app.once('will-quit', initCompanionAssets(store))
 }
