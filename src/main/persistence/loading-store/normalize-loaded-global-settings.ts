@@ -1,5 +1,6 @@
 import { normalizeNativeChatAppearanceSettings } from '../../../shared/native-chat-appearance-settings'
 import { getDefaultVoiceSettings } from '../../../shared/constants'
+import { normalizeCompanionSettings } from '../applying-settings/companion-settings-normalization'
 import { normalizePRBotAuthorOverrides } from '../../../shared/pr-bot-author-overrides'
 import { normalizeTerminalQuickCommands } from '../../../shared/terminal-quick-commands'
 import { normalizeOpenInApplications } from '../../../shared/open-in-applications'
@@ -177,6 +178,7 @@ export function normalizeLoadedGlobalSettings(
       ...getDefaultVoiceSettings(),
       ...parsed.settings?.voice
     },
+    companion: normalizeCompanionSettings(parsed.settings?.companion),
     ...migratedPromptLibrarySnippets
   }
 }

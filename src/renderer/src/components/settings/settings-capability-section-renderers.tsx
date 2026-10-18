@@ -1,5 +1,6 @@
 import { AccountsPane } from './AccountsPane'
 import { AgentsPane } from './AgentsPane'
+import { CompanionPane } from './CompanionPane'
 import { ComputerUsePane } from './ComputerUsePane'
 import { LinearAgentSkillPane } from './LinearAgentSkillPane'
 import { OrchestrationPane } from './OrchestrationPane'
@@ -154,6 +155,20 @@ export function renderDesktopCapabilitySettingsSections(
       >
         {view.isSectionMounted('voice') ? (
           <VoicePane settings={model.settings} updateSettings={model.updateSettings} />
+        ) : null}
+      </SettingsSection>
+
+      <SettingsSection
+        id="companion"
+        title={translate('auto.components.settings.Settings.companionTitle', 'Companion')}
+        description={translate(
+          'auto.components.settings.Settings.companionDescription',
+          'Hotkey-triggered voice companion (Джарвис) that listens and replies system-wide.'
+        )}
+        searchEntries={navigation.getSectionSearchEntries('companion')}
+      >
+        {view.isSectionMounted('companion') ? (
+          <CompanionPane settings={model.settings} updateSettings={model.updateSettings} />
         ) : null}
       </SettingsSection>
     </>

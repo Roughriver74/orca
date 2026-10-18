@@ -1,5 +1,5 @@
 import type { GlobalSettings } from './global-settings-types'
-import { getDefaultVoiceSettings } from './constants'
+import { getDefaultVoiceSettings, getDefaultCompanionSettings } from './constants'
 import { getDefaultNotificationSettings } from './notification-settings-defaults'
 import { buildDefaultSettings } from './default-global-settings'
 
@@ -20,7 +20,8 @@ export function createGlobalSettingsFixture(
       terminalInactivePaneOpacity: 0.5,
       terminalRightClickToPaste: false,
       notifications: getDefaultNotificationSettings(),
-      voice: getDefaultVoiceSettings()
+      voice: getDefaultVoiceSettings(),
+      companion: getDefaultCompanionSettings()
     }),
     ...overrides
   }

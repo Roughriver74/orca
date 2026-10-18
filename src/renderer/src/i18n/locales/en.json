@@ -1458,7 +1458,9 @@
         "automationsDescription": "Schedule agent work and choose whether Automations appears in the sidebar.",
         "shareSkillsTitle": "Share Skills",
         "shareSkillsDescription": "Share your skills with an unlisted link. Anyone who has it can install them.",
-        "floatingWorkspaceWebDescription": "Global terminal and markdown tabs."
+        "floatingWorkspaceWebDescription": "Global terminal and markdown tabs.",
+        "companionTitle": "Companion",
+        "companionDescription": "Hotkey-triggered voice companion (Джарвис) that listens and replies system-wide."
       },
       "useAppMenuPaste": {
         "pasteTooLarge": "Paste is too large."
@@ -7042,6 +7044,11 @@
           "running": "Running",
           "tooltip": "{{value0}} · {{value1}}",
           "tooltipFailed": "{{value0}} · {{value1}} · exit {{value2}}"
+        },
+        "WorktreeCardUsage": {
+          "triggerAriaLabel": "Today’s usage: {{value0}}",
+          "sectionTitle": "Usage Today",
+          "partialCostSuffix": "(partial — some models unpriced)"
         }
       },
       "shared": {
@@ -9046,7 +9053,9 @@
           "linearTitle": "Linear",
           "linearDescription": "How Linear works in Orca, setup checklist, agent skill, and example prompts.",
           "tasksDescription": "Connect providers, install the Linear skill, and choose what appears in Tasks.",
-          "remoteServersDescription": "Run Orca on another machine and work on it from here."
+          "remoteServersDescription": "Run Orca on another machine and work on it from here.",
+          "companionTitle": "Companion",
+          "companionDescription": "Hotkey-triggered voice companion (Джарвис) that listens and replies system-wide."
         },
         "SettingsFormControls": {
           "42a4d15a30": "No matching fonts.",
@@ -13403,7 +13412,59 @@
           "keywordTest": "test",
           "keywordTypecheck": "typecheck",
           "placeholder": "pnpm tc && pnpm test",
-          "title": "Check Command"
+          "title": "Check Command",
+          "keywordVerify": "verify"
+        },
+        "CompanionPane": {
+          "tts": {
+            "downloading": "Загрузка голоса…",
+            "error": "Не удалось загрузить голос.",
+            "ready": "Голос готов."
+          },
+          "enable": "Включить Джарвиса",
+          "enableDescription": "Голосовой помощник по горячей клавише, работает поверх всех приложений.",
+          "hotkey": "Горячая клавиша",
+          "hotkeyDescription": "Например: Alt+Space или Control+J.",
+          "sttModel": "Модель распознавания",
+          "sttModelDescription": "Только уже установленные модели. Загрузите модель на вкладке Voice.",
+          "endOfUtterance": "Пауза перед завершением фразы",
+          "seconds": "с",
+          "ttsEnable": "Озвучивать ответы",
+          "ttsVoice": "Голос",
+          "ttsRate": "Скорость озвучки",
+          "endOfUtteranceSeconds": "{{seconds}} с",
+          "notifyEnable": "Уведомлять о других агентах",
+          "notifyEnableDescription": "Тихое уведомление, когда агент закончил работу или ждёт решения.",
+          "notifyQuietHours": "Тихие часы",
+          "notifyQuietHoursDescription": "Уведомления копятся и приходят после окончания тихих часов.",
+          "notifyQuietHoursTo": "до",
+          "notifySpeak": "Озвучивать уведомления",
+          "notifySpeakDescription": "Проговаривать уведомление вслух, а не только показывать текст."
+        },
+        "companion": {
+          "pane": {
+            "search": {
+              "enable": "Включить Джарвиса",
+              "enableDescription": "Голосовой помощник по горячей клавише, работает поверх всех приложений.",
+              "companion": "companion",
+              "jarvis": "jarvis",
+              "voice": "voice",
+              "hotkey": "global hotkey",
+              "hotkeyTitle": "Горячая клавиша",
+              "hotkeyTitleDescription": "Клавиша для открытия панели Джарвиса из любого приложения.",
+              "shortcut": "shortcut",
+              "sttModelTitle": "Модель распознавания",
+              "sttModelTitleDescription": "Речь-в-текст модель для прослушивания Джарвисом.",
+              "stt": "speech to text",
+              "ttsTitle": "Озвучивать ответы",
+              "ttsTitleDescription": "Голос и скорость озвучки ответов Джарвиса.",
+              "tts": "text to speech",
+              "notifyTitle": "Уведомлять о других агентах",
+              "notifyTitleDescription": "Тихое уведомление, когда агент закончил работу или ждёт решения, плюс тихие часы.",
+              "notify": "notifications",
+              "quietHours": "quiet hours"
+            }
+          }
         }
       },
       "right": {
@@ -13510,7 +13571,8 @@
           },
           "FileExplorerBackgroundMenu": {
             "3b5e2dcb8d": "New Folder",
-            "21fe46ed36": "New File"
+            "21fe46ed36": "New File",
+            "7e1b4f9a02": "Paste"
           },
           "FileExplorerRow": {
             "addc01145f": "Delete",
@@ -13546,7 +13608,8 @@
             "clipboardStagingUnavailable": "Could not copy the file because Orca's temporary storage is unavailable",
             "revealInFinder": "Reveal in Finder",
             "openContainingFolder": "Open Containing Folder",
-            "revealInFileExplorer": "Reveal in File Explorer"
+            "revealInFileExplorer": "Reveal in File Explorer",
+            "9d3a7c1e42": "Paste"
           },
           "file": {
             "explorer": {
@@ -20262,6 +20325,16 @@
     },
     "unlinkedPr": {
       "status": "PR #{{number}} unlinked"
+    },
+    "reviewedChanges": {
+      "sectionLabel": "Since review",
+      "countTitle": "Files changed since this workspace was last marked reviewed",
+      "refresh": "Refresh",
+      "markReviewed": "Mark as reviewed",
+      "emptyState": "Mark this workspace as reviewed, then come back later to see only what changed since.",
+      "noChanges": "No changes since you marked this workspace reviewed.",
+      "openAll": "Open all diffs",
+      "combinedDiffSubject": "Changes since review"
     }
   },
   "agentsSidebarIntro": {
@@ -21075,6 +21148,20 @@
     },
     "chips": {
       "ariaLabel": "Suggested prompts"
+    }
+  },
+  "companion": {
+    "recoverableError": {
+      "title": "Джарвис завис.",
+      "description": "Панель не смогла отрисоваться. Закройте её и попробуйте снова."
+    },
+    "panel": {
+      "thinking": "Думаю…",
+      "listening": "Слушаю…",
+      "notice": {
+        "discuss": "Обсудить",
+        "later": "Позже"
+      }
     }
   }
 }

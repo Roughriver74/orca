@@ -41,6 +41,7 @@ import {
   type ProtectedSecretPersistence
 } from '../../protected-secret-persistence'
 import { normalizeNotificationSettings } from './onboarding-normalization'
+import { normalizeCompanionSettings } from './companion-settings-normalization'
 import { retireLegacyInstructionsForClearedTextActionRecipes } from './source-control-settings'
 import {
   buildWorkspaceDirHistoryForUpdate,
@@ -182,10 +183,7 @@ export function updateSettings(
   if ('autoRenameBranchFromWork' in updates || 'autoRenameBranchFromWorkDefaultedOn' in updates) {
     sanitizedUpdates.autoRenameBranchFromWorkDefaultedOn = true
   }
-  if (
-    'promptLibrarySnippets' in updates ||
-    'promptLibraryContextStartersSeeded' in updates
-  ) {
+  if ('promptLibrarySnippets' in updates || 'promptLibraryContextStartersSeeded' in updates) {
     sanitizedUpdates.promptLibraryContextStartersSeeded = true
   }
   if ('openInApplications' in updates) {
@@ -284,6 +282,10 @@ export function updateSettings(
     notifications: normalizeNotificationSettings({
       ...operations.state.settings.notifications,
       ...sanitizedUpdates.notifications
+    }),
+    companion: normalizeCompanionSettings({
+      ...operations.state.settings.companion,
+      ...sanitizedUpdates.companion
     }),
     ...(mergedTelemetry !== undefined ? { telemetry: mergedTelemetry } : {})
   }

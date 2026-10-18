@@ -150,7 +150,8 @@ export abstract class OrcaRuntimeWithStateFields extends OrcaRuntimeWithLinearCo
       mobileSpeech: this.mobileSpeech,
       mobileDictation: this.mobileDictation,
       browserDrivers: this.browserDrivers,
-      messageWaiters: this.messageWaiters
+      messageWaiters: this.messageWaiters,
+      companion: this.companion
     })
     this.skillCommands = new RuntimeSkillCommands({
       getRuntimeId: () => this.runtimeId,

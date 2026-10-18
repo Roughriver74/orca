@@ -64,6 +64,10 @@ const {
   isDashboardPopoutRendererMock,
   registerTerminalPreviewHandlersMock,
   registerSpeechHandlersMock,
+  registerCompanionHandlersMock,
+  initCompanionHotkeyMock,
+  initCompanionDialogueMock,
+  initCompanionAgentWatchMock,
   registerSkillsHandlersMock,
   registerSkillDeleteIpcHandlersMock,
   registerWorkspaceSpaceHandlersMock,
@@ -136,6 +140,10 @@ const {
   isDashboardPopoutRendererMock: vi.fn(),
   registerTerminalPreviewHandlersMock: vi.fn(),
   registerSpeechHandlersMock: vi.fn(),
+  registerCompanionHandlersMock: vi.fn(),
+  initCompanionHotkeyMock: vi.fn(() => () => {}),
+  initCompanionDialogueMock: vi.fn(() => () => {}),
+  initCompanionAgentWatchMock: vi.fn(() => () => {}),
   registerSkillsHandlersMock: vi.fn(),
   registerSkillDeleteIpcHandlersMock: vi.fn(),
   registerWorkspaceSpaceHandlersMock: vi.fn(),
@@ -187,6 +195,22 @@ vi.mock('../terminal-preview', () => ({
 
 vi.mock('../speech', () => ({
   registerSpeechHandlers: registerSpeechHandlersMock
+}))
+
+vi.mock('../companion', () => ({
+  registerCompanionHandlers: registerCompanionHandlersMock
+}))
+
+vi.mock('../../companion/companion-shortcut', () => ({
+  initCompanionHotkey: initCompanionHotkeyMock
+}))
+
+vi.mock('../../companion/companion-dialogue', () => ({
+  initCompanionDialogue: initCompanionDialogueMock
+}))
+
+vi.mock('../../companion/companion-agent-watch', () => ({
+  initCompanionAgentWatch: initCompanionAgentWatchMock
 }))
 
 vi.mock('../cli', () => ({

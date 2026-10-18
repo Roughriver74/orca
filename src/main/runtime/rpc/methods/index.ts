@@ -22,6 +22,7 @@ import { NOTIFICATION_METHODS } from './notifications'
 import { STATS_METHODS } from './stats'
 import { DIAGNOSTICS_METHODS } from './diagnostics'
 import { TERMINAL_DAEMON_METHODS } from './terminal-daemon'
+import { COMPANION_METHODS } from './companion'
 import { ACCOUNT_METHODS } from './accounts'
 import { ANTIGRAVITY_ACCOUNT_METHODS } from './antigravity-accounts'
 import { USAGE_CREDENTIAL_METHODS } from './usage-credentials'
@@ -110,6 +111,7 @@ export const ALL_RPC_METHODS = [
   ...STATS_METHODS,
   ...DIAGNOSTICS_METHODS,
   ...TERMINAL_DAEMON_METHODS,
+  ...COMPANION_METHODS,
   ...ACCOUNT_METHODS,
   ...ANTIGRAVITY_ACCOUNT_METHODS,
   ...USAGE_CREDENTIAL_METHODS,

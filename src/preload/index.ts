@@ -39,6 +39,7 @@ import { claudeAccountsApi } from './api/claude-accounts-bridge'
 import { cliApi } from './api/cli-bridge'
 import { codexConfigSyncApi } from './api/codex-config-sync-bridge'
 import { preflightApi } from './api/preflight-bridge'
+import { companionApi } from './api/companion-bridge'
 import { notificationsApi } from './api/notifications-bridge'
 import { onboardingApi } from './api/onboarding-bridge'
 import { dashboardApi } from './api/dashboard-bridge'
@@ -186,7 +187,8 @@ const api = {
   e2e: e2eApi,
   mobile: mobileApi,
   agentStatus: agentStatusApi,
-  speech: speechApi
+  speech: speechApi,
+  companion: companionApi
 } satisfies PreloadApi
 
 if (process.contextIsolated) {

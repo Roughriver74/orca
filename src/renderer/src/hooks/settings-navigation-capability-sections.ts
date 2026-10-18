@@ -1,6 +1,7 @@
 import { LinearIcon } from '@/components/icons/LinearIcon'
 import { getAccountsPaneSearchEntries } from '@/components/settings/accounts-search'
 import { getAgentsPaneSearchEntries } from '@/components/settings/agents-search'
+import { getCompanionPaneSearchEntries } from '@/components/settings/companion-pane-search'
 import { getComputerUsePaneSearchEntries } from '@/components/settings/computer-use-search'
 import { getGeneralPaneSearchEntries } from '@/components/settings/general-search'
 import { getIntegrationsPaneSearchEntries } from '@/components/settings/integrations-search'
@@ -13,6 +14,7 @@ import { getVoicePaneSearchEntries } from '@/components/settings/voice-pane-sear
 import { translate } from '@/i18n/i18n'
 import type { SettingsNavSection } from '@/lib/settings-navigation-types'
 import {
+  AudioLines,
   Blocks,
   Bot,
   CircleUserRound,
@@ -115,6 +117,20 @@ export function buildCapabilitySettingsSections({
             ),
             icon: Mic,
             searchEntries: getVoicePaneSearchEntries(),
+            group: 'capabilities'
+          },
+          {
+            id: 'companion',
+            title: translate(
+              'auto.hooks.useSettingsNavigationMetadata.companionTitle',
+              'Companion'
+            ),
+            description: translate(
+              'auto.hooks.useSettingsNavigationMetadata.companionDescription',
+              'Hotkey-triggered voice companion (Джарвис) that listens and replies system-wide.'
+            ),
+            icon: AudioLines,
+            searchEntries: getCompanionPaneSearchEntries(),
             group: 'capabilities'
           }
         ]

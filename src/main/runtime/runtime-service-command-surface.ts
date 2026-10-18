@@ -1,3 +1,4 @@
+import type { RuntimeCompanionController } from './runtime-companion-controller'
 import type { RuntimeAccountController } from './runtime-account-controller'
 import type { RuntimeAiVaultCommands } from './runtime-ai-vault-commands'
 import type { RuntimeBrowserDriverController } from './runtime-browser-driver-controller'
@@ -85,6 +86,8 @@ export type RuntimeServiceCommandSurface = {
   notifyMessageArrived(handle: string, messageType?: string): void
   waitForMessage: RuntimeMessageWaiters['wait']
   cancelMessageWaiters: RuntimeMessageWaiters['cancel']
+  companionAsk: RuntimeCompanionController['ask']
+  companionSay: RuntimeCompanionController['say']
 }
 
 type RuntimeServiceCommandOwners = {
@@ -99,6 +102,7 @@ type RuntimeServiceCommandOwners = {
   mobileDictation: RuntimeMobileDictationController
   browserDrivers: RuntimeBrowserDriverController
   messageWaiters: RuntimeMessageWaiters
+  companion: RuntimeCompanionController
 }
 
 export function installRuntimeServiceCommandSurface(
@@ -116,6 +120,7 @@ export function installRuntimeServiceCommandSurface(
   const dictation = owners.mobileDictation
   const browsers = owners.browserDrivers
   const waiters = owners.messageWaiters
+  const companion = owners.companion
   Object.assign(target, {
     listAiVaultSessions: vault.list.bind(vault),
     resolveAiVaultSessionTitles: vault.resolveTitles.bind(vault),
@@ -193,6 +198,8 @@ export function installRuntimeServiceCommandSurface(
     getAllBrowserDrivers: browsers.getAll.bind(browsers),
     reclaimBrowserForDesktop: browsers.reclaimForDesktop.bind(browsers),
     waitForMessage: waiters.wait.bind(waiters),
-    cancelMessageWaiters: waiters.cancel.bind(waiters)
+    cancelMessageWaiters: waiters.cancel.bind(waiters),
+    companionAsk: companion.ask.bind(companion),
+    companionSay: companion.say.bind(companion)
   })
 }

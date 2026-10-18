@@ -63,6 +63,10 @@ import { registerUIHandlers, setTrustedUIRendererWebContentsId } from '../ui'
 import { registerEmulatorFrameStreamHandlers } from '../emulator-frame-stream'
 import { registerEmulatorVideoStreamHandlers } from '../emulator-video-stream'
 import { registerSpeechHandlers } from '../speech'
+import { registerCompanionHandlers } from '../companion'
+import { initCompanionHotkey } from '../../companion/companion-shortcut'
+import { initCompanionDialogue } from '../../companion/companion-dialogue'
+import { initCompanionAgentWatch } from '../../companion/companion-agent-watch'
 import { registerTerminalRenderDesyncEvidenceHandler } from '../terminal-render-desync-evidence'
 import { registerOrcaProfileHandlers } from '../orca-profiles'
 import { registerCodexAccountHandlers } from '../codex-accounts'
@@ -301,4 +305,11 @@ export function registerCoreHandlers(
   })
   registerUpdaterHandlers(store)
   registerSpeechHandlers(store)
+  registerCompanionHandlers(store)
+  const disposeCompanionHotkey = initCompanionHotkey(store)
+  app.once('will-quit', disposeCompanionHotkey)
+  const disposeCompanionDialogue = initCompanionDialogue(store)
+  app.once('will-quit', disposeCompanionDialogue)
+  const disposeCompanionAgentWatch = initCompanionAgentWatch(store)
+  app.once('will-quit', disposeCompanionAgentWatch)
 }

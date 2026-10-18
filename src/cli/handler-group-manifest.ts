@@ -273,6 +273,11 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     load: async () => (await import('./handlers/skills.js')).SKILL_HANDLERS
   },
   {
+    name: 'companion',
+    keys: ['companion ask', 'companion say'],
+    load: async () => (await import('./handlers/companion.js')).COMPANION_HANDLERS
+  },
+  {
     name: 'search',
     keys: ['search'],
     load: async () => (await import('./handlers/search.js')).SEARCH_HANDLERS

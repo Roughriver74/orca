@@ -1,0 +1,222 @@
+// Ties the companion TTS pieces into the two entry points callers use: `speak()` for a
+// whole reply already in hand, `speakStream()` for the brain's incremental deltas. Both
+// normalize text, split it into sentences, pipeline sentence synthesis one ahead of
+// what has been sent so sentence N+1 synthesizes while N is already streaming to the
+// panel, and push PCM chunks through the playback contract CompanionShell owns.
+
+import { randomUUID } from 'node:crypto'
+import sidecarScriptPath from '../../../../resources/companion/tts-sidecar.py?asset&asarUnpack'
+import type { CompanionTtsVoice } from '../../../shared/companion-types'
+import { sendAudioChunk, stopAudio } from '../companion-audio-output'
+import { AsyncItemChannel } from './companion-tts-item-channel'
+import { getCompanionTtsPaths, readProvisionedModelPaths } from './companion-tts-provisioning'
+import { SentenceStreamChunker, splitIntoSentences } from './companion-tts-sentence-chunker'
+import {
+  CompanionTtsCancelledError,
+  CompanionTtsSidecarProcess,
+  type CompanionTtsSidecarConfig,
+  type CompanionTtsSynthesisChunk
+} from './companion-tts-sidecar-process'
+import { normalizeForSpeech } from './companion-tts-text-normalization'
+
+export type CompanionTtsSpeakOptions = {
+  utteranceId: string
+  voice: CompanionTtsVoice
+  rate: number
+}
+
+type SynthesisHandle = Promise<CompanionTtsSynthesisChunk>
+
+type UtteranceHandle = {
+  requestIds: Set<string>
+  cancelled: boolean
+}
+
+/** Streaming handle returned by `speakStream()`: feed brain deltas in, call `finish()` once the turn ends. */
+export type CompanionTtsStreamHandle = {
+  pushDelta(text: string): void
+  finish(): void
+}
+
+type SidecarFactory = (config: CompanionTtsSidecarConfig) => CompanionTtsSidecarProcess
+
+export class CompanionTtsService {
+  private sidecar: CompanionTtsSidecarProcess | null = null
+  private sidecarReady: Promise<CompanionTtsSidecarProcess> | null = null
+  private readonly activeUtterances = new Map<string, UtteranceHandle>()
+
+  constructor(
+    private readonly userDataDir: string,
+    private readonly sidecarFactory: SidecarFactory = (config) =>
+      new CompanionTtsSidecarProcess(config)
+  ) {}
+
+  /** Resolves provisioned model paths and the venv interpreter, then builds the sidecar once. */
+  private async ensureSidecar(): Promise<CompanionTtsSidecarProcess> {
+    if (this.sidecar) {
+      return this.sidecar
+    }
+    this.sidecarReady ??= (async () => {
+      const paths = getCompanionTtsPaths(this.userDataDir)
+      const { v5ModelPath, v3ModelPath } = await readProvisionedModelPaths(this.userDataDir)
+      if (!v5ModelPath && !v3ModelPath) {
+        throw new Error('companion TTS has not been provisioned yet — enable it in settings first')
+      }
+      const sidecar = this.sidecarFactory({
+        pythonPath: paths.venvPythonPath,
+        scriptPath: sidecarScriptPath,
+        v5ModelPath,
+        v3ModelPath
+      })
+      this.sidecar = sidecar
+      return sidecar
+    })()
+    return this.sidecarReady
+  }
+
+  /** Synthesizes and streams a complete reply, resolving once every sentence has been sent. */
+  async speak(text: string, options: CompanionTtsSpeakOptions): Promise<void> {
+    const sidecar = await this.ensureSidecar()
+    const { sentences } = splitIntoSentences(normalizeForSpeech(text))
+    const resultChannel = new AsyncItemChannel<SynthesisHandle>()
+    const handle = this.beginUtterance(options.utteranceId)
+    for (const sentence of sentences) {
+      resultChannel.push(this.synthesizeSentence(sidecar, sentence, options, handle))
+    }
+    resultChannel.finish()
+    try {
+      await this.drainAndSend(resultChannel, options.utteranceId)
+    } finally {
+      this.activeUtterances.delete(options.utteranceId)
+    }
+  }
+
+  /** Opens a streaming handle: call `pushDelta` as brain text arrives, `finish()` once the turn ends. */
+  speakStream(options: CompanionTtsSpeakOptions): CompanionTtsStreamHandle {
+    const chunker = new SentenceStreamChunker()
+    const resultChannel = new AsyncItemChannel<SynthesisHandle>()
+    const handle = this.beginUtterance(options.utteranceId)
+    const sidecarPromise = this.ensureSidecar()
+    const drainComplete = sidecarPromise
+      .then(() => this.drainAndSend(resultChannel, options.utteranceId))
+      .finally(() => this.activeUtterances.delete(options.utteranceId))
+
+    const enqueue = (sentence: string): void => {
+      resultChannel.push(
+        sidecarPromise.then((sidecar) =>
+          this.synthesizeSentence(sidecar, sentence, options, handle)
+        )
+      )
+    }
+
+    return {
+      pushDelta: (text: string) => {
+        for (const sentence of chunker.push(text)) {
+          enqueue(sentence)
+        }
+      },
+      finish: () => {
+        for (const sentence of chunker.flush()) {
+          enqueue(sentence)
+        }
+        resultChannel.finish()
+        void drainComplete
+      }
+    }
+  }
+
+  /** Cancels every outstanding sentence for an utterance (or every live utterance) and stops playback. */
+  stop(utteranceId?: string): void {
+    const ids = utteranceId ? [utteranceId] : Array.from(this.activeUtterances.keys())
+    for (const id of ids) {
+      const handle = this.activeUtterances.get(id)
+      if (!handle) {
+        continue
+      }
+      handle.cancelled = true
+      for (const requestId of handle.requestIds) {
+        this.sidecar?.cancel(requestId)
+      }
+      this.activeUtterances.delete(id)
+    }
+    stopAudio(utteranceId)
+  }
+
+  async shutdown(): Promise<void> {
+    await this.sidecar?.shutdown()
+  }
+
+  private beginUtterance(utteranceId: string): UtteranceHandle {
+    const handle: UtteranceHandle = { requestIds: new Set(), cancelled: false }
+    this.activeUtterances.set(utteranceId, handle)
+    return handle
+  }
+
+  private synthesizeSentence(
+    sidecar: CompanionTtsSidecarProcess,
+    sentence: string,
+    options: CompanionTtsSpeakOptions,
+    handle: UtteranceHandle
+  ): SynthesisHandle {
+    const requestId = `${options.utteranceId}:${randomUUID()}`
+    handle.requestIds.add(requestId)
+    // The sidecar sends exactly one audio frame per request (resources/companion/tts-sidecar.py
+    // always calls send_audio once), so capturing it in this closure and resolving once
+    // `synthesize()`'s promise settles on `done` is exact, not an approximation.
+    let captured: CompanionTtsSynthesisChunk | null = null
+    return sidecar
+      .synthesize(requestId, sentence, options.voice, options.rate, (chunk) => {
+        captured = chunk
+      })
+      .then(() => {
+        handle.requestIds.delete(requestId)
+        if (!captured) {
+          throw new Error(`companion TTS request ${requestId} completed without an audio chunk`)
+        }
+        return captured
+      })
+  }
+
+  private async drainAndSend(
+    channel: AsyncItemChannel<SynthesisHandle>,
+    utteranceId: string
+  ): Promise<void> {
+    let seq = 0
+    let box = await channel.next()
+    while (box !== null) {
+      let result: CompanionTtsSynthesisChunk | null = null
+      try {
+        result = await box.value
+      } catch (error) {
+        if (!(error instanceof CompanionTtsCancelledError)) {
+          throw error
+        }
+      }
+      const nextBox = await channel.next()
+      if (result) {
+        sendAudioChunk({
+          utteranceId,
+          seq: seq++,
+          sampleRate: result.sampleRate,
+          pcm: result.pcm,
+          final: nextBox === null
+        })
+      }
+      box = nextBox
+    }
+  }
+}
+
+let companionTtsService: CompanionTtsService | null = null
+
+export function getCompanionTtsService(userDataDir: string): CompanionTtsService {
+  companionTtsService ??= new CompanionTtsService(userDataDir)
+  return companionTtsService
+}
+
+export async function resetCompanionTtsServiceForTests(): Promise<void> {
+  if (companionTtsService) {
+    await companionTtsService.shutdown()
+  }
+  companionTtsService = null
+}

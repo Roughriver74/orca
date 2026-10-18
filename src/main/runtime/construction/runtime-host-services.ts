@@ -29,6 +29,7 @@ import { reconcileRequestedWorkerTerminalReleases } from '../orchestration/worke
 import { RuntimeAccountController } from '../runtime-account-controller'
 import { RuntimeMobileSpeechCatalog } from '../runtime-mobile-speech-catalog'
 import { RuntimeMobileDictationController } from '../runtime-mobile-dictation-controller'
+import { RuntimeCompanionController } from '../runtime-companion-controller'
 import { RuntimeProjectHostSetupController } from '../runtime-project-host-setup-controller'
 import { RuntimeProjectGroupController } from '../runtime-project-group-controller'
 import { RuntimeNestedRepoImport } from '../runtime-nested-repo-import'
@@ -279,6 +280,8 @@ export abstract class OrcaRuntimeWithPreservedBranchCleanup extends OrcaRuntimeW
   protected readonly mobileSpeech = new RuntimeMobileSpeechCatalog(() => this.store)
 
   protected readonly mobileDictation = new RuntimeMobileDictationController(() => this.store)
+
+  protected readonly companion = new RuntimeCompanionController(() => this.store)
 
   protected readonly projectHostSetups = new RuntimeProjectHostSetupController({
     getStore: () => this.store,
