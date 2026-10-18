@@ -24,7 +24,7 @@ describe('normalizeForSpeech', () => {
     expect(normalizeForSpeech('См. [документацию](https://example.com/docs).')).toBe(
       'См. документацию.'
     )
-    expect(normalizeForSpeech('Запусти `pnpm test`.')).toBe('Запусти pnpm test.')
+    expect(normalizeForSpeech('Запусти `pnpm test`.')).toBe('Запусти пи эн пи эм тест.')
     const longCode = 'a'.repeat(30)
     expect(normalizeForSpeech(`Код: \`${longCode}\` готов.`)).toBe('Код: готов.')
   })

@@ -15,6 +15,7 @@ describe('normalizeCompanionSettings', () => {
       homeDir: '/Users/evgenijsikunov/assistant',
       sttModel: 'gigaam-v3-e2e-rnnt-ru',
       endOfUtteranceMs: 2000,
+      voiceBargeIn: true,
       brainModel: 'opus',
       launchAtLogin: true,
       tts: {
@@ -26,7 +27,8 @@ describe('normalizeCompanionSettings', () => {
         maxSpokenChars: 180,
         yandexMonthlyBudgetRub: 150
       },
-      notify: { enabled: false, quietFrom: '23:00', quietTo: '07:30', speak: true }
+      notify: { enabled: false, quietFrom: '23:00', quietTo: '07:30', speak: true },
+      wake: { enabled: true, phrases: ['джарвис', 'эй компьютер'], followUpMs: 5000 }
     }
     expect(normalizeCompanionSettings(persisted)).toEqual(persisted)
   })
@@ -41,7 +43,9 @@ describe('normalizeCompanionSettings', () => {
       brainModel: 'gpt-5',
       launchAtLogin: 'yes',
       tts: { ttsEnabled: 'yes', ttsVoice: 'robot', ttsRate: 'fast' },
-      notify: { enabled: 'yes', quietFrom: '25:99', quietTo: 42, speak: 'no' }
+      voiceBargeIn: 'on',
+      notify: { enabled: 'yes', quietFrom: '25:99', quietTo: 42, speak: 'no' },
+      wake: { enabled: 1, phrases: 'джарвис', followUpMs: 'long' }
     })
     expect(normalized).toEqual(getDefaultCompanionSettings())
   })
@@ -158,5 +162,14 @@ describe('normalizeCompanionSettings', () => {
       normalizeCompanionSettings({ tts: { yandexMonthlyBudgetRub: 'free' } }).tts
         .yandexMonthlyBudgetRub
     ).toBe(getDefaultCompanionSettings().tts.yandexMonthlyBudgetRub)
+  })
+
+  it('keeps only usable wake phrases and clamps the follow-up window', () => {
+    const wake = normalizeCompanionSettings({
+      wake: { enabled: true, phrases: ['  Пятница ', '', '!!!', 7], followUpMs: 120_000 }
+    }).wake
+    expect(wake).toEqual({ enabled: true, phrases: ['Пятница'], followUpMs: 30_000 })
+    expect(normalizeCompanionSettings({ wake: { phrases: [] } }).wake.phrases).toEqual(['джарвис'])
+    expect(normalizeCompanionSettings({ wake: { followUpMs: -5 } }).wake.followUpMs).toBe(0)
   })
 })

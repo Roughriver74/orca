@@ -13,6 +13,11 @@ vi.mock('../companion-audio-output', () => ({
   sendTtsError: (...args: unknown[]) => sendTtsError(...args)
 }))
 
+const loadPronunciations = vi.fn(async (_path: string) => new Map([['worktree', 'вёрктри']]))
+vi.mock('./companion-tts-pronunciation-dictionary', () => ({
+  loadCompanionPronunciationDictionary: (path: string) => loadPronunciations(path)
+}))
+
 vi.mock('./companion-tts-provisioning', () => ({
   getCompanionTtsPaths: (userDataDir: string) => ({
     rootDir: `${userDataDir}/companion-tts`,
@@ -156,6 +161,57 @@ describe('CompanionTtsService', () => {
     await expect(
       service.speak('Привет.', { utteranceId: 'u4', voice: 'eugene', rate: 1 })
     ).rejects.toThrow(/not been provisioned/)
+  })
+
+  it('speakStream() normalizes each sentence, transliterating Latin words with the user dictionary', async () => {
+    const sidecar = fakeSidecar(async (_id, text) => pcmChunk([text.length]))
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: FakeSidecar mirrors only the methods CompanionTtsService calls on the sidecar.
+    const service = new CompanionTtsService('/tmp/userData', () => sidecar as never)
+
+    const stream = service.speakStream({
+      utteranceId: 'u5',
+      voice: 'aidar',
+      rate: 1,
+      pronunciationsPath: '/home/tts-pronunciations.txt'
+    })
+    stream.pushDelta('Сделал **commit** в worktree. Готово.')
+    stream.finish()
+    await flushAsync()
+
+    expect(loadPronunciations).toHaveBeenCalledWith('/home/tts-pronunciations.txt')
+    expect(sidecar.synthesize.mock.calls.map((call) => call[1])).toEqual([
+      'Сделал коммит в вёрктри.',
+      'Готово.'
+    ])
+  })
+
+  it('speakStream() skips a fenced code block that spans several sentences', async () => {
+    const sidecar = fakeSidecar(async (_id, text) => pcmChunk([text.length]))
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: FakeSidecar mirrors only the methods CompanionTtsService calls on the sidecar.
+    const service = new CompanionTtsService('/tmp/userData', () => sidecar as never)
+
+    const stream = service.speakStream({ utteranceId: 'u6', voice: 'aidar', rate: 1 })
+    stream.pushDelta('Вот пример. ```ts\nconst a = 1. ')
+    stream.pushDelta('const b = 2.\n``` Всё.')
+    stream.finish()
+    await flushAsync()
+
+    expect(sidecar.synthesize.mock.calls.map((call) => call[1])).toEqual(['Вот пример.', 'Всё.'])
+  })
+
+  it('closes the utterance with a short silent final chunk when the last sentence had nothing to say', async () => {
+    const sidecar = fakeSidecar(async (_id, text) => pcmChunk([text.length]))
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: FakeSidecar mirrors only the methods CompanionTtsService calls on the sidecar.
+    const service = new CompanionTtsService('/tmp/userData', () => sidecar as never)
+
+    const stream = service.speakStream({ utteranceId: 'u7', voice: 'aidar', rate: 1 })
+    stream.pushDelta('Готово. | a | b |')
+    stream.finish()
+    await flushAsync()
+
+    const calls = sendAudioChunk.mock.calls.map((c) => c[0])
+    expect(calls.map((c) => c.final)).toEqual([false, true])
+    expect(calls[1].pcm.every((sample: number) => sample === 0)).toBe(true)
   })
 })
 

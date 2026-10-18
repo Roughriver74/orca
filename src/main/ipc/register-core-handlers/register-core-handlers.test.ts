@@ -229,6 +229,10 @@ vi.mock('../../companion/companion-assets', () => ({
   initCompanionAssets: () => () => {}
 }))
 
+vi.mock('../../companion/companion-wake-listening', () => ({
+  initCompanionWakeListening: () => () => {}
+}))
+
 vi.mock('../cli', () => ({
   registerCliHandlers: registerCliHandlersMock
 }))

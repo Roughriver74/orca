@@ -1,0 +1,150 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { GlobalSettings } from '../../shared/global-settings-types'
+import type { CompanionSettings } from '../../shared/companion-types'
+import { getDefaultCompanionSettings } from '../../shared/constants'
+
+const { hideCompanionPanel, isCompanionPanelOpen, sendToCompanionWindow, showForNotice } =
+  vi.hoisted(() => ({
+    hideCompanionPanel: vi.fn(),
+    isCompanionPanelOpen: vi.fn(() => false),
+    sendToCompanionWindow: vi.fn(),
+    showForNotice: vi.fn()
+  }))
+
+vi.mock('../window/companion-window', () => ({
+  hideCompanionPanel,
+  isCompanionPanelOpen,
+  sendToCompanionWindow,
+  showCompanionPanelForNotice: showForNotice
+}))
+
+import { companionConversation, onCompanionUtterance } from './companion-conversation'
+import {
+  addressCompanion,
+  initCompanionWakeListening,
+  routeCompanionUtterance
+} from './companion-wake-listening'
+
+function storeWith(companion: CompanionSettings) {
+  let settingsListener: ((updates: Partial<GlobalSettings>) => void) | null = null
+  let current = companion
+  return {
+    getSettings: () => ({ companion: current }),
+    onSettingsChanged: (listener: (updates: Partial<GlobalSettings>) => void) => {
+      settingsListener = listener
+      return () => {
+        settingsListener = null
+      }
+    },
+    update(next: CompanionSettings) {
+      current = next
+      settingsListener?.({ companion: next })
+    }
+  }
+}
+
+function wakeSettings(enabled: boolean): CompanionSettings {
+  const defaults = getDefaultCompanionSettings()
+  return { ...defaults, enabled: true, wake: { ...defaults.wake, enabled } }
+}
+
+describe('companion wake listening', () => {
+  let dispose: (() => void) | null = null
+  const utterances: string[] = []
+  let offUtterance: () => void = () => {}
+
+  beforeEach(() => {
+    companionConversation.stop()
+    vi.clearAllMocks()
+    utterances.length = 0
+    offUtterance = onCompanionUtterance((text) => utterances.push(text))
+  })
+
+  afterEach(() => {
+    dispose?.()
+    dispose = null
+    offUtterance()
+    companionConversation.stop()
+  })
+
+  it('starts listening in the background (panel hidden) once wake mode is enabled', () => {
+    const store = storeWith(wakeSettings(false))
+    dispose = initCompanionWakeListening(store)
+    expect(companionConversation.getState()).toBe('idle')
+
+    store.update(wakeSettings(true))
+
+    expect(companionConversation.getState()).toBe('listening')
+    expect(sendToCompanionWindow).toHaveBeenCalledWith('companion:conversationOpened')
+    expect(showForNotice).not.toHaveBeenCalled()
+  })
+
+  it('stops background listening when wake mode is turned off while the panel is hidden', () => {
+    const store = storeWith(wakeSettings(true))
+    dispose = initCompanionWakeListening(store)
+    store.update(wakeSettings(false))
+    expect(companionConversation.getState()).toBe('idle')
+    expect(sendToCompanionWindow).toHaveBeenCalledWith('companion:conversationClosed')
+  })
+
+  it('drops background speech and sends only addressed requests to the brain', () => {
+    dispose = initCompanionWakeListening(storeWith(wakeSettings(true)))
+    const bargeIn = vi.fn()
+
+    expect(routeCompanionUtterance('по телевизору прогноз погоды', 0.4, { bargeIn })).toEqual({
+      stopped: false,
+      ignored: true
+    })
+    expect(utterances).toEqual([])
+
+    expect(routeCompanionUtterance('Джарвис, какая погода?', 0.4, { bargeIn })).toEqual({
+      stopped: false
+    })
+    expect(utterances).toEqual(['какая погода?'])
+    expect(showForNotice).toHaveBeenCalled()
+    expect(bargeIn).not.toHaveBeenCalled()
+  })
+
+  it('lets only the name interrupt Jarvis while he speaks', () => {
+    dispose = initCompanionWakeListening(storeWith(wakeSettings(true)))
+    companionConversation.reportThinking()
+    companionConversation.reportSpeaking()
+    const bargeIn = vi.fn()
+
+    routeCompanionUtterance('реклама из телевизора', 0.4, { bargeIn })
+    expect(bargeIn).not.toHaveBeenCalled()
+
+    routeCompanionUtterance('Джарвис, подожди', 0.4, { bargeIn })
+    expect(bargeIn).toHaveBeenCalledTimes(1)
+    expect(utterances).toEqual(['подожди'])
+  })
+
+  it('"стоп" ends the exchange but keeps listening for the name', () => {
+    dispose = initCompanionWakeListening(storeWith(wakeSettings(true)))
+    const result = routeCompanionUtterance('Джарвис, стоп', undefined, { bargeIn: vi.fn() })
+    expect(result).toEqual({ stopped: false })
+    expect(utterances).toEqual([])
+    expect(companionConversation.getState()).toBe('listening')
+    expect(hideCompanionPanel).toHaveBeenCalled()
+  })
+
+  it('treats the hotkey as an address so the next request needs no name', () => {
+    dispose = initCompanionWakeListening(storeWith(wakeSettings(true)))
+    addressCompanion()
+    routeCompanionUtterance('включи свет', undefined, { bargeIn: vi.fn() })
+    expect(utterances).toEqual(['включи свет'])
+  })
+
+  it('keeps the old behaviour with wake mode off: every utterance passes, a stop phrase closes', () => {
+    dispose = initCompanionWakeListening(storeWith(wakeSettings(false)))
+    companionConversation.start()
+    routeCompanionUtterance('просто фраза', undefined, { bargeIn: vi.fn() })
+    expect(utterances).toEqual(['просто фраза'])
+
+    expect(routeCompanionUtterance('стоп', undefined, { bargeIn: vi.fn() })).toEqual({
+      stopped: true
+    })
+    expect(companionConversation.getState()).toBe('idle')
+    expect(hideCompanionPanel).toHaveBeenCalled()
+  })
+})

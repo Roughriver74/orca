@@ -5,7 +5,8 @@ import type {
   CompanionConversationState,
   CompanionHotkeyStatus,
   CompanionSettings,
-  CompanionTtsProvisioningStatus
+  CompanionTtsProvisioningStatus,
+  CompanionVoiceActivityFrame
 } from '../../shared/companion-types'
 
 export type CompanionApi = {
@@ -14,11 +15,19 @@ export type CompanionApi = {
   getConversationState: () => Promise<CompanionConversationState>
   /** Also the background-launch test entry point — no window show/focus. */
   toggle: () => Promise<void>
-  reportUtterance: (text: string) => Promise<{ stopped: boolean }>
-  hide: () => Promise<void>
+  /** `level`: peak mic meter level over the utterance, used by wake mode's follow-up filter.
+   *  `ignored`: wake mode decided it was not meant for Jarvis. */
+  reportUtterance: (
+    text: string,
+    meta?: { level?: number }
+  ) => Promise<{ stopped: boolean; ignored?: boolean }>
+  /** `keepListening`: wake mode keeps the mic on after the panel hides. */
+  hide: () => Promise<{ keepListening: boolean }>
   /** Drops the brain session + any in-flight audio; keeps the conversation open if it is. */
   resetConversation: () => Promise<void>
   reportAudioState: (state: CompanionAudioState) => Promise<void>
+  /** One mic frame while a reply plays; `bargedIn` when it was the frame that interrupted. */
+  reportVoiceActivity: (frame: CompanionVoiceActivityFrame) => Promise<{ bargedIn: boolean }>
   respondToNotice: (payload: { id: string; action: 'discuss' | 'later' }) => Promise<void>
   onConversationOpened: (callback: () => void) => () => void
   onConversationClosed: (callback: () => void) => () => void

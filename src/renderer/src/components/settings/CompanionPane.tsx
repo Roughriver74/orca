@@ -16,6 +16,7 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { CompanionBrainSettingsSection } from './CompanionBrainSettingsSection'
 import { CompanionTtsSettingsSection } from './CompanionTtsSettingsSection'
+import { CompanionVoiceInteractionSettingsSection } from './CompanionVoiceInteractionSettingsSection'
 
 type CompanionPaneProps = {
   settings: GlobalSettings
@@ -227,6 +228,13 @@ export function CompanionPane({ settings, updateSettings }: CompanionPaneProps):
         companionSettings={companionSettings}
         updateTtsSettings={updateTtsSettings}
         ttsProvisioningStatus={ttsProvisioningStatus}
+      />
+
+      <Separator />
+
+      <CompanionVoiceInteractionSettingsSection
+        companionSettings={companionSettings}
+        updateCompanionSettings={updateCompanionSettings}
       />
 
       <Separator />

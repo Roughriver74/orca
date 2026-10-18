@@ -13,7 +13,11 @@ import {
   type CompanionDialogueDeps,
   type CompanionDialogueTts
 } from './companion-dialogue'
-import type { CompanionAudioState, CompanionConversationState } from '../../shared/companion-types'
+import type {
+  CompanionAudioState,
+  CompanionConversationState,
+  CompanionVoiceActivityFrame
+} from '../../shared/companion-types'
 
 type BrainEvent = Parameters<Parameters<CompanionDialogueBrain['send']>[1]>[0]
 
@@ -160,6 +164,7 @@ function buildHarness(overrides: Partial<CompanionDialogueDeps> = {}) {
     sendAssistantError: (message) => assistantErrors.push(message),
     sendStateChanged: (state) => stateChanges.push(state),
     takeDiscussionContext: () => null,
+    isVoiceBargeInEnabled: () => false,
     randomUUID: () => `uuid-${(uuidCounter += 1)}`,
     ...overrides
   }
@@ -351,5 +356,139 @@ describe('createCompanionDialogue', () => {
 
     expect(h.tts.stop).toHaveBeenCalled()
     expect(h.conversation.getState()).toBe('listening')
+  })
+
+  it('passes the pronunciation dictionary path through to TTS', async () => {
+    const h = buildHarness()
+    const { tts } = fakeTts()
+    const withDictionary = buildHarness({
+      getTts: () => ({
+        service: tts,
+        voice: 'eugene',
+        rate: 1,
+        pronunciationsPath: '/home/assistant/tts-pronunciations.txt'
+      })
+    })
+    withDictionary.conversation.start()
+    withDictionary.emitUtterance('привет')
+    await withDictionary.nextTurn()
+    expect(tts.speakStream).toHaveBeenCalledWith({
+      utteranceId: 'uuid-1',
+      voice: 'eugene',
+      rate: 1,
+      pronunciationsPath: '/home/assistant/tts-pronunciations.txt'
+    })
+    h.conversation.start()
+    h.emitUtterance('привет')
+    await h.nextTurn()
+    expect(h.tts.speakStream).toHaveBeenCalledWith({
+      utteranceId: 'uuid-1',
+      voice: 'eugene',
+      rate: 1
+    })
+  })
+})
+
+const VOICE_FRAME_MS = 50
+
+function voiceFrame(micLevel: number, playbackLevel: number): CompanionVoiceActivityFrame {
+  return { micLevel, playbackLevel, durationMs: VOICE_FRAME_MS }
+}
+
+/** Reports `durationMs` of identical mic frames; returns whether any of them barged in. */
+function reportVoiceFor(
+  dialogue: ReturnType<typeof buildHarness>['dialogue'],
+  durationMs: number,
+  micLevel: number,
+  playbackLevel: number
+): boolean {
+  let bargedIn = false
+  for (let elapsed = 0; elapsed < durationMs; elapsed += VOICE_FRAME_MS) {
+    bargedIn = dialogue.reportVoiceActivity(voiceFrame(micLevel, playbackLevel)) || bargedIn
+  }
+  return bargedIn
+}
+
+async function speakingHarness(
+  overrides: Partial<CompanionDialogueDeps> = {}
+): Promise<ReturnType<typeof buildHarness>> {
+  const h = buildHarness(overrides)
+  h.conversation.start()
+  h.emitUtterance('расскажи подробнее')
+  const turn = await h.nextTurn()
+  turn.emit({ type: 'final', text: 'Подробности...' })
+  turn.resolve()
+  await Promise.resolve()
+  h.emitAudioState({ utteranceId: 'uuid-1', state: 'playing' })
+  return h
+}
+
+describe('createCompanionDialogue voice barge-in', () => {
+  it('user speech over the reply stops audio and returns to listening, keeping the brain session', async () => {
+    const h = await speakingHarness({ isVoiceBargeInEnabled: () => true })
+    // Calibration: Jarvis's own echo comes back at 0.3x the output level.
+    expect(reportVoiceFor(h.dialogue, 600, 0.06, 0.2)).toBe(false)
+    expect(h.conversation.getState()).toBe('speaking')
+
+    expect(reportVoiceFor(h.dialogue, 300, 0.35, 0.2)).toBe(true)
+
+    expect(h.conversation.getState()).toBe('listening')
+    expect(h.tts.stop).toHaveBeenCalledWith('uuid-1')
+  })
+
+  it('does not interrupt itself on its own echo', async () => {
+    const h = await speakingHarness({ isVoiceBargeInEnabled: () => true })
+    reportVoiceFor(h.dialogue, 600, 0.06, 0.2)
+    expect(reportVoiceFor(h.dialogue, 3000, 0.12, 0.4)).toBe(false)
+    expect(h.conversation.getState()).toBe('speaking')
+    expect(h.tts.stop).not.toHaveBeenCalled()
+  })
+
+  it('is off by default: loud speech never barges in while the setting is disabled', async () => {
+    const h = await speakingHarness()
+    expect(reportVoiceFor(h.dialogue, 3000, 0.9, 0.05)).toBe(false)
+    expect(h.conversation.getState()).toBe('speaking')
+  })
+
+  it('reads the setting per frame, so enabling it mid-reply takes effect', async () => {
+    let enabled = false
+    const h = await speakingHarness({ isVoiceBargeInEnabled: () => enabled })
+    reportVoiceFor(h.dialogue, 600, 0.06, 0.2)
+    enabled = true
+    reportVoiceFor(h.dialogue, 600, 0.06, 0.2)
+    expect(reportVoiceFor(h.dialogue, 300, 0.35, 0.2)).toBe(true)
+  })
+
+  it('ignores voice activity outside the speaking state', () => {
+    const h = buildHarness({ isVoiceBargeInEnabled: () => true })
+    h.conversation.start()
+    expect(reportVoiceFor(h.dialogue, 2000, 0.9, 0)).toBe(false)
+    expect(h.conversation.getState()).toBe('listening')
+    expect(h.tts.stop).not.toHaveBeenCalled()
+  })
+
+  it('recalibrates on every new reply, so the next reply cannot be cut off by stale state', async () => {
+    const h = await speakingHarness({ isVoiceBargeInEnabled: () => true })
+    reportVoiceFor(h.dialogue, 600, 0.06, 0.2)
+    reportVoiceFor(h.dialogue, 250, 0.35, 0.2)
+    h.emitAudioState({ utteranceId: 'uuid-1', state: 'ended' })
+
+    h.emitUtterance('а ещё?')
+    const turn = await h.nextTurn()
+    turn.emit({ type: 'final', text: 'Ещё...' })
+    turn.resolve()
+    await Promise.resolve()
+    h.emitAudioState({ utteranceId: 'uuid-2', state: 'playing' })
+
+    expect(reportVoiceFor(h.dialogue, 100, 0.35, 0.2)).toBe(false)
+    expect(h.conversation.getState()).toBe('speaking')
+  })
+
+  it('leaves the hotkey barge-in working alongside it', async () => {
+    const h = await speakingHarness({ isVoiceBargeInEnabled: () => true })
+    reportVoiceFor(h.dialogue, 300, 0.06, 0.2)
+    h.dialogue.bargeIn()
+    expect(h.conversation.getState()).toBe('listening')
+    expect(reportVoiceFor(h.dialogue, 1000, 0.9, 0.2)).toBe(false)
   })
 })

@@ -21,6 +21,7 @@ import {
   showCompanionPanelForNotice
 } from '../window/companion-window'
 import { normalizeCompanionSettings } from '../persistence/applying-settings/companion-settings-normalization'
+import { openCompanionConversationForNotice } from './companion-wake-listening'
 
 const COALESCE_WINDOW_MS = 20_000
 const WORKSPACE_COOLDOWN_MS = 5 * 60_000
@@ -321,11 +322,8 @@ export function handleCompanionNoticeAction(action: 'discuss' | 'later', noticeI
   }
   const notice = lastDeliveredNotice?.id === noticeId ? lastDeliveredNotice : null
   sendToCompanionWindow('companion:noticeDismiss', { id: noticeId })
-  if (action === 'discuss' && notice && companionConversation.getState() === 'idle') {
+  if (action === 'discuss' && notice && openCompanionConversationForNotice()) {
     setPendingDiscussionContext({ notice })
-    companionConversation.start()
-    showCompanionPanelForNotice()
-    sendToCompanionWindow('companion:conversationOpened')
   } else if (companionConversation.getState() === 'idle') {
     hideCompanionPanel()
   }

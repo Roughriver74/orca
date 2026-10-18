@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { CompanionAudioChunk } from '../../../../shared/companion-types'
+import { rmsLevel } from './companion-voice-barge-in-monitor'
 
 type CompanionAudioPlaybackCallbacks = {
   /** Fired when an utterance starts playing (first chunk scheduled) or finishes/stops —
@@ -13,9 +14,15 @@ type CompanionAudioPlaybackCallbacks = {
  * chunks are buffered until contiguous by `seq`; a new utteranceId interrupts
  * whatever is currently queued/playing. Reports playback progress back to main
  * via `companion:audio-state` so the Brain/TTS slice can track delivery.
+ * `getOutputLevel` exposes what is being played right now — the echo reference voice
+ * barge-in compares the mic against.
  */
-export function useCompanionAudioPlayback({ onPlaybackChange }: CompanionAudioPlaybackCallbacks) {
+export function useCompanionAudioPlayback({ onPlaybackChange }: CompanionAudioPlaybackCallbacks): {
+  getOutputLevel: () => number
+} {
   const contextRef = useRef<AudioContext | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const analyserBufferRef = useRef<Float32Array<ArrayBuffer> | null>(null)
   const activeUtteranceIdRef = useRef<string | null>(null)
   const nextExpectedSeqRef = useRef(0)
   const pendingChunksRef = useRef(new Map<number, CompanionAudioChunk>())
@@ -25,8 +32,26 @@ export function useCompanionAudioPlayback({ onPlaybackChange }: CompanionAudioPl
   const pendingSourceCountRef = useRef(0)
 
   const getContext = useCallback((): AudioContext => {
-    contextRef.current ??= new AudioContext()
+    if (!contextRef.current) {
+      const context = new AudioContext()
+      const analyser = context.createAnalyser()
+      analyser.fftSize = 2048
+      analyser.connect(context.destination)
+      contextRef.current = context
+      analyserRef.current = analyser
+      analyserBufferRef.current = new Float32Array(analyser.fftSize)
+    }
     return contextRef.current
+  }, [])
+
+  const getOutputLevel = useCallback((): number => {
+    const analyser = analyserRef.current
+    const buffer = analyserBufferRef.current
+    if (!analyser || !buffer || activeUtteranceIdRef.current === null) {
+      return 0
+    }
+    analyser.getFloatTimeDomainData(buffer)
+    return rmsLevel(buffer)
   }, [])
 
   const finishUtterance = useCallback(
@@ -49,7 +74,7 @@ export function useCompanionAudioPlayback({ onPlaybackChange }: CompanionAudioPl
       buffer.getChannelData(0).set(chunk.pcm)
       const source = context.createBufferSource()
       source.buffer = buffer
-      source.connect(context.destination)
+      source.connect(analyserRef.current ?? context.destination)
 
       const startAt = Math.max(cursorTimeRef.current, context.currentTime)
       cursorTimeRef.current = startAt + buffer.duration
@@ -148,6 +173,10 @@ export function useCompanionAudioPlayback({ onPlaybackChange }: CompanionAudioPl
       stopAll()
       void contextRef.current?.close()
       contextRef.current = null
+      analyserRef.current = null
+      analyserBufferRef.current = null
     }
   }, [handleAudioChunk, handleAudioStop, stopAll])
+
+  return { getOutputLevel }
 }

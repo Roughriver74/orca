@@ -13,6 +13,9 @@ const MIN_END_OF_UTTERANCE_MS = 300
 const MAX_END_OF_UTTERANCE_MS = 10_000
 const MIN_TTS_RATE = 0.5
 const MAX_TTS_RATE = 2
+const MAX_WAKE_FOLLOW_UP_MS = 30_000
+const MAX_WAKE_PHRASES = 10
+const MAX_WAKE_PHRASE_LENGTH = 40
 
 const COMPANION_TTS_VOICES: Record<CompanionTtsVoice, true> = {
   eugene: true,
@@ -123,6 +126,32 @@ function normalizeCompanionTtsSettings(
   }
 }
 
+function normalizeCompanionWakeSettings(
+  value: unknown,
+  defaults: CompanionSettings['wake']
+): CompanionSettings['wake'] {
+  const source = typeof value === 'object' && value !== null ? value : undefined
+  const enabledRaw = source && 'enabled' in source ? source.enabled : undefined
+  const phrasesRaw = source && 'phrases' in source ? source.phrases : undefined
+  const followUpMsRaw = source && 'followUpMs' in source ? source.followUpMs : undefined
+  const phrases = Array.isArray(phrasesRaw)
+    ? phrasesRaw
+        .filter((phrase): phrase is string => typeof phrase === 'string')
+        .map((phrase) => phrase.trim().slice(0, MAX_WAKE_PHRASE_LENGTH))
+        .filter((phrase) => /[\p{L}\p{N}]/u.test(phrase))
+        .slice(0, MAX_WAKE_PHRASES)
+    : []
+  return {
+    enabled: typeof enabledRaw === 'boolean' ? enabledRaw : defaults.enabled,
+    // Why fall back on empty: wake mode with no phrase would ignore every utterance.
+    phrases: phrases.length > 0 ? phrases : defaults.phrases,
+    followUpMs:
+      typeof followUpMsRaw === 'number' && Number.isFinite(followUpMsRaw)
+        ? Math.min(MAX_WAKE_FOLLOW_UP_MS, Math.max(0, followUpMsRaw))
+        : defaults.followUpMs
+  }
+}
+
 /**
  * Field-by-field like `normalizeNotificationSettings`: a blanket spread would let a
  * type-flipped persisted value (e.g. `enabled: "false"`, `endOfUtteranceMs: "fast"`)
@@ -147,6 +176,8 @@ export function normalizeCompanionSettings(value: unknown): CompanionSettings {
   const launchAtLoginRaw = source && 'launchAtLogin' in source ? source.launchAtLogin : undefined
   const ttsRaw = source && 'tts' in source ? source.tts : undefined
   const notifyRaw = source && 'notify' in source ? source.notify : undefined
+  const wakeRaw = source && 'wake' in source ? source.wake : undefined
+  const voiceBargeInRaw = source && 'voiceBargeIn' in source ? source.voiceBargeIn : undefined
 
   return {
     enabled: typeof enabledRaw === 'boolean' ? enabledRaw : defaults.enabled,
@@ -157,10 +188,12 @@ export function normalizeCompanionSettings(value: unknown): CompanionSettings {
         ? sttModelRaw
         : defaults.sttModel,
     endOfUtteranceMs,
+    voiceBargeIn: typeof voiceBargeInRaw === 'boolean' ? voiceBargeInRaw : defaults.voiceBargeIn,
     brainModel: isCompanionBrainModel(brainModelRaw) ? brainModelRaw : defaults.brainModel,
     launchAtLogin:
       typeof launchAtLoginRaw === 'boolean' ? launchAtLoginRaw : defaults.launchAtLogin,
     tts: normalizeCompanionTtsSettings(ttsRaw, defaults.tts),
-    notify: normalizeCompanionNotifySettings(notifyRaw, defaults.notify)
+    notify: normalizeCompanionNotifySettings(notifyRaw, defaults.notify),
+    wake: normalizeCompanionWakeSettings(wakeRaw, defaults.wake)
   }
 }

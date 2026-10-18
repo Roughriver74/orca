@@ -148,6 +148,7 @@ export function getDefaultCompanionSettings(): CompanionSettings {
     homeDir: '',
     sttModel: 'gigaam-v3-e2e-rnnt-ru',
     endOfUtteranceMs: 1600,
+    voiceBargeIn: false,
     brainModel: 'sonnet',
     launchAtLogin: false,
     tts: {
@@ -164,6 +165,11 @@ export function getDefaultCompanionSettings(): CompanionSettings {
       quietFrom: '22:00',
       quietTo: '08:00',
       speak: false
+    },
+    wake: {
+      enabled: false,
+      phrases: ['джарвис'],
+      followUpMs: 8000
     }
   }
 }

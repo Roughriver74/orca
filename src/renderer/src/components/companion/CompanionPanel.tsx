@@ -9,7 +9,7 @@ import type {
   CompanionSettings
 } from '../../../../shared/companion-types'
 import { getDefaultCompanionSettings } from '../../../../shared/constants'
-import { useCompanionAudioPlayback } from './companion-audio-playback'
+import { useCompanionPlaybackMicHandoff } from './companion-playback-mic-handoff'
 import { CompanionNoticeToast } from './CompanionNoticeToast'
 import {
   describeListenStartError,
@@ -44,6 +44,7 @@ export function CompanionPanel(): React.JSX.Element {
   const { start: startCapture, stop: stopCapture } = useAudioCapture(
     useCallback((meter) => {
       meterStateRef.current = meter
+      utterancePeakLevelRef.current = Math.max(utterancePeakLevelRef.current, meter.level)
     }, [])
   )
 
@@ -54,24 +55,20 @@ export function CompanionPanel(): React.JSX.Element {
   const turnIdRef = useRef(0)
   const currentAssistantTurnIdRef = useRef<number | null>(null)
   const meterStateRef = useRef({ level: 0, isSpeaking: false, isClipping: false })
+  // Loudest meter level since the last final — wake mode's follow-up filter compares it.
+  const utterancePeakLevelRef = useRef(0)
   const silenceStartedAtRef = useRef<number | null>(null)
   const hasAudioSinceLastFinalRef = useRef(false)
   const restartingRef = useRef(false)
 
-  useCompanionAudioPlayback({
-    onPlaybackChange: useCallback(
-      (playing: boolean) => {
-        isPlayingAudioRef.current = playing
-        // Why: the companion must never transcribe its own TTS voice — stop
-        // feeding the mic while audio plays, resume once it ends/stops.
-        if (playing) {
-          stopCapture()
-        } else if (isActiveRef.current) {
-          void startCapture({ sessionId: COMPANION_SESSION_ID })
-        }
-      },
-      [startCapture, stopCapture]
-    )
+  const { listeningThroughPlaybackRef, refreshSettings } = useCompanionPlaybackMicHandoff({
+    sessionId: COMPANION_SESSION_ID,
+    settingsRef,
+    isActiveRef,
+    isPlayingAudioRef,
+    hasAudioSinceLastFinalRef,
+    startCapture,
+    stopCapture
   })
 
   const resetSilenceTracking = useCallback((): void => {
@@ -147,6 +144,7 @@ export function CompanionPanel(): React.JSX.Element {
       }
       currentAssistantTurnIdRef.current = null
       setTurnState('listening')
+      refreshSettings()
       // Why visible before the permission check: a denial still needs the panel up so
       // the error banner (with its "open Settings" button) has somewhere to render.
       isActiveRef.current = true
@@ -162,7 +160,7 @@ export function CompanionPanel(): React.JSX.Element {
       }
       await beginDictationSession()
     },
-    [beginDictationSession]
+    [beginDictationSession, refreshSettings]
   )
 
   // Energy-based end-of-utterance: watches the mic meter (already computed by
@@ -172,7 +170,11 @@ export function CompanionPanel(): React.JSX.Element {
       return
     }
     const interval = setInterval(() => {
-      if (!isActiveRef.current || restartingRef.current || isPlayingAudioRef.current) {
+      if (
+        !isActiveRef.current ||
+        restartingRef.current ||
+        (isPlayingAudioRef.current && !listeningThroughPlaybackRef.current)
+      ) {
         return
       }
       if (meterStateRef.current.isSpeaking) {
@@ -198,7 +200,7 @@ export function CompanionPanel(): React.JSX.Element {
     return () => {
       clearInterval(interval)
     }
-  }, [isActive, resetSilenceTracking, restartForNextUtterance])
+  }, [isActive, listeningThroughPlaybackRef, resetSilenceTracking, restartForNextUtterance])
 
   const handleFinalText = useCallback(
     async (text: string): Promise<void> => {
@@ -207,8 +209,14 @@ export function CompanionPanel(): React.JSX.Element {
         return
       }
       setPartialText('')
+      const level = utterancePeakLevelRef.current
+      utterancePeakLevelRef.current = 0
+      const result = await window.api.companion.reportUtterance(trimmed, { level })
+      if (result.ignored) {
+        // Wake mode: background speech (TV, other people) never enters the transcript.
+        return
+      }
       appendUserTurn(trimmed)
-      const result = await window.api.companion.reportUtterance(trimmed)
       if (result.stopped) {
         stopListening()
       }
@@ -327,8 +335,11 @@ export function CompanionPanel(): React.JSX.Element {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
-        void window.api.companion.hide()
-        stopListening()
+        void window.api.companion.hide().then(({ keepListening }) => {
+          if (!keepListening) {
+            stopListening()
+          }
+        })
       }
     }
     window.addEventListener('keydown', handleKeyDown)

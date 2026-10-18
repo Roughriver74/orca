@@ -9,12 +9,24 @@ export type CompanionSettings = {
   sttModel: string
   /** Trailing silence (ms) after which an in-progress utterance is finalized. */
   endOfUtteranceMs: number
+  /** Interrupt a spoken reply by talking over it (the hotkey barge-in always works). */
+  voiceBargeIn: boolean
   /** Claude model the brain conversation runs on. */
   brainModel: CompanionBrainModel
   /** macOS only: `app.setLoginItemSettings({ openAtLogin })` so Orca (and the companion) is ready at login. */
   launchAtLogin: boolean
   tts: CompanionTtsSettings
   notify: CompanionNotifySettings
+  wake: CompanionWakeSettings
+}
+
+/** Always-on listening that answers only when addressed by name. */
+export type CompanionWakeSettings = {
+  enabled: boolean
+  /** Names/phrases that address Jarvis, matched case-, ё- and punctuation-insensitively. */
+  phrases: string[]
+  /** After a reply, follow-ups without the name are accepted this long; 0 = always say the name. */
+  followUpMs: number
 }
 
 export type CompanionBrainModel = 'sonnet' | 'opus' | 'haiku'
@@ -135,6 +147,15 @@ export type CompanionAudioPlaybackState = 'playing' | 'ended' | 'stopped'
 export type CompanionAudioState = {
   utteranceId: string
   state: CompanionAudioPlaybackState
+}
+
+/** One mic frame the panel reports while a reply plays, for voice barge-in detection. */
+export type CompanionVoiceActivityFrame = {
+  /** RMS of the echo-cancelled mic signal over the frame, 0..1. */
+  micLevel: number
+  /** RMS of the companion's own TTS output at the same moment, 0..1. */
+  playbackLevel: number
+  durationMs: number
 }
 
 /** Utterances that end a companion conversation, matched exact/case/punctuation-insensitive. */

@@ -70,6 +70,7 @@ import { initCompanionHotkey } from '../../companion/companion-shortcut'
 import { initCompanionDialogue } from '../../companion/companion-dialogue'
 import { initCompanionAgentWatch } from '../../companion/companion-agent-watch'
 import { initCompanionAssets } from '../../companion/companion-assets'
+import { initCompanionWakeListening } from '../../companion/companion-wake-listening'
 import { registerTerminalRenderDesyncEvidenceHandler } from '../terminal-render-desync-evidence'
 import { registerOrcaProfileHandlers } from '../orca-profiles'
 import { registerCodexAccountHandlers } from '../codex-accounts'
@@ -318,4 +319,5 @@ export function registerCoreHandlers(
   app.once('will-quit', initCompanionAssets(store))
   registerCompanionTtsHandlers(store)
   initCompanionTtsProviderSettings(store)
+  app.once('will-quit', initCompanionWakeListening(store))
 }

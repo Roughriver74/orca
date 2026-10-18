@@ -8,8 +8,16 @@ const {
   sendToCompanionWindowMock,
   ensureCompanionWindowAliveMock,
   destroyCompanionWindowMock,
-  setLoginItemSettingsMock
+  setLoginItemSettingsMock,
+  isCompanionPanelOpenMock,
+  wakeMode
 } = vi.hoisted(() => ({
+  isCompanionPanelOpenMock: vi.fn(() => false),
+  wakeMode: {
+    enabled: false,
+    addressCompanion: vi.fn(),
+    dismissCompanionAddress: vi.fn()
+  },
   registerMock: vi.fn((_accelerator: string, _callback: () => void) => true),
   unregisterMock: vi.fn(),
   showCompanionPanelMock: vi.fn(),
@@ -30,7 +38,14 @@ vi.mock('../window/companion-window', () => ({
   hideCompanionPanel: hideCompanionPanelMock,
   sendToCompanionWindow: sendToCompanionWindowMock,
   ensureCompanionWindowAlive: ensureCompanionWindowAliveMock,
-  destroyCompanionWindow: destroyCompanionWindowMock
+  destroyCompanionWindow: destroyCompanionWindowMock,
+  isCompanionPanelOpen: isCompanionPanelOpenMock
+}))
+
+vi.mock('./companion-wake-listening', () => ({
+  isCompanionWakeListeningEnabled: () => wakeMode.enabled,
+  addressCompanion: wakeMode.addressCompanion,
+  dismissCompanionAddress: wakeMode.dismissCompanionAddress
 }))
 
 // Why mocked: this test drives the hotkey callback directly, not a real dialogue
@@ -73,6 +88,10 @@ describe('companion hotkey', () => {
     sendToCompanionWindowMock.mockReset()
     ensureCompanionWindowAliveMock.mockReset()
     destroyCompanionWindowMock.mockReset()
+    isCompanionPanelOpenMock.mockReset().mockReturnValue(false)
+    wakeMode.enabled = false
+    wakeMode.addressCompanion.mockClear()
+    wakeMode.dismissCompanionAddress.mockClear()
     setLoginItemSettingsMock.mockReset()
     companionDialogueHandle.current = null
     companionConversation.stop()
@@ -196,6 +215,32 @@ describe('companion hotkey', () => {
     expect(sendToCompanionWindowMock).toHaveBeenCalledWith('companion:conversationClosed')
   })
 
+  it('in wake mode the hotkey shows/hides the panel but never stops background listening', () => {
+    wakeMode.enabled = true
+    const store = makeStore({ ...getDefaultCompanionSettings(), enabled: true })
+    initCompanionHotkey(store)
+    const callback = registerMock.mock.calls[0]?.[1]
+    if (!callback) {
+      throw new Error('hotkey callback was not registered')
+    }
+    companionConversation.start()
+
+    isCompanionPanelOpenMock.mockReturnValue(false)
+    callback()
+    expect(showCompanionPanelMock).toHaveBeenCalledTimes(1)
+    expect(wakeMode.addressCompanion).toHaveBeenCalledTimes(1)
+
+    isCompanionPanelOpenMock.mockReturnValue(true)
+    callback()
+    expect(hideCompanionPanelMock).toHaveBeenCalledTimes(1)
+    expect(wakeMode.dismissCompanionAddress).toHaveBeenCalledTimes(1)
+    expect(companionConversation.getState()).toBe('listening')
+    expect(sendToCompanionWindowMock).not.toHaveBeenCalledWith('companion:conversationClosed')
+
+    wakeMode.enabled = false
+    companionConversation.stop()
+  })
+
   it('hotkey pressed while speaking barges in instead of closing the conversation', () => {
     const store = makeStore({
       ...getDefaultCompanionSettings(),
@@ -211,7 +256,12 @@ describe('companion hotkey', () => {
     companionConversation.start()
     companionConversation.reportThinking()
     companionConversation.reportSpeaking()
-    companionDialogueHandle.current = { bargeIn, resetConversation: vi.fn(), dispose: vi.fn() }
+    companionDialogueHandle.current = {
+      bargeIn,
+      reportVoiceActivity: vi.fn(() => false),
+      resetConversation: vi.fn(),
+      dispose: vi.fn()
+    }
 
     callback()
 

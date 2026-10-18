@@ -5,15 +5,17 @@
 // audio is actually playing). `createCompanionDialogue` takes every side effect as a
 // dependency so the turn-by-turn logic is testable without a real brain, TTS sidecar or
 // window — `initCompanionDialogue` wires the real ones and keeps a module singleton so
-// the hotkey (barge-in) and the "New conversation" IPC handler can reach it.
+// the hotkey / voice barge-in and the "New conversation" IPC handler can reach it.
 
 import { randomUUID } from 'node:crypto'
+import { join } from 'node:path'
 import { getAppEnvironment } from '../../shared/app-environment'
 import type {
   CompanionAudioState,
   CompanionConversationState,
   CompanionSettings,
-  CompanionTtsVoice
+  CompanionTtsVoice,
+  CompanionVoiceActivityFrame
 } from '../../shared/companion-types'
 import { getDefaultCompanionSettings } from '../../shared/constants'
 import {
@@ -21,11 +23,17 @@ import {
   onCompanionStateChange,
   onCompanionUtterance
 } from './companion-conversation'
-import { getCompanionBrain, type CompanionBrainEvent } from './companion-brain'
+import {
+  getCompanionBrain,
+  resolveCompanionHomeDir,
+  type CompanionBrainEvent
+} from './companion-brain'
 import { onAudioState } from './companion-audio-output'
 import { sendToCompanionWindow } from '../window/companion-window'
 import type { CompanionTtsService } from './tts/companion-tts-service'
+import { COMPANION_TTS_PRONUNCIATIONS_FILE_NAME } from './tts/companion-tts-pronunciation-dictionary'
 import { takePendingDiscussionContext } from './companion-agent-watch'
+import { createCompanionVoiceBargeInDetector } from './companion-voice-barge-in'
 
 // Why a fixed phrase rather than speaking `event.message`: brain errors are often raw
 // English exception text (connection drops, provider errors) — unfit for a Russian voice
@@ -54,6 +62,8 @@ export type CompanionDialogueTtsOptions = {
   utteranceId: string
   voice: CompanionTtsVoice
   rate: number
+  /** User pronunciation dictionary for Latin words; absent = built-in rules only. */
+  pronunciationsPath?: string
 }
 
 export type CompanionDialogueTts = {
@@ -68,6 +78,7 @@ export type CompanionDialogueActiveTts = {
   service: CompanionDialogueTts
   voice: CompanionTtsVoice
   rate: number
+  pronunciationsPath?: string
 }
 
 export type CompanionDiscussionContext = { text: string }
@@ -86,13 +97,19 @@ export type CompanionDialogueDeps = {
   /** Read-once-and-clear context from an agent-status "Обсудить" action; `null` for an
    *  ordinary hotkey-opened conversation. */
   takeDiscussionContext: () => CompanionDiscussionContext | null
+  /** Read per frame so toggling the setting takes effect mid-conversation. */
+  isVoiceBargeInEnabled: () => boolean
   randomUUID: () => string
 }
 
 export type CompanionDialogue = {
-  /** Hotkey pressed mid-reply: stop audio immediately and return to listening without
-   *  closing the conversation or touching the brain session. No-op outside 'speaking'. */
+  /** Hotkey pressed (or user speech detected) mid-reply: stop audio immediately and return
+   *  to listening without closing the conversation or touching the brain session. No-op
+   *  outside 'speaking'. */
   bargeIn(): void
+  /** One mic frame from the panel while a reply plays; barges in once user speech is
+   *  confirmed over the companion's own echo. Returns whether this frame barged in. */
+  reportVoiceActivity(frame: CompanionVoiceActivityFrame): boolean
   /** Drops the brain session and any in-flight turn/audio; the next utterance starts fresh. */
   resetConversation(): void
   dispose(): void
@@ -105,6 +122,18 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
   let activeUtteranceId: string | null = null
   let previousState: CompanionConversationState = deps.conversation.getState()
   let firstTurnPending = false
+  const voiceBargeIn = createCompanionVoiceBargeInDetector()
+
+  function ttsOptions(
+    tts: CompanionDialogueActiveTts,
+    utteranceId: string
+  ): CompanionDialogueTtsOptions {
+    const options: CompanionDialogueTtsOptions = { utteranceId, voice: tts.voice, rate: tts.rate }
+    if (tts.pronunciationsPath) {
+      options.pronunciationsPath = tts.pronunciationsPath
+    }
+    return options
+  }
 
   const offUtterance = deps.onUtterance((text) => {
     void handleUtterance(text)
@@ -131,6 +160,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
       // Why this (not the delta stream starting) drives 'speaking': the panel's own
       // WebAudio playback — reported back here — is the only true signal that the user
       // is now hearing Jarvis and should stop being transcribed.
+      voiceBargeIn.reset()
       deps.conversation.reportSpeaking()
       return
     }
@@ -155,9 +185,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
 
     const tts = deps.getTts()
     const utteranceId = deps.randomUUID()
-    const streamHandle = tts
-      ? tts.service.speakStream({ utteranceId, voice: tts.voice, rate: tts.rate })
-      : null
+    const streamHandle = tts ? tts.service.speakStream(ttsOptions(tts, utteranceId)) : null
     if (streamHandle) {
       activeUtteranceId = utteranceId
     }
@@ -186,11 +214,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
       tts?.service.stop(utteranceId)
       activeUtteranceId = null
       if (tts) {
-        void tts.service.speak(COMPANION_ERROR_SPOKEN_PHRASE, {
-          utteranceId: deps.randomUUID(),
-          voice: tts.voice,
-          rate: tts.rate
-        })
+        void tts.service.speak(COMPANION_ERROR_SPOKEN_PHRASE, ttsOptions(tts, deps.randomUUID()))
       }
       if (deps.conversation.getState() !== 'idle') {
         deps.conversation.reportListening()
@@ -216,6 +240,17 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
     deps.conversation.reportListening()
   }
 
+  function reportVoiceActivity(frame: CompanionVoiceActivityFrame): boolean {
+    if (!deps.isVoiceBargeInEnabled() || deps.conversation.getState() !== 'speaking') {
+      return false
+    }
+    if (!voiceBargeIn.feed(frame)) {
+      return false
+    }
+    bargeIn()
+    return true
+  }
+
   function resetConversation(): void {
     turnGeneration += 1
     activeUtteranceId = null
@@ -229,7 +264,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
     offAudio()
   }
 
-  return { bargeIn, resetConversation, dispose }
+  return { bargeIn, reportVoiceActivity, resetConversation, dispose }
 }
 
 type CompanionDialogueSettingsStore = {
@@ -263,12 +298,21 @@ export function initCompanionDialogue(store: CompanionDialogueSettingsStore): ()
     onAudioState,
     brain,
     getTts: () => {
-      const tts = store.getSettings().companion?.tts ?? getDefaultCompanionSettings().tts
+      const companion = store.getSettings().companion
+      const tts = companion?.tts ?? getDefaultCompanionSettings().tts
       if (!tts.ttsEnabled || !getTtsService) {
         return null
       }
       const userDataDir = getAppEnvironment().getPath('userData')
-      return { service: getTtsService(userDataDir), voice: tts.ttsVoice, rate: tts.ttsRate }
+      return {
+        service: getTtsService(userDataDir),
+        voice: tts.ttsVoice,
+        rate: tts.ttsRate,
+        pronunciationsPath: join(
+          resolveCompanionHomeDir(companion?.homeDir),
+          COMPANION_TTS_PRONUNCIATIONS_FILE_NAME
+        )
+      }
     },
     sendAssistantDelta: (text) => sendToCompanionWindow('companion:assistantDelta', text),
     sendAssistantFinal: (text) => sendToCompanionWindow('companion:assistantFinal', text),
@@ -277,6 +321,12 @@ export function initCompanionDialogue(store: CompanionDialogueSettingsStore): ()
     takeDiscussionContext: () => {
       const context = takePendingDiscussionContext()
       return context ? { text: context.notice.text } : null
+    },
+    // Why not in wake mode: loudness cannot tell the user from a TV, so there only an
+    // utterance that names Jarvis interrupts him (see companion-wake-listening.ts).
+    isVoiceBargeInEnabled: () => {
+      const companion = store.getSettings().companion
+      return companion?.voiceBargeIn === true && companion.wake.enabled !== true
     },
     randomUUID
   })

@@ -3,9 +3,15 @@ import type { GlobalSettings } from '../../shared/global-settings-types'
 import { companionConversation } from './companion-conversation'
 import { companionDialogueHandle } from './companion-dialogue'
 import {
+  addressCompanion,
+  dismissCompanionAddress,
+  isCompanionWakeListeningEnabled
+} from './companion-wake-listening'
+import {
   destroyCompanionWindow,
   ensureCompanionWindowAlive,
   hideCompanionPanel,
+  isCompanionPanelOpen,
   sendToCompanionWindow,
   showCompanionPanel
 } from '../window/companion-window'
@@ -30,17 +36,30 @@ export function getCompanionHotkeyStatus(): CompanionHotkeyStatus {
 }
 
 /** Opens a fresh conversation, closes the current one, or (mid-reply) barges in — the
- *  hotkey's single action, shaped by `companionConversation`'s current state. */
+ *  hotkey's single action, shaped by `companionConversation`'s current state. In wake
+ *  mode the mic is already listening in the background, so the hotkey only shows/hides
+ *  the panel and counts as addressing Jarvis. */
 export function toggleCompanionConversation(): void {
   const state = companionConversation.getState()
   if (state === 'idle') {
     companionConversation.start()
     showCompanionPanel()
     sendToCompanionWindow('companion:conversationOpened')
+    addressCompanion()
     return
   }
   if (state === 'speaking') {
     companionDialogueHandle.current?.bargeIn()
+    return
+  }
+  if (isCompanionWakeListeningEnabled()) {
+    if (isCompanionPanelOpen()) {
+      hideCompanionPanel()
+      dismissCompanionAddress()
+    } else {
+      showCompanionPanel()
+      addressCompanion()
+    }
     return
   }
   companionConversation.stop()

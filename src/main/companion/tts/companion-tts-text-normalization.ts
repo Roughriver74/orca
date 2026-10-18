@@ -14,6 +14,11 @@ import {
   ordinalDayGenitiveRu,
   timeOfDayRu
 } from './companion-tts-number-words-ru'
+import {
+  EMPTY_PRONUNCIATION_DICTIONARY,
+  transliterateLatinForSpeech,
+  type CompanionPronunciationDictionary
+} from './companion-tts-latin-transliteration'
 
 const INLINE_CODE_DROP_THRESHOLD = 20
 const FEMININE_UNIT_WORDS: Record<string, true> = {
@@ -128,11 +133,20 @@ function collapseWhitespace(text: string): string {
     .trim()
 }
 
+export type NormalizeForSpeechOptions = {
+  pronunciations?: CompanionPronunciationDictionary
+}
+
 /** Full pipeline from a raw brain reply to speakable Russian text. */
-export function normalizeForSpeech(text: string): string {
+export function normalizeForSpeech(text: string, options: NormalizeForSpeechOptions = {}): string {
   const withoutStructure = dropCodeBlocksAndTables(text)
   const plain = stripMarkdownSyntax(withoutStructure)
   const withPlaceholders = replaceUrlsAndPaths(plain)
-  const withNumbersExpanded = expandNumbers(withPlaceholders)
+  // Before number expansion: splitting `v5`/`GPT-4` exposes digits `expandNumbers` can read.
+  const cyrillicOnly = transliterateLatinForSpeech(
+    withPlaceholders,
+    options.pronunciations ?? EMPTY_PRONUNCIATION_DICTIONARY
+  )
+  const withNumbersExpanded = expandNumbers(cyrillicOnly)
   return collapseWhitespace(withNumbersExpanded)
 }

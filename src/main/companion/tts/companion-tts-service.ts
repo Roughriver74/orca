@@ -3,6 +3,8 @@
 // normalize text, split it into sentences, pipeline sentence synthesis one ahead of
 // what has been sent so sentence N+1 synthesizes while N is already streaming to the
 // panel, and push PCM chunks through the playback contract CompanionShell owns.
+// Streamed sentences are normalized one at a time (with the user's pronunciation
+// dictionary), so Latin words, markdown and digits never reach Silero raw.
 //
 // The Yandex-provider branch of each entry point lives in
 // companion-tts-service-yandex.ts (split out to stay under the repo's per-file line
@@ -14,7 +16,17 @@ import type { CompanionTtsSettings, CompanionTtsVoice } from '../../../shared/co
 import { sendAudioChunk, stopAudio } from '../companion-audio-output'
 import { AsyncItemChannel } from './companion-tts-item-channel'
 import { getCompanionTtsPaths, readProvisionedModelPaths } from './companion-tts-provisioning'
-import { SentenceStreamChunker, splitIntoSentences } from './companion-tts-sentence-chunker'
+import {
+  SentenceStreamChunker,
+  SpeechCodeFenceFilter,
+  splitIntoSentences
+} from './companion-tts-sentence-chunker'
+import {
+  SIDECAR_SAMPLE_RATE,
+  closingSilencePcm,
+  loadUtterancePronunciations,
+  synthesizeSpeakableText
+} from './companion-tts-speakable-text'
 import {
   CompanionTtsCancelledError,
   CompanionTtsSidecarProcess,
@@ -34,6 +46,8 @@ export type CompanionTtsSpeakOptions = {
   utteranceId: string
   voice: CompanionTtsVoice
   rate: number
+  /** User pronunciation dictionary file; absent = built-in Latin rules only. */
+  pronunciationsPath?: string
 }
 
 export type SynthesisHandle = Promise<CompanionTtsSynthesisChunk>
@@ -145,7 +159,8 @@ export class CompanionTtsService {
       return this.yandexBranch.speakYandex(text, options, providerSettings)
     }
     const sidecar = await this.ensureSidecar()
-    const { sentences } = splitIntoSentences(normalizeForSpeech(text))
+    const pronunciations = await loadUtterancePronunciations(options.pronunciationsPath)
+    const { sentences } = splitIntoSentences(normalizeForSpeech(text, { pronunciations }))
     const resultChannel = new AsyncItemChannel<SynthesisHandle>()
     const handle = this.beginUtterance(options.utteranceId)
     for (const sentence of sentences) {
@@ -166,17 +181,27 @@ export class CompanionTtsService {
       return this.yandexBranch.speakStreamYandex(options, providerSettings)
     }
     const chunker = new SentenceStreamChunker()
+    const fenceFilter = new SpeechCodeFenceFilter()
     const resultChannel = new AsyncItemChannel<SynthesisHandle>()
     const handle = this.beginUtterance(options.utteranceId)
     const sidecarPromise = this.ensureSidecar()
+    const pronunciationsPromise = loadUtterancePronunciations(options.pronunciationsPath)
     const drainComplete = sidecarPromise
       .then(() => this.drainAndSend(resultChannel, options.utteranceId))
       .finally(() => this.activeUtterances.delete(options.utteranceId))
 
     const enqueue = (sentence: string): void => {
+      const prose = fenceFilter.filter(sentence)
+      if (prose.trim() === '') {
+        return
+      }
       resultChannel.push(
-        sidecarPromise.then((sidecar) =>
-          this.synthesizeSentence(sidecar, sentence, options, handle)
+        Promise.all([sidecarPromise, pronunciationsPromise]).then(([sidecar, pronunciations]) =>
+          synthesizeSpeakableText(
+            normalizeForSpeech(prose, { pronunciations }),
+            (part) => this.synthesizeSentence(sidecar, part, options, handle),
+            `${options.utteranceId}:nothing-to-say`
+          )
         )
       )
     }
@@ -255,6 +280,8 @@ export class CompanionTtsService {
     utteranceId: string
   ): Promise<void> {
     let seq = 0
+    let sentFinal = false
+    let lastSampleRate = SIDECAR_SAMPLE_RATE
     let box = await channel.next()
     while (box !== null) {
       let result: CompanionTtsSynthesisChunk | null = null
@@ -267,15 +294,28 @@ export class CompanionTtsService {
       }
       const nextBox = await channel.next()
       if (result) {
+        sentFinal = nextBox === null
+        lastSampleRate = result.sampleRate
         sendAudioChunk({
           utteranceId,
           seq: seq++,
           sampleRate: result.sampleRate,
           pcm: result.pcm,
-          final: nextBox === null
+          final: sentFinal
         })
       }
       box = nextBox
+    }
+    // Close an utterance whose last sentence was skipped. Not when nothing played at all
+    // (that stays silent), nor after `stop()` dropped it (it must not start playing again).
+    if (seq > 0 && !sentFinal && this.activeUtterances.has(utteranceId)) {
+      sendAudioChunk({
+        utteranceId,
+        seq,
+        sampleRate: lastSampleRate,
+        pcm: closingSilencePcm(),
+        final: true
+      })
     }
   }
 }

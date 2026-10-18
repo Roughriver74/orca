@@ -26,7 +26,7 @@ export function splitIntoSentences(text: string): { sentences: string[]; remaind
 }
 
 /** A sentence longer than the cap is cut at the nearest comma/space before it, never mid-word. */
-function splitLongSentence(sentence: string): string[] {
+export function splitLongSentence(sentence: string): string[] {
   if (sentence.length <= SENTENCE_MAX_CHARS) {
     return [sentence]
   }
@@ -73,5 +73,23 @@ export class SentenceStreamChunker {
 
   reset(): void {
     this.buffer = ''
+  }
+}
+
+/**
+ * Streamed replies are normalized sentence by sentence, so a fenced code block can span
+ * several of them and `dropCodeBlocksAndTables` never sees both fences. This tracks fence
+ * parity across sentences and keeps only the prose outside them.
+ */
+export class SpeechCodeFenceFilter {
+  private insideFence = false
+
+  filter(sentence: string): string {
+    const segments = sentence.split('```')
+    const kept = segments.filter((_segment, index) => (index % 2 === 0) !== this.insideFence)
+    if (segments.length % 2 === 0) {
+      this.insideFence = !this.insideFence
+    }
+    return kept.join(' ')
   }
 }

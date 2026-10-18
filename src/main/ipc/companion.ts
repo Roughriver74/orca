@@ -12,7 +12,22 @@ import {
 import { companionDialogueHandle } from '../companion/companion-dialogue'
 import { hideCompanionPanel, sendToCompanionWindow } from '../window/companion-window'
 import { reportAudioState, type CompanionAudioState } from '../companion/companion-audio-output'
+import { parseCompanionVoiceActivityFrame } from '../companion/companion-voice-barge-in'
 import { handleCompanionNoticeAction } from '../companion/companion-agent-watch'
+import {
+  dismissCompanionAddress,
+  isCompanionWakeListeningEnabled,
+  routeCompanionUtterance,
+  type CompanionUtteranceResult
+} from '../companion/companion-wake-listening'
+
+function parseUtteranceLevel(meta: unknown): number | undefined {
+  const level =
+    typeof meta === 'object' && meta !== null && 'level' in meta ? meta.level : undefined
+  return typeof level === 'number' && Number.isFinite(level) && level >= 0 && level <= 1
+    ? level
+    : undefined
+}
 
 export function registerCompanionHandlers(store: CompanionHotkeySettingsStore): void {
   ipcMain.removeHandler('companion:getSettings')
@@ -22,6 +37,7 @@ export function registerCompanionHandlers(store: CompanionHotkeySettingsStore): 
   ipcMain.removeHandler('companion:reportUtterance')
   ipcMain.removeHandler('companion:hide')
   ipcMain.removeHandler('companion:audio-state')
+  ipcMain.removeHandler('companion:voiceActivity')
   ipcMain.removeHandler('companion:resetConversation')
   ipcMain.removeHandler('companion:noticeAction')
 
@@ -41,26 +57,44 @@ export function registerCompanionHandlers(store: CompanionHotkeySettingsStore): 
     toggleCompanionConversation()
   })
 
-  ipcMain.handle('companion:reportUtterance', (_event, text: unknown): { stopped: boolean } => {
-    if (typeof text !== 'string' || text.trim() === '') {
-      return { stopped: false }
+  ipcMain.handle(
+    'companion:reportUtterance',
+    (_event, text: unknown, meta: unknown): CompanionUtteranceResult => {
+      if (typeof text !== 'string' || text.trim() === '') {
+        return { stopped: false }
+      }
+      return routeCompanionUtterance(text, parseUtteranceLevel(meta), {
+        bargeIn: () => companionDialogueHandle.current?.bargeIn()
+      })
     }
-    const result = companionConversation.reportUtterance(text)
-    if (result.stopped) {
-      hideCompanionPanel()
-    }
-    return result
-  })
+  )
 
-  ipcMain.handle('companion:hide', () => {
-    companionConversation.stop()
+  // Why `keepListening`: in wake mode hiding the panel only ends the addressed exchange;
+  // the mic keeps listening for the wake phrase.
+  ipcMain.handle('companion:hide', (): { keepListening: boolean } => {
     hideCompanionPanel()
+    if (isCompanionWakeListeningEnabled()) {
+      dismissCompanionAddress()
+      return { keepListening: true }
+    }
+    companionConversation.stop()
+    return { keepListening: false }
   })
 
   // Why: playback progress is reported, not requested — the panel owns WebAudio
   // scheduling; main only needs state to drive the STT pause/resume around TTS.
   ipcMain.handle('companion:audio-state', (_event, state: CompanionAudioState) => {
     reportAudioState(state)
+  })
+
+  // Why a reply value: the panel hands its pre-roll mic audio to STT only when its own
+  // frame was the one that barged in, so the start of the user's phrase is not lost.
+  ipcMain.handle('companion:voiceActivity', (_event, frame: unknown): { bargedIn: boolean } => {
+    const parsed = parseCompanionVoiceActivityFrame(frame)
+    if (!parsed) {
+      return { bargedIn: false }
+    }
+    return { bargedIn: companionDialogueHandle.current?.reportVoiceActivity(parsed) ?? false }
   })
 
   // Why: closing the panel keeps the brain session for continuity; this is the explicit

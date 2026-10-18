@@ -85,6 +85,50 @@ export const getCompanionPaneSearchEntries = createLocalizedCatalog((): Settings
   },
   {
     title: translate(
+      'auto.components.settings.companion.pane.search.wakeTitle',
+      'Слушать всегда, отвечать по обращению'
+    ),
+    description: translate(
+      'auto.components.settings.companion.pane.search.wakeTitleDescription',
+      'Постоянное прослушивание с ответом только на обращение по имени.'
+    ),
+    keywords: [
+      ...translateSearchKeyword(
+        'auto.components.settings.companion.pane.search.companion',
+        'companion'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.companion.pane.search.wakeWord',
+        'wake word'
+      )
+    ]
+  },
+  {
+    title: translate(
+      'auto.components.settings.companion.pane.search.voiceBargeInTitle',
+      'Перебивать голосом'
+    ),
+    description: translate(
+      'auto.components.settings.companion.pane.search.voiceBargeInTitleDescription',
+      'Остановить ответ Джарвиса, просто начав говорить.'
+    ),
+    keywords: [
+      ...translateSearchKeyword(
+        'auto.components.settings.companion.pane.search.companion',
+        'companion'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.companion.pane.search.bargeIn',
+        'barge-in'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.companion.pane.search.interrupt',
+        'interrupt'
+      )
+    ]
+  },
+  {
+    title: translate(
       'auto.components.settings.companion.pane.search.notifyTitle',
       'Уведомлять о других агентах'
     ),

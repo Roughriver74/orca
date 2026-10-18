@@ -102,7 +102,7 @@ describe('registerCompanionHandlers', () => {
   it('hide stops the conversation and hides the panel', () => {
     registerCompanionHandlers(makeStore())
     companionConversation.start()
-    getHandler('companion:hide')({})
+    expect(getHandler('companion:hide')({})).toEqual({ keepListening: false })
     expect(companionConversation.getState()).toBe('idle')
     expect(hideCompanionPanelMock).toHaveBeenCalledTimes(1)
   })
@@ -112,6 +112,7 @@ describe('registerCompanionHandlers', () => {
     const resetConversation = vi.fn()
     companionDialogueHandle.current = {
       bargeIn: vi.fn(),
+      reportVoiceActivity: vi.fn(() => false),
       resetConversation,
       dispose: vi.fn()
     }
@@ -124,5 +125,34 @@ describe('registerCompanionHandlers', () => {
     registerCompanionHandlers(makeStore())
     expect(() => getHandler('companion:resetConversation')({})).not.toThrow()
     expect(sendToCompanionWindowMock).toHaveBeenCalledWith('companion:conversationReset')
+  })
+
+  it('voiceActivity forwards a valid frame to the dialogue and reports whether it barged in', () => {
+    registerCompanionHandlers(makeStore())
+    const reportVoiceActivity = vi.fn(() => true)
+    companionDialogueHandle.current = {
+      bargeIn: vi.fn(),
+      reportVoiceActivity,
+      resetConversation: vi.fn(),
+      dispose: vi.fn()
+    }
+    const frame = { micLevel: 0.3, playbackLevel: 0.1, durationMs: 43 }
+    expect(getHandler('companion:voiceActivity')({}, frame)).toEqual({ bargedIn: true })
+    expect(reportVoiceActivity).toHaveBeenCalledWith(frame)
+  })
+
+  it('voiceActivity drops a malformed frame without reaching the dialogue', () => {
+    registerCompanionHandlers(makeStore())
+    const reportVoiceActivity = vi.fn(() => true)
+    companionDialogueHandle.current = {
+      bargeIn: vi.fn(),
+      reportVoiceActivity,
+      resetConversation: vi.fn(),
+      dispose: vi.fn()
+    }
+    expect(getHandler('companion:voiceActivity')({}, { micLevel: 'loud' })).toEqual({
+      bargedIn: false
+    })
+    expect(reportVoiceActivity).not.toHaveBeenCalled()
   })
 })

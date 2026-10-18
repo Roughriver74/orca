@@ -6,7 +6,8 @@ import type {
   CompanionConversationState,
   CompanionHotkeyStatus,
   CompanionSettings,
-  CompanionTtsProvisioningStatus
+  CompanionTtsProvisioningStatus,
+  CompanionVoiceActivityFrame
 } from '../../shared/companion-types'
 import type { PreloadApi } from '../api-types'
 
@@ -28,12 +29,17 @@ export const companionApi = {
   getConversationState: (): Promise<CompanionConversationState> =>
     ipcRenderer.invoke('companion:getConversationState'),
   toggle: (): Promise<void> => ipcRenderer.invoke('companion:toggle'),
-  reportUtterance: (text: string): Promise<{ stopped: boolean }> =>
-    ipcRenderer.invoke('companion:reportUtterance', text),
-  hide: (): Promise<void> => ipcRenderer.invoke('companion:hide'),
+  reportUtterance: (
+    text: string,
+    meta?: { level?: number }
+  ): Promise<{ stopped: boolean; ignored?: boolean }> =>
+    ipcRenderer.invoke('companion:reportUtterance', text, meta),
+  hide: (): Promise<{ keepListening: boolean }> => ipcRenderer.invoke('companion:hide'),
   resetConversation: (): Promise<void> => ipcRenderer.invoke('companion:resetConversation'),
   reportAudioState: (state: CompanionAudioState): Promise<void> =>
     ipcRenderer.invoke('companion:audio-state', state),
+  reportVoiceActivity: (frame: CompanionVoiceActivityFrame): Promise<{ bargedIn: boolean }> =>
+    ipcRenderer.invoke('companion:voiceActivity', frame),
   respondToNotice: (payload: { id: string; action: 'discuss' | 'later' }): Promise<void> =>
     ipcRenderer.invoke('companion:noticeAction', payload),
 
