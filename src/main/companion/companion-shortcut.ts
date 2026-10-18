@@ -2,6 +2,8 @@ import { app, globalShortcut } from 'electron'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import { companionConversation } from './companion-conversation'
 import { companionDialogueHandle } from './companion-dialogue'
+import { decideHotkeyPressAction } from './companion-hotkey-finalize'
+import { getSpeechSttServiceIfInitialized } from '../speech/speech-runtime-service'
 import {
   addressCompanion,
   dismissCompanionAddress,
@@ -30,13 +32,21 @@ export type CompanionHotkeyStore = CompanionHotkeySettingsStore & {
 
 let currentHotkey: string | null = null
 let lastError: string | null = null
+// The panel reports every mic-meter isSpeaking transition over
+// companion:reportSpeakingState — main has no other way to know whether the user is
+// currently mid-utterance when the hotkey fires.
+let userSpeaking = false
+
+export function reportCompanionUserSpeaking(speaking: boolean): void {
+  userSpeaking = speaking
+}
 
 export function getCompanionHotkeyStatus(): CompanionHotkeyStatus {
   return { registered: currentHotkey !== null, hotkey: currentHotkey, error: lastError }
 }
-
-/** Opens a fresh conversation, closes the current one, or (mid-reply) barges in — the
- *  hotkey's single action, shaped by `companionConversation`'s current state. In wake
+/** Opens a fresh conversation, closes the current one, or (mid-reply/mid-utterance) does
+ *  what `decideHotkeyPressAction` says — the hotkey's single action, shaped by
+ *  `companionConversation`'s current state and whether the user is mid-utterance. In wake
  *  mode the mic is already listening in the background, so the hotkey only shows/hides
  *  the panel and counts as addressing Jarvis. */
 export function toggleCompanionConversation(): void {
@@ -48,8 +58,17 @@ export function toggleCompanionConversation(): void {
     addressCompanion()
     return
   }
-  if (state === 'speaking') {
+  const action = decideHotkeyPressAction({ userSpeaking, jarvisSpeaking: state === 'speaking' })
+  if (action === 'barge-in') {
     companionDialogueHandle.current?.bargeIn()
+    return
+  }
+  if (action === 'finalize') {
+    // Forces the active VAD segment to end now — the panel's `speech:segmentEnd`
+    // listener takes it from there (flushes STT, submits, same path as a natural
+    // trailing-silence end-of-utterance). No-op if VAD segmentation is not active for
+    // this session (model not downloaded, or voice focus off) — nothing to finalize early.
+    getSpeechSttServiceIfInitialized()?.finalizeNow()
     return
   }
   if (isCompanionWakeListeningEnabled()) {

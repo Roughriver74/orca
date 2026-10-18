@@ -25,7 +25,8 @@ export function CompanionTurnList({
           className={cn(
             'rounded-lg px-2.5 py-1.5 whitespace-pre-wrap',
             turn.role === 'user' ? 'bg-white/5 text-white/90' : 'bg-white/10 text-white',
-            turn.isError && 'text-destructive'
+            turn.isError && 'text-destructive',
+            turn.isDropped && 'bg-transparent text-white/30 italic'
           )}
         >
           {turn.text}

@@ -56,6 +56,14 @@ export type SpeechErrorEvent = {
   sessionId: string
 }
 
+/** Fired when VAD segmentation (voice focus) detects end-of-speech, or a caller forced
+ *  it with `finalizeNow()`. `embedding` is the segment's speaker embedding, null when no
+ *  speaker-embedding model was configured for this session. */
+export type SpeechSegmentEndEvent = {
+  sessionId: string
+  embedding: number[] | null
+}
+
 export type DictationState = 'idle' | 'starting' | 'listening' | 'stopping' | 'error'
 
 export type UserModelConfig = {

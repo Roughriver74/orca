@@ -10,6 +10,15 @@ export type CompanionUtteranceHoldWiringDeps = {
   /** Submits one combined utterance to the brain (via reportUtterance), same as always. */
   appendUserTurn: (text: string) => void
   stopListening: () => void
+  /** The last VAD segment's speaker embedding (voice focus), consumed (cleared) on read
+   *  — null when VAD segmentation was not active for this utterance. Read at submit
+   *  time, not combine time: a dangling-utterance hold's final submit uses whichever
+   *  segment most recently ended, which is the acoustically closest one anyway. */
+  getPendingEmbedding: () => number[] | null
+  /** Voice focus dropped this segment (not the owner's voice) — only called when the
+   *  "показывать отброшенное" debug setting is on; renders a dim turn instead of a
+   *  normal one. */
+  onVoiceDropped: (text: string) => void
 }
 
 export type CompanionUtteranceHoldWiring = {
@@ -56,9 +65,14 @@ export function useCompanionUtteranceHoldWiring(): CompanionUtteranceHoldWiring 
   }, [])
 
   const submitUtterance = useCallback(async (text: string, level: number): Promise<void> => {
-    const result = await window.api.companion.reportUtterance(text, { level })
+    const embedding = depsRef.current?.getPendingEmbedding() ?? null
+    const result = await window.api.companion.reportUtterance(text, { level, embedding })
     if (result.ignored) {
-      // Wake mode: background speech (TV, other people) never enters the transcript.
+      if (result.droppedVoice) {
+        depsRef.current?.onVoiceDropped(text)
+      }
+      // Wake mode / voice focus: background speech (TV, other people) never enters the
+      // transcript as a normal turn.
       return
     }
     depsRef.current?.appendUserTurn(text)

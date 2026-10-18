@@ -29,6 +29,9 @@ export type CompanionTurn = {
   role: 'user' | 'assistant'
   text: string
   isError?: boolean
+  /** Voice focus dropped this segment (not the owner's voice) — shown dim, only when
+   *  "показывать отброшенное" is on. */
+  isDropped?: boolean
 }
 
 /**
@@ -62,6 +65,12 @@ export function CompanionPanel(): React.JSX.Element {
         if (meter.isSpeaking) {
           hold.cancelHoldOnSpeaking()
         }
+        // Lets the main-process hotkey handler tell "press while mid-utterance"
+        // (finalize now) from "press while idle" (toggle) — see decideHotkeyPressAction.
+        if (meter.isSpeaking !== lastReportedSpeakingRef.current) {
+          lastReportedSpeakingRef.current = meter.isSpeaking
+          void window.api.companion.reportSpeakingState(meter.isSpeaking)
+        }
       },
       [hold]
     )
@@ -79,6 +88,13 @@ export function CompanionPanel(): React.JSX.Element {
   const silenceStartedAtRef = useRef<number | null>(null)
   const hasAudioSinceLastFinalRef = useRef(false)
   const restartingRef = useRef(false)
+  const lastReportedSpeakingRef = useRef(false)
+  // True once this session has seen at least one real `speech:segmentEnd` — from then
+  // on VAD drives end-of-utterance instead of the energy-timer fallback below.
+  const vadActiveRef = useRef(false)
+  // The most recent VAD segment's speaker embedding, consumed (cleared) by
+  // CompanionUtteranceHoldWiringDeps.getPendingEmbedding at submit time.
+  const pendingEmbeddingRef = useRef<number[] | null>(null)
 
   const { listeningThroughPlaybackRef, refreshSettings } = useCompanionPlaybackMicHandoff({
     sessionId: COMPANION_SESSION_ID,
@@ -101,6 +117,20 @@ export function CompanionPanel(): React.JSX.Element {
     setTurns((prev) => [...prev, { id: turnIdRef.current, role: 'user', text }])
   }, [])
 
+  // Voice focus dropped this segment (not the owner's voice); only called when
+  // "показывать отброшенное" is on, so it always renders — the caller already checked.
+  const appendDroppedTurn = useCallback((text: string): void => {
+    turnIdRef.current += 1
+    currentAssistantTurnIdRef.current = null
+    setTurns((prev) => [...prev, { id: turnIdRef.current, role: 'user', text, isDropped: true }])
+  }, [])
+
+  const getPendingEmbedding = useCallback((): number[] | null => {
+    const embedding = pendingEmbeddingRef.current
+    pendingEmbeddingRef.current = null
+    return embedding
+  }, [])
+
   const ensureAssistantTurn = useCallback((): number => {
     if (currentAssistantTurnIdRef.current !== null) {
       return currentAssistantTurnIdRef.current
@@ -119,10 +149,21 @@ export function CompanionPanel(): React.JSX.Element {
     setIsActive(false)
     setPartialText('')
     setMeterLevel(0)
+    vadActiveRef.current = false
+    pendingEmbeddingRef.current = null
     stopCapture()
     void window.api.speech.stopDictation(COMPANION_SESSION_ID)
   }, [resetSilenceTracking, hold, stopCapture])
-  hold.depsRef.current = { appendUserTurn, stopListening }
+  hold.depsRef.current = {
+    appendUserTurn,
+    stopListening,
+    getPendingEmbedding,
+    onVoiceDropped: (text) => {
+      if (settingsRef.current.voiceFocus.showDropped) {
+        appendDroppedTurn(text)
+      }
+    }
+  }
 
   const beginDictationSession = useCallback(async (): Promise<void> => {
     try {
@@ -174,6 +215,7 @@ export function CompanionPanel(): React.JSX.Element {
       // the error banner (with its "open Settings" button) has somewhere to render.
       isActiveRef.current = true
       setIsActive(true)
+      vadActiveRef.current = false
       hasAudioSinceLastFinalRef.current = false
       // Reuses the same macOS TCC check/prompt the desktop dictation panel uses
       // (`developerPermissions:request` → `systemPreferences.askForMediaAccess`), so a
@@ -200,6 +242,7 @@ export function CompanionPanel(): React.JSX.Element {
       if (
         !isActiveRef.current ||
         restartingRef.current ||
+        vadActiveRef.current ||
         (isPlayingAudioRef.current && !listeningThroughPlaybackRef.current)
       ) {
         return
@@ -257,11 +300,26 @@ export function CompanionPanel(): React.JSX.Element {
         handleFinalText(data.text)
       }
     })
+    // VAD end-of-utterance, once active for this session, replaces the energy-timer
+    // fallback above entirely (see vadActiveRef's gate in that effect) — a real segment
+    // boundary is more accurate than a trailing-silence guess, especially with
+    // background noise. finalizeNow() (hotkey-while-speaking) fires this same event.
+    const offSegmentEnd = window.api.speech.onSegmentEnd((data) => {
+      if (data.sessionId !== COMPANION_SESSION_ID) {
+        return
+      }
+      vadActiveRef.current = true
+      pendingEmbeddingRef.current = data.embedding
+      if (!restartingRef.current && isActiveRef.current) {
+        void restartForNextUtterance()
+      }
+    })
     return () => {
       offPartial()
       offFinal()
+      offSegmentEnd()
     }
-  }, [handleFinalText])
+  }, [handleFinalText, restartForNextUtterance])
 
   useEffect(() => {
     const offOpened = window.api.companion.onConversationOpened(() => {

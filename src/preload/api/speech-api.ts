@@ -4,6 +4,7 @@ import type {
   SpeechLifecycleEvent,
   SpeechModelManifest,
   SpeechModelState,
+  SpeechSegmentEndEvent,
   SpeechTranscriptEvent
 } from '../../shared/speech-types'
 
@@ -26,6 +27,9 @@ export type SpeechApi = {
   ) => Promise<void>
   feedAudio: (samples: Float32Array, sampleRate: number, sessionId?: string) => Promise<void>
   stopDictation: (sessionId?: string) => Promise<void>
+  /** Forces the active VAD segment to end now (hotkey-while-speaking). No-op when VAD
+   *  segmentation is not active for the current session. */
+  finalizeNow: () => Promise<void>
   onPartialTranscript: (callback: (data: SpeechTranscriptEvent) => void) => () => void
   onFinalTranscript: (callback: (data: SpeechTranscriptEvent) => void) => () => void
   onDownloadProgress: (
@@ -34,4 +38,5 @@ export type SpeechApi = {
   onReady: (callback: (data: SpeechLifecycleEvent) => void) => () => void
   onStopped: (callback: (data: SpeechLifecycleEvent) => void) => () => void
   onError: (callback: (data: SpeechErrorEvent) => void) => () => void
+  onSegmentEnd: (callback: (data: SpeechSegmentEndEvent) => void) => () => void
 }

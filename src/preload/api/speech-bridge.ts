@@ -5,6 +5,7 @@ import type {
   SpeechLifecycleEvent,
   SpeechModelManifest,
   SpeechModelState,
+  SpeechSegmentEndEvent,
   SpeechTranscriptEvent
 } from '../../shared/speech-types'
 import type { PreloadApi } from '../api-types'
@@ -41,6 +42,7 @@ export const speechApi = {
     ),
   stopDictation: (sessionId = 'desktop'): Promise<void> =>
     ipcRenderer.invoke('speech:stopDictation', sessionId),
+  finalizeNow: (): Promise<void> => ipcRenderer.invoke('speech:finalizeNow'),
 
   onPartialTranscript: (callback: (data: SpeechTranscriptEvent) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, data: SpeechTranscriptEvent): void =>
@@ -81,5 +83,11 @@ export const speechApi = {
       callback(data)
     ipcRenderer.on('speech:error', listener)
     return () => ipcRenderer.removeListener('speech:error', listener)
+  },
+  onSegmentEnd: (callback: (data: SpeechSegmentEndEvent) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: SpeechSegmentEndEvent): void =>
+      callback(data)
+    ipcRenderer.on('speech:segmentEnd', listener)
+    return () => ipcRenderer.removeListener('speech:segmentEnd', listener)
   }
 } satisfies PreloadApi['speech']

@@ -5,6 +5,9 @@ import { createHash } from 'node:crypto'
 import { SPEECH_MODEL_CATALOG } from '../speech/model-catalog'
 import { deleteLocalSpeechModel } from '../speech/speech-model-deletion'
 import { getSpeechModelManager, getSpeechSttService } from '../speech/speech-runtime-service'
+import { buildCompanionVadOptions } from '../speech/companion-vad-options'
+import { getFocusModelManager } from '../speech/focus-model-manager'
+import { normalizeCompanionSettings } from '../persistence/applying-settings/companion-settings-normalization'
 import {
   clearOpenAiSpeechApiKey,
   getOpenAiSpeechApiKeyProtection,
@@ -178,6 +181,12 @@ export function registerSpeechHandlers(store: Store): void {
               case 'final':
                 window.webContents.send('speech:final', { text: msg.text ?? '', sessionId })
                 break
+              case 'segmentEnd':
+                window.webContents.send('speech:segmentEnd', {
+                  sessionId,
+                  embedding: msg.embedding ?? null
+                })
+                break
               case 'stopped':
                 cleanupSessionListener()
                 window.webContents.send('speech:stopped', { sessionId })
@@ -192,7 +201,12 @@ export function registerSpeechHandlers(store: Store): void {
             }
           },
           resolvedHotwordsPath,
-          owner
+          owner,
+          buildCompanionVadOptions(
+            sessionId,
+            normalizeCompanionSettings(store.getSettings().companion).voiceFocus,
+            getFocusModelManager()
+          )
         )
         // Coalesced starts install no sink; only an accepted start supersedes the close hook.
         if (sessionReady) {
@@ -237,5 +251,13 @@ export function registerSpeechHandlers(store: Store): void {
     if (listener?.owner === owner) {
       listener.cleanup()
     }
+  })
+
+  // Why no sessionId/owner: SttService.finalizeNow() targets whichever dictation
+  // session's startDictation ran most recently (see VadSegmentationService) — the
+  // companion hotkey is the only caller today, and only one STT session is ever really
+  // active at a time.
+  ipcMain.handle('speech:finalizeNow', async () => {
+    getSpeechSttService(store).finalizeNow()
   })
 }

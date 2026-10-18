@@ -36,8 +36,8 @@ export const companionApi = {
   toggle: (): Promise<void> => ipcRenderer.invoke('companion:toggle'),
   reportUtterance: (
     text: string,
-    meta?: { level?: number }
-  ): Promise<{ stopped: boolean; ignored?: boolean }> =>
+    meta?: { level?: number; embedding?: number[] | null }
+  ): Promise<{ stopped: boolean; ignored?: boolean; droppedVoice?: boolean }> =>
     ipcRenderer.invoke('companion:reportUtterance', text, meta),
   hide: (): Promise<{ keepListening: boolean }> => ipcRenderer.invoke('companion:hide'),
   resetConversation: (): Promise<void> => ipcRenderer.invoke('companion:resetConversation'),
@@ -47,6 +47,8 @@ export const companionApi = {
     ipcRenderer.invoke('companion:voiceActivity', frame),
   respondToNotice: (payload: { id: string; action: 'discuss' | 'later' }): Promise<void> =>
     ipcRenderer.invoke('companion:noticeAction', payload),
+  reportSpeakingState: (speaking: boolean): Promise<void> =>
+    ipcRenderer.invoke('companion:reportSpeakingState', speaking),
 
   onConversationOpened: (callback: () => void): (() => void) => {
     const listener = (): void => callback()

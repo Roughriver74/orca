@@ -53,3 +53,11 @@ export function getSpeechSttService(store: SpeechSettingsStore): SttService {
   }
   return sttService
 }
+
+/** Returns the already-constructed SttService singleton, or null if speech has never
+ *  started (no host factories installed yet, or getSpeechSttService never called). Used
+ *  by callers that cannot supply a settings store — e.g. the companion's global hotkey
+ *  handler, which by the time it can fire has necessarily already started a session. */
+export function getSpeechSttServiceIfInitialized(): SttService | null {
+  return sttService
+}

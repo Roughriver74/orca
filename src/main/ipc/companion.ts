@@ -6,6 +6,7 @@ import {
 } from '../companion/companion-conversation'
 import {
   getCompanionHotkeyStatus,
+  reportCompanionUserSpeaking,
   toggleCompanionConversation,
   type CompanionHotkeySettingsStore
 } from '../companion/companion-shortcut'
@@ -33,6 +34,14 @@ function parseUtteranceLevel(meta: unknown): number | undefined {
     : undefined
 }
 
+function parseUtteranceEmbedding(meta: unknown): number[] | null {
+  const embedding =
+    typeof meta === 'object' && meta !== null && 'embedding' in meta ? meta.embedding : undefined
+  return Array.isArray(embedding) && embedding.every((value) => typeof value === 'number')
+    ? embedding
+    : null
+}
+
 export function registerCompanionHandlers(store: CompanionHotkeySettingsStore): void {
   ipcMain.removeHandler('companion:getSettings')
   ipcMain.removeHandler('companion:getHotkeyStatus')
@@ -46,6 +55,7 @@ export function registerCompanionHandlers(store: CompanionHotkeySettingsStore): 
   ipcMain.removeHandler('companion:noticeAction')
   ipcMain.removeHandler('companion:getListeningStatus')
   ipcMain.removeHandler('companion:reportListeningHealth')
+  ipcMain.removeHandler('companion:reportSpeakingState')
 
   ipcMain.handle('companion:getSettings', () =>
     normalizeCompanionSettings(store.getSettings().companion)
@@ -81,11 +91,27 @@ export function registerCompanionHandlers(store: CompanionHotkeySettingsStore): 
       if (typeof text !== 'string' || text.trim() === '') {
         return { stopped: false }
       }
-      return routeCompanionUtterance(text, parseUtteranceLevel(meta), {
-        bargeIn: () => companionDialogueHandle.current?.bargeIn()
-      })
+      return routeCompanionUtterance(
+        text,
+        parseUtteranceLevel(meta),
+        {
+          bargeIn: () => companionDialogueHandle.current?.bargeIn(),
+          isRealSpeechConfirmed: () =>
+            companionDialogueHandle.current?.hasConfirmedRealSpeech() ?? false
+        },
+        parseUtteranceEmbedding(meta)
+      )
     }
   )
+
+  // Why: lets the main-process hotkey handler (decideHotkeyPressAction) tell "press while
+  // mid-utterance" (finalize now) from "press while idle" (toggle) — main has no other
+  // way to know whether the user is currently speaking.
+  ipcMain.handle('companion:reportSpeakingState', (_event, speaking: unknown) => {
+    if (typeof speaking === 'boolean') {
+      reportCompanionUserSpeaking(speaking)
+    }
+  })
 
   // Why `keepListening`: in wake mode hiding the panel only ends the addressed exchange;
   // the mic keeps listening for the wake phrase.

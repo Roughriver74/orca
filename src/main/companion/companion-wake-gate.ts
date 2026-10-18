@@ -110,6 +110,11 @@ export type CompanionWakeGate = {
   /** Panel closed or "стоп": back to waiting for the wake phrase. */
   dismiss(): void
   onStateChange(state: CompanionConversationState): void
+  /** True while a wake phrase/hotkey address is still in its follow-up window — the
+   *  voice-focus policy (companion-voice-focus.ts) uses this to tell an already-
+   *  addressed exchange ("hotkey" mode, lenient) from pure background listening
+   *  ("wake" mode, strict) when deciding whether to drop a non-owner segment. */
+  isAddressed(): boolean
 }
 
 export function createCompanionWakeGate(deps: {
@@ -163,6 +168,9 @@ export function createCompanionWakeGate(deps: {
     openFollowUp(Math.max(deps.getSettings().followUpMs, ADDRESSED_WINDOW_MS))
   }
 
+  function isAddressed(): boolean {
+    return followUpUntil !== null && deps.now() <= followUpUntil
+  }
   function dismiss(): void {
     followUpUntil = null
   }
@@ -178,5 +186,5 @@ export function createCompanionWakeGate(deps: {
     previousState = state
   }
 
-  return { decide, address, dismiss, onStateChange }
+  return { decide, address, dismiss, onStateChange, isAddressed }
 }

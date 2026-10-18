@@ -3,7 +3,7 @@
 // through the gate, and turns "стоп" into "stop answering" instead of "stop listening".
 // Bare `companionConversation.reportUtterance` is still what runs with wake mode off.
 
-import { powerSaveBlocker } from 'electron'
+import { app, powerSaveBlocker } from 'electron'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import {
   isCompanionStopPhrase,
@@ -19,6 +19,13 @@ import {
 } from '../window/companion-window'
 import { companionConversation, onCompanionStateChange } from './companion-conversation'
 import { createCompanionWakeGate } from './companion-wake-gate'
+import { loadVoiceEnrollmentProfile, meanEmbedding } from './companion-voice-enrollment'
+import {
+  cosineSimilarity,
+  decideVoiceFocus,
+  strictnessToThreshold,
+  type VoiceFocusMode
+} from './companion-voice-focus'
 
 export type CompanionWakeListeningStore = {
   getSettings: () => { companion?: CompanionSettings }
@@ -30,6 +37,9 @@ export type CompanionUtteranceResult = {
   stopped: boolean
   /** Not meant for Jarvis: the panel drops it from the transcript. */
   ignored?: boolean
+  /** `ignored` was decided by voice focus (not the owner's voice), not the wake gate —
+   *  lets the panel render a dim "отброшено" debug line when that setting is on. */
+  droppedVoice?: boolean
 }
 
 let activeStore: CompanionWakeListeningStore | null = null
@@ -55,15 +65,71 @@ export function dismissCompanionAddress(): void {
   wakeGate.dismiss()
 }
 
+// A segment dropped by voice focus this long ago no longer counts as "the owner was
+// recently talking" for the hotkey-mode leniency in companion-voice-focus.ts's
+// decideVoiceFocus — long enough to survive a normal thinking pause, short enough that a
+// stranger who starts talking well after the owner went quiet is still dropped.
+const OWNER_RECENTLY_ACTIVE_MS = 30_000
+let lastOwnerVoiceAt: number | null = null
+
+/**
+ * Runs companion-voice-focus.ts's pure policy against the enrolled owner profile for one
+ * finalized VAD segment. `embedding` is undefined/null whenever VAD segmentation was not
+ * active for this utterance (model not downloaded, voice focus off, or the legacy energy
+ * timer flushed it instead) — decideVoiceFocus already fails open in that case, so no
+ * extra guard is needed here.
+ */
+function evaluateIncomingVoiceFocus(embedding: number[] | null | undefined): {
+  kind: 'pass' | 'drop'
+} {
+  const companion = normalizeCompanionSettings(activeStore?.getSettings().companion)
+  if (!companion.voiceFocus.enabled) {
+    return { kind: 'pass' }
+  }
+  const profile = loadVoiceEnrollmentProfile(app.getPath('userData'))
+  const enrolled = profile !== null && profile.phraseEmbeddings.length > 0
+  const similarity =
+    enrolled && profile && embedding ? cosineSimilarity(embedding, meanEmbedding(profile)) : null
+  const mode: VoiceFocusMode =
+    !isCompanionWakeListeningEnabled() || wakeGate.isAddressed() ? 'hotkey' : 'wake'
+  const ownerRecentlyActive =
+    lastOwnerVoiceAt !== null && Date.now() - lastOwnerVoiceAt < OWNER_RECENTLY_ACTIVE_MS
+  const decision = decideVoiceFocus({
+    mode,
+    verification: { enrolled, similarity },
+    threshold: strictnessToThreshold(companion.voiceFocus.strictness),
+    ownerRecentlyActive
+  })
+  if (decision.kind === 'pass') {
+    lastOwnerVoiceAt = Date.now()
+    return { kind: 'pass' }
+  }
+  return { kind: 'drop' }
+}
+
+/** Test-only: owner-recently-active tracking persists across calls at module scope. */
+export function resetCompanionVoiceFocusTrackingForTesting(): void {
+  lastOwnerVoiceAt = null
+}
+
 /**
  * One finalized utterance from the panel. `bargeIn` stops a reply in progress — in wake
- * mode only an utterance that names Jarvis can reach it while he is speaking.
+ * mode only an utterance that names Jarvis can reach it while he is speaking, and only
+ * once `isRealSpeechConfirmed()` says it is not Jarvis's own TTS echo (with no
+ * headphones, the mic hears him too — see companion-dialogue.ts's
+ * `hasConfirmedRealSpeech`). `embedding` is the segment's speaker embedding
+ * (undefined/null when VAD segmentation was not active) — dropped before the wake gate
+ * even sees the text, so a stranger saying the wake phrase never reaches it.
  */
 export function routeCompanionUtterance(
   text: string,
   level: number | undefined,
-  actions: { bargeIn: () => void }
+  actions: { bargeIn: () => void; isRealSpeechConfirmed: () => boolean },
+  embedding?: number[] | null
 ): CompanionUtteranceResult {
+  if (evaluateIncomingVoiceFocus(embedding).kind === 'drop') {
+    return { stopped: false, ignored: true, droppedVoice: true }
+  }
   const state = companionConversation.getState()
   const decision = wakeGate.decide(text, { state, level })
   if (decision.kind === 'ignore') {
@@ -77,6 +143,9 @@ export function routeCompanionUtterance(
     return result
   }
   if (state === 'speaking') {
+    if (!actions.isRealSpeechConfirmed()) {
+      return { stopped: false, ignored: true }
+    }
     actions.bargeIn()
   }
   if (decision.kind === 'wake-only') {

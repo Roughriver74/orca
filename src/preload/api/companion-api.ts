@@ -22,11 +22,14 @@ export type CompanionApi = {
   /** Also the background-launch test entry point — no window show/focus. */
   toggle: () => Promise<void>
   /** `level`: peak mic meter level over the utterance, used by wake mode's follow-up filter.
-   *  `ignored`: wake mode decided it was not meant for Jarvis. */
+   *  `embedding`: the finalized VAD segment's speaker embedding (voice focus), when VAD
+   *  segmentation was active for this utterance — null/omitted otherwise.
+   *  `ignored`: wake mode or voice focus decided it was not meant for Jarvis;
+   *  `droppedVoice` distinguishes a voice-focus drop from a wake-gate one. */
   reportUtterance: (
     text: string,
-    meta?: { level?: number }
-  ) => Promise<{ stopped: boolean; ignored?: boolean }>
+    meta?: { level?: number; embedding?: number[] | null }
+  ) => Promise<{ stopped: boolean; ignored?: boolean; droppedVoice?: boolean }>
   /** `keepListening`: wake mode keeps the mic on after the panel hides. */
   hide: () => Promise<{ keepListening: boolean }>
   /** Drops the brain session + any in-flight audio; keeps the conversation open if it is. */
@@ -35,6 +38,9 @@ export type CompanionApi = {
   /** One mic frame while a reply plays; `bargedIn` when it was the frame that interrupted. */
   reportVoiceActivity: (frame: CompanionVoiceActivityFrame) => Promise<{ bargedIn: boolean }>
   respondToNotice: (payload: { id: string; action: 'discuss' | 'later' }) => Promise<void>
+  /** Mic-meter isSpeaking transitions, so the main-process hotkey handler can tell
+   *  "press while mid-utterance" (finalize now) from "press while idle" (toggle). */
+  reportSpeakingState: (speaking: boolean) => Promise<void>
   onConversationOpened: (callback: () => void) => () => void
   onConversationClosed: (callback: () => void) => () => void
   /** Pushed after `resetConversation`: the panel clears its turn history. */
