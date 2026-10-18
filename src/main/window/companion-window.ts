@@ -2,11 +2,15 @@ import { BrowserWindow, screen } from 'electron'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 import { showWindowWithoutStealingFocus } from './foreground-activation-policy'
+import { installPrivilegedWindowNavigationPolicy } from './privileged-window-navigation'
+import { hasSystemMediaAccess, requestSystemMediaAccess } from '../browser/browser-media-access'
 
 const PANEL_WIDTH = 420
 const PANEL_HEIGHT = 280
 // Why: clear of the macOS menu bar / notch area so the panel never overlaps system chrome.
 const TOP_MARGIN = 48
+// Why: an own session, so this panel's permission policy can never replace the main window's.
+const COMPANION_PANEL_PARTITION = 'companion-panel'
 
 // Why: singleton — the hotkey toggles one conversation surface, so a second
 // trigger while open focuses/hides the existing window instead of spawning another.
@@ -62,18 +66,30 @@ function createCompanionWindow(): BrowserWindow {
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
+      partition: COMPANION_PANEL_PARTITION,
       webviewTag: false
     }
   })
+  installPrivilegedWindowNavigationPolicy(window.webContents)
 
   window.setAlwaysOnTop(true, 'floating')
   // Why: macOS-only API — the panel must stay reachable from inside Spaces and
   // fullscreen apps, which is the whole point of a global-hotkey companion.
   window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  window.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) =>
-    callback(false)
+  // The panel only ever needs the microphone; everything else stays denied.
+  window.webContents.session.setPermissionRequestHandler(
+    (_webContents, permission, callback, details) => {
+      if (permission !== 'media') {
+        callback(false)
+        return
+      }
+      void requestSystemMediaAccess(details).then(callback, () => callback(false))
+    }
   )
-  window.webContents.session.setPermissionCheckHandler(() => false)
+  window.webContents.session.setPermissionCheckHandler(
+    (_webContents, permission, _origin, details) =>
+      permission === 'media' && hasSystemMediaAccess(details?.mediaType)
+  )
 
   window.on('closed', () => {
     if (companionWindow === window) {
