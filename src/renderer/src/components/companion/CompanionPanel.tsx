@@ -11,6 +11,11 @@ import type {
 import { getDefaultCompanionSettings } from '../../../../shared/constants'
 import { useCompanionAudioPlayback } from './companion-audio-playback'
 import { CompanionNoticeToast } from './CompanionNoticeToast'
+import {
+  describeListenStartError,
+  micPermissionError,
+  type CompanionPanelError
+} from './companion-panel-errors'
 
 const COMPANION_SESSION_ID = 'companion'
 
@@ -20,10 +25,6 @@ type CompanionTurn = {
   text: string
   isError?: boolean
 }
-
-type CompanionPanelError =
-  | { kind: 'mic-permission'; message: string }
-  | { kind: 'generic'; message: string }
 
 /**
  * Floating always-listening panel. The hotkey (handled in main) shows/hides
@@ -114,18 +115,7 @@ export function CompanionPanel(): React.JSX.Element {
       await startCapture({ sessionId: COMPANION_SESSION_ID })
       setError(null)
     } catch (err) {
-      // Why: TCC can report "granted" while Chromium still rejects getUserMedia (NotAllowedError).
-      if (err instanceof DOMException && err.name === 'NotAllowedError') {
-        setError({
-          kind: 'mic-permission',
-          message: translate(
-            'companion.panel.micPermissionDenied',
-            'Нет доступа к микрофону — разреши в Системные настройки → Конфиденциальность → Микрофон'
-          )
-        })
-        return
-      }
-      setError({ kind: 'generic', message: err instanceof Error ? err.message : String(err) })
+      setError(describeListenStartError(err))
     }
   }, [startCapture])
 
@@ -167,13 +157,7 @@ export function CompanionPanel(): React.JSX.Element {
       // previously-denied mic falls straight to the Privacy pane instead of a silent stream.
       const permission = await window.api.developerPermissions.request({ id: 'microphone' })
       if (permission.status !== 'granted' && permission.status !== 'unsupported') {
-        setError({
-          kind: 'mic-permission',
-          message: translate(
-            'companion.panel.micPermissionDenied',
-            'Нет доступа к микрофону — разреши в Системные настройки → Конфиденциальность → Микрофон'
-          )
-        })
+        setError(micPermissionError())
         return
       }
       await beginDictationSession()

@@ -45,7 +45,7 @@ function TtsProvisioningRow({
     return (
       <p className="text-xs text-muted-foreground">
         {translate('auto.components.settings.CompanionPane.tts.downloading', 'Загрузка голоса…')}{' '}
-        {status.progress !== undefined ? `${Math.round(status.progress * 100)}%` : ''}
+        {status.progress !== undefined ? `${Math.round(status.progress)}%` : ''}
       </p>
     )
   }
