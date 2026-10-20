@@ -8,6 +8,7 @@ const {
   sendToCompanionWindowMock,
   ensureCompanionWindowAliveMock,
   destroyCompanionWindowMock,
+  destroyCompanionIndicatorWindowMock,
   setLoginItemSettingsMock,
   isCompanionPanelOpenMock,
   wakeMode
@@ -25,6 +26,7 @@ const {
   sendToCompanionWindowMock: vi.fn(),
   ensureCompanionWindowAliveMock: vi.fn(),
   destroyCompanionWindowMock: vi.fn(),
+  destroyCompanionIndicatorWindowMock: vi.fn(),
   setLoginItemSettingsMock: vi.fn()
 }))
 
@@ -40,6 +42,10 @@ vi.mock('../window/companion-window', () => ({
   ensureCompanionWindowAlive: ensureCompanionWindowAliveMock,
   destroyCompanionWindow: destroyCompanionWindowMock,
   isCompanionPanelOpen: isCompanionPanelOpenMock
+}))
+
+vi.mock('../window/companion-indicator-window', () => ({
+  destroyCompanionIndicatorWindow: destroyCompanionIndicatorWindowMock
 }))
 
 vi.mock('./companion-wake-listening', () => ({
@@ -88,6 +94,7 @@ describe('companion hotkey', () => {
     sendToCompanionWindowMock.mockReset()
     ensureCompanionWindowAliveMock.mockReset()
     destroyCompanionWindowMock.mockReset()
+    destroyCompanionIndicatorWindowMock.mockReset()
     isCompanionPanelOpenMock.mockReset().mockReturnValue(false)
     wakeMode.enabled = false
     wakeMode.addressCompanion.mockClear()
@@ -103,6 +110,7 @@ describe('companion hotkey', () => {
     expect(registerMock).not.toHaveBeenCalled()
     expect(getCompanionHotkeyStatus()).toEqual({ registered: false, hotkey: null, error: null })
     expect(destroyCompanionWindowMock).toHaveBeenCalledTimes(1)
+    expect(destroyCompanionIndicatorWindowMock).toHaveBeenCalledTimes(1)
     expect(ensureCompanionWindowAliveMock).not.toHaveBeenCalled()
   })
 

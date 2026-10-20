@@ -49,6 +49,8 @@ export const companionApi = {
     ipcRenderer.invoke('companion:noticeAction', payload),
   reportSpeakingState: (speaking: boolean): Promise<void> =>
     ipcRenderer.invoke('companion:reportSpeakingState', speaking),
+  reportIndicatorHover: (hovering: boolean): Promise<void> =>
+    ipcRenderer.invoke('companion:indicatorHoverChanged', hovering),
 
   onConversationOpened: (callback: () => void): (() => void) => {
     const listener = (): void => callback()

@@ -35,6 +35,8 @@ export function getDefaultCompanionSettings(): CompanionSettings {
       phrases: ['джарвис'],
       followUpMs: 8000
     },
+    showPanelOnAddress: false,
+    autoHidePanelAfterReply: true,
     // VAD is more accurate about real trailing silence than the energy timer above, so
     // it affords a shorter window; denoiserEnabled/strictness per the offline eval under
     // /Users/evgenijsikunov/assistant/voice-lab/focus (report.md has the numbers).

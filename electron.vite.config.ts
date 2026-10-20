@@ -332,6 +332,7 @@ export const electronViteConfig: UserConfig = {
           popout: resolve('src/renderer/popout.html'),
           space: resolve('src/renderer/space.html'),
           companion: resolve('src/renderer/companion.html'),
+          'companion-indicator': resolve('src/renderer/companion-indicator.html'),
           web: resolve('src/renderer/web-index.html')
         }
       }

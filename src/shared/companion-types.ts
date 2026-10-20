@@ -20,6 +20,15 @@ export type CompanionSettings = {
   notify: CompanionNotifySettings
   wake: CompanionWakeSettings
   voiceFocus: CompanionVoiceFocusSettings
+  /** Opens the big panel when wake mode addresses Jarvis (bare wake phrase otherwise only
+   *  changes the pill indicator's state). Off by default: backlog #28 — the big panel must
+   *  not pop over the user's windows just because a wake-mode exchange is happening. */
+  showPanelOnAddress: boolean
+  /** Auto-hides the big panel ~6s after a reply finishes playing (companion-panel-auto-hide.ts),
+   *  cancelled if the user keeps talking. Applies to every way the panel opened (hotkey,
+   *  "Обсудить", or wake mode with showPanelOnAddress on) — not wake-specific, but kept next to
+   *  it in settings since both only matter once the big panel can appear. */
+  autoHidePanelAfterReply: boolean
 }
 
 /** Always-on listening that answers only when addressed by name. */

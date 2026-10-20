@@ -61,9 +61,12 @@ function storeWith(companion: CompanionSettings) {
   }
 }
 
-function wakeSettings(enabled: boolean): CompanionSettings {
+function wakeSettings(
+  enabled: boolean,
+  overrides: Partial<CompanionSettings> = {}
+): CompanionSettings {
   const defaults = getDefaultCompanionSettings()
-  return { ...defaults, enabled: true, wake: { ...defaults.wake, enabled } }
+  return { ...defaults, enabled: true, wake: { ...defaults.wake, enabled }, ...overrides }
 }
 
 describe('companion wake listening', () => {
@@ -141,8 +144,38 @@ describe('companion wake listening', () => {
       stopped: false
     })
     expect(utterances).toEqual(['какая погода?'])
-    expect(showForNotice).toHaveBeenCalled()
+    // Backlog #28: `showPanelOnAddress` defaults off — an addressed request answers by
+    // voice without the big panel popping over the user's windows.
+    expect(showForNotice).not.toHaveBeenCalled()
     expect(bargeIn).not.toHaveBeenCalled()
+  })
+
+  it('shows the big panel on an addressed request only when "Показывать панель при обращении" is on', () => {
+    dispose = initCompanionWakeListening(
+      storeWith(wakeSettings(true, { showPanelOnAddress: true }))
+    )
+    routeCompanionUtterance('Джарвис, какая погода?', 0.4, {
+      bargeIn: vi.fn(),
+      isRealSpeechConfirmed: () => true
+    })
+    expect(utterances).toEqual(['какая погода?'])
+    expect(showForNotice).toHaveBeenCalled()
+  })
+
+  it('a bare wake phrase alone never shows the big panel, even with showPanelOnAddress on', () => {
+    dispose = initCompanionWakeListening(
+      storeWith(wakeSettings(true, { showPanelOnAddress: true }))
+    )
+    const result = routeCompanionUtterance('Джарвис', 0.4, {
+      bargeIn: vi.fn(),
+      isRealSpeechConfirmed: () => true
+    })
+    expect(result).toEqual({ stopped: false })
+    expect(utterances).toEqual([])
+    expect(showForNotice).not.toHaveBeenCalled()
+    // The pill still reflects this — companion-indicator-lifecycle.ts reacts to
+    // companionConversation's state directly, which stays 'listening' throughout.
+    expect(companionConversation.getState()).toBe('listening')
   })
 
   it('lets only the name interrupt Jarvis while he speaks', () => {

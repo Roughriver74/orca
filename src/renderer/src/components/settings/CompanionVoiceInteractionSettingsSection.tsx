@@ -115,6 +115,62 @@ export function CompanionVoiceInteractionSettingsSection({
 
       <div className="flex items-center justify-between gap-4 py-2">
         <div className="space-y-0.5">
+          <Label>
+            {translate(
+              'auto.components.settings.CompanionPane.showPanelOnAddress',
+              'Показывать панель при обращении'
+            )}
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            {translate(
+              'auto.components.settings.CompanionPane.showPanelOnAddressDescription',
+              'Открывать большую панель, когда к Джарвису обратились по имени. Выключено — ответ только голосом, панель окна не перекрывает.'
+            )}
+          </p>
+        </div>
+        <Switch
+          checked={companionSettings.showPanelOnAddress}
+          onCheckedChange={(checked) => updateCompanionSettings({ showPanelOnAddress: checked })}
+          aria-label={translate(
+            'auto.components.settings.CompanionPane.showPanelOnAddress',
+            'Показывать панель при обращении'
+          )}
+        />
+      </div>
+
+      <Separator />
+
+      <div className="flex items-center justify-between gap-4 py-2">
+        <div className="space-y-0.5">
+          <Label>
+            {translate(
+              'auto.components.settings.CompanionPane.autoHidePanelAfterReply',
+              'Прятать панель после ответа'
+            )}
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            {translate(
+              'auto.components.settings.CompanionPane.autoHidePanelAfterReplyDescription',
+              'Через несколько секунд после окончания ответа панель скрывается сама, если разговор не продолжается.'
+            )}
+          </p>
+        </div>
+        <Switch
+          checked={companionSettings.autoHidePanelAfterReply}
+          onCheckedChange={(checked) =>
+            updateCompanionSettings({ autoHidePanelAfterReply: checked })
+          }
+          aria-label={translate(
+            'auto.components.settings.CompanionPane.autoHidePanelAfterReply',
+            'Прятать панель после ответа'
+          )}
+        />
+      </div>
+
+      <Separator />
+
+      <div className="flex items-center justify-between gap-4 py-2">
+        <div className="space-y-0.5">
           <Label htmlFor="companion-wake-phrases">
             {translate('auto.components.settings.CompanionPane.wakePhrases', 'Обращение')}
           </Label>

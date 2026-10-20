@@ -245,6 +245,10 @@ export function normalizeCompanionSettings(value: unknown): CompanionSettings {
   const wakeRaw = source && 'wake' in source ? source.wake : undefined
   const voiceFocusRaw = source && 'voiceFocus' in source ? source.voiceFocus : undefined
   const voiceBargeInRaw = source && 'voiceBargeIn' in source ? source.voiceBargeIn : undefined
+  const showPanelOnAddressRaw =
+    source && 'showPanelOnAddress' in source ? source.showPanelOnAddress : undefined
+  const autoHidePanelAfterReplyRaw =
+    source && 'autoHidePanelAfterReply' in source ? source.autoHidePanelAfterReply : undefined
 
   return {
     enabled: typeof enabledRaw === 'boolean' ? enabledRaw : defaults.enabled,
@@ -262,6 +266,14 @@ export function normalizeCompanionSettings(value: unknown): CompanionSettings {
     tts: normalizeCompanionTtsSettings(ttsRaw, defaults.tts),
     notify: normalizeCompanionNotifySettings(notifyRaw, defaults.notify),
     wake: normalizeCompanionWakeSettings(wakeRaw, defaults.wake),
-    voiceFocus: normalizeCompanionVoiceFocusSettings(voiceFocusRaw, defaults.voiceFocus)
+    voiceFocus: normalizeCompanionVoiceFocusSettings(voiceFocusRaw, defaults.voiceFocus),
+    showPanelOnAddress:
+      typeof showPanelOnAddressRaw === 'boolean'
+        ? showPanelOnAddressRaw
+        : defaults.showPanelOnAddress,
+    autoHidePanelAfterReply:
+      typeof autoHidePanelAfterReplyRaw === 'boolean'
+        ? autoHidePanelAfterReplyRaw
+        : defaults.autoHidePanelAfterReply
   }
 }

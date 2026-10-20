@@ -105,6 +105,43 @@ export const getCompanionPaneSearchEntries = createLocalizedCatalog((): Settings
   },
   {
     title: translate(
+      'auto.components.settings.companion.pane.search.showPanelOnAddressTitle',
+      'Показывать панель при обращении'
+    ),
+    description: translate(
+      'auto.components.settings.companion.pane.search.showPanelOnAddressTitleDescription',
+      'Открывать большую панель, когда к Джарвису обратились по имени.'
+    ),
+    keywords: [
+      ...translateSearchKeyword(
+        'auto.components.settings.companion.pane.search.companion',
+        'companion'
+      ),
+      ...translateSearchKeyword('auto.components.settings.companion.pane.search.panel', 'big panel')
+    ]
+  },
+  {
+    title: translate(
+      'auto.components.settings.companion.pane.search.autoHidePanelAfterReplyTitle',
+      'Прятать панель после ответа'
+    ),
+    description: translate(
+      'auto.components.settings.companion.pane.search.autoHidePanelAfterReplyTitleDescription',
+      'Панель скрывается сама через несколько секунд после ответа.'
+    ),
+    keywords: [
+      ...translateSearchKeyword(
+        'auto.components.settings.companion.pane.search.companion',
+        'companion'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.companion.pane.search.autoHide',
+        'auto hide'
+      )
+    ]
+  },
+  {
+    title: translate(
       'auto.components.settings.companion.pane.search.voiceBargeInTitle',
       'Перебивать голосом'
     ),

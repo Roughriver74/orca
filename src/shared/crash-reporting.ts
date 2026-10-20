@@ -80,6 +80,7 @@ export type ReactErrorBoundarySurface =
   | 'code-editor'
   | 'dashboard-popout'
   | 'companion'
+  | 'companion-indicator'
 
 export type ReactErrorBoundaryReportArgs = {
   boundaryId: string

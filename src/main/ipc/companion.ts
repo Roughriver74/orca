@@ -12,6 +12,7 @@ import {
 } from '../companion/companion-shortcut'
 import { companionDialogueHandle } from '../companion/companion-dialogue'
 import { hideCompanionPanel, sendToCompanionWindow } from '../window/companion-window'
+import { setCompanionIndicatorInteractive } from '../window/companion-indicator-window'
 import { reportAudioState, type CompanionAudioState } from '../companion/companion-audio-output'
 import { parseCompanionVoiceActivityFrame } from '../companion/companion-voice-barge-in'
 import { handleCompanionNoticeAction } from '../companion/companion-agent-watch'
@@ -56,6 +57,7 @@ export function registerCompanionHandlers(store: CompanionHotkeySettingsStore): 
   ipcMain.removeHandler('companion:getListeningStatus')
   ipcMain.removeHandler('companion:reportListeningHealth')
   ipcMain.removeHandler('companion:reportSpeakingState')
+  ipcMain.removeHandler('companion:indicatorHoverChanged')
 
   ipcMain.handle('companion:getSettings', () =>
     normalizeCompanionSettings(store.getSettings().companion)
@@ -110,6 +112,15 @@ export function registerCompanionHandlers(store: CompanionHotkeySettingsStore): 
   ipcMain.handle('companion:reportSpeakingState', (_event, speaking: unknown) => {
     if (typeof speaking === 'boolean') {
       reportCompanionUserSpeaking(speaking)
+    }
+  })
+
+  // Why: the pill is click-through by default (companion-indicator-window.ts); this is
+  // how the renderer's real hover over the visible pill shape turns that off just long
+  // enough for a click to land.
+  ipcMain.handle('companion:indicatorHoverChanged', (_event, hovering: unknown) => {
+    if (typeof hovering === 'boolean') {
+      setCompanionIndicatorInteractive(hovering)
     }
   })
 

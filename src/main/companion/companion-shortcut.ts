@@ -17,6 +17,7 @@ import {
   sendToCompanionWindow,
   showCompanionPanel
 } from '../window/companion-window'
+import { destroyCompanionIndicatorWindow } from '../window/companion-indicator-window'
 import type { CompanionHotkeyStatus, CompanionSettings } from '../../shared/companion-types'
 
 export type { CompanionHotkeyStatus } from '../../shared/companion-types'
@@ -105,6 +106,7 @@ function applyCompanionHotkeySettings(store: CompanionHotkeySettingsStore): void
   }
   if (!companion?.enabled) {
     destroyCompanionWindow()
+    destroyCompanionIndicatorWindow()
     return
   }
   // Why: TTS playback must work even while the panel is hidden, so the window

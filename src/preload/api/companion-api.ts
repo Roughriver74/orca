@@ -41,6 +41,10 @@ export type CompanionApi = {
   /** Mic-meter isSpeaking transitions, so the main-process hotkey handler can tell
    *  "press while mid-utterance" (finalize now) from "press while idle" (toggle). */
   reportSpeakingState: (speaking: boolean) => Promise<void>
+  /** Hover over the pill's visible shape, reported by the indicator renderer — toggles
+   *  `BrowserWindow.setIgnoreMouseEvents` so the otherwise click-through pill still
+   *  receives the click that toggles the conversation. */
+  reportIndicatorHover: (hovering: boolean) => Promise<void>
   onConversationOpened: (callback: () => void) => () => void
   onConversationClosed: (callback: () => void) => () => void
   /** Pushed after `resetConversation`: the panel clears its turn history. */

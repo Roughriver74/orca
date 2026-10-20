@@ -7,13 +7,15 @@ const {
   removeHandlerMock,
   hideCompanionPanelMock,
   sendToCompanionWindowMock,
-  toggleCompanionConversationMock
+  toggleCompanionConversationMock,
+  setCompanionIndicatorInteractiveMock
 } = vi.hoisted(() => ({
   handleMock: vi.fn<(channel: string, listener: Handler) => void>(),
   removeHandlerMock: vi.fn(),
   hideCompanionPanelMock: vi.fn(),
   sendToCompanionWindowMock: vi.fn(),
-  toggleCompanionConversationMock: vi.fn()
+  toggleCompanionConversationMock: vi.fn(),
+  setCompanionIndicatorInteractiveMock: vi.fn()
 }))
 
 vi.mock('electron', () => ({
@@ -23,6 +25,10 @@ vi.mock('electron', () => ({
 vi.mock('../window/companion-window', () => ({
   hideCompanionPanel: hideCompanionPanelMock,
   sendToCompanionWindow: sendToCompanionWindowMock
+}))
+
+vi.mock('../window/companion-indicator-window', () => ({
+  setCompanionIndicatorInteractive: setCompanionIndicatorInteractiveMock
 }))
 
 vi.mock('../companion/companion-shortcut', () => ({
@@ -60,6 +66,7 @@ describe('registerCompanionHandlers', () => {
     hideCompanionPanelMock.mockReset()
     sendToCompanionWindowMock.mockReset()
     toggleCompanionConversationMock.mockReset()
+    setCompanionIndicatorInteractiveMock.mockReset()
     companionDialogueHandle.current = null
     companionConversation.stop()
   })
@@ -157,5 +164,14 @@ describe('registerCompanionHandlers', () => {
       bargedIn: false
     })
     expect(reportVoiceActivity).not.toHaveBeenCalled()
+  })
+
+  it('indicatorHoverChanged forwards a boolean hover state to the pill window', () => {
+    registerCompanionHandlers(makeStore())
+    getHandler('companion:indicatorHoverChanged')({}, true)
+    expect(setCompanionIndicatorInteractiveMock).toHaveBeenCalledWith(true)
+
+    getHandler('companion:indicatorHoverChanged')({}, 'nope')
+    expect(setCompanionIndicatorInteractiveMock).toHaveBeenCalledTimes(1)
   })
 })

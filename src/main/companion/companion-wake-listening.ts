@@ -49,6 +49,12 @@ function readWakeSettings(): CompanionWakeSettings {
   return { ...companion.wake, enabled: companion.enabled && companion.wake.enabled }
 }
 
+/** Full normalized settings — used for the fields outside `wake` that still only matter in
+ *  wake mode (`showPanelOnAddress`). */
+function readCompanionSettings(): CompanionSettings {
+  return normalizeCompanionSettings(activeStore?.getSettings().companion)
+}
+
 const wakeGate = createCompanionWakeGate({ getSettings: readWakeSettings, now: () => Date.now() })
 
 export function isCompanionWakeListeningEnabled(): boolean {
@@ -149,7 +155,9 @@ export function routeCompanionUtterance(
     actions.bargeIn()
   }
   if (decision.kind === 'wake-only') {
-    showCompanionPanelForNotice()
+    // Backlog #28: a bare wake phrase only changes the pill indicator's state
+    // (companion-indicator-lifecycle.ts reacts to `companionConversation`'s state on its
+    // own) — the big panel never opens for it, regardless of `showPanelOnAddress`.
     return { stopped: false }
   }
   if (isCompanionStopPhrase(decision.text)) {
@@ -160,7 +168,7 @@ export function routeCompanionUtterance(
     hideCompanionPanel()
     return { stopped: false }
   }
-  if (decision.addressed) {
+  if (decision.addressed && readCompanionSettings().showPanelOnAddress) {
     showCompanionPanelForNotice()
   }
   companionConversation.reportUtterance(decision.text)

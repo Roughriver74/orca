@@ -13450,7 +13450,11 @@
           "notifyQuietHoursDescription": "Уведомления копятся и приходят после окончания тихих часов.",
           "notifyQuietHoursTo": "до",
           "notifySpeak": "Озвучивать уведомления",
-          "notifySpeakDescription": "Проговаривать уведомление вслух, а не только показывать текст."
+          "notifySpeakDescription": "Проговаривать уведомление вслух, а не только показывать текст.",
+          "showPanelOnAddress": "Показывать панель при обращении",
+          "showPanelOnAddressDescription": "Открывать большую панель, когда к Джарвису обратились по имени. Выключено — ответ только голосом, панель окна не перекрывает.",
+          "autoHidePanelAfterReply": "Прятать панель после ответа",
+          "autoHidePanelAfterReplyDescription": "Через несколько секунд после окончания ответа панель скрывается сама, если разговор не продолжается."
         },
         "CompanionYandexTts": {
           "provider": "Озвучка",
@@ -13504,7 +13508,13 @@
               "notifyTitle": "Уведомлять о других агентах",
               "notifyTitleDescription": "Тихое уведомление, когда агент закончил работу или ждёт решения, плюс тихие часы.",
               "notify": "notifications",
-              "quietHours": "quiet hours"
+              "quietHours": "quiet hours",
+              "showPanelOnAddressTitle": "Показывать панель при обращении",
+              "showPanelOnAddressTitleDescription": "Открывать большую панель, когда к Джарвису обратились по имени.",
+              "panel": "big panel",
+              "autoHidePanelAfterReplyTitle": "Прятать панель после ответа",
+              "autoHidePanelAfterReplyTitleDescription": "Панель скрывается сама через несколько секунд после ответа.",
+              "autoHide": "auto hide"
             }
           }
         }
@@ -21205,6 +21215,11 @@
         "discuss": "Обсудить",
         "later": "Позже"
       }
+    },
+    "indicator": {
+      "listening": "Слушаю",
+      "thinking": "Думаю",
+      "speaking": "Говорю"
     }
   }
 }

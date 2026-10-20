@@ -6,11 +6,13 @@
 // brain (routeCompanionUtterance's `addressed` path) even though nobody ever opened the panel.
 //
 // Root-cause investigation (see the fix commit): with wake mode enabled at launch the companion
-// window is created hidden and is never shown by `startBackgroundListening()` itself — only a
-// later wake-phrase/notice does `showCompanionPanelForNotice()`. Manual repros (both
-// Playwright/CDP-driven and a raw `electron.launch()` with no CDP attached at all) could not
-// reproduce the real-world "mic goes silent after ~20s, nothing is ever transcribed" failure the
-// user saw via macOS Control Center: `document.visibilityState` stayed `'visible'` the whole run
+// window is created hidden and is never shown by `startBackgroundListening()` itself — and
+// since backlog #28 (`showPanelOnAddress` default off), neither a bare wake phrase nor an
+// addressed request opens it either; only an agent notice's "Обсудить" or the hotkey still do.
+// Manual repros (both Playwright/CDP-driven and a raw `electron.launch()` with no CDP attached
+// at all) could not reproduce the real-world "mic goes silent after ~20s, nothing is ever
+// transcribed" failure the user saw via macOS Control Center: `document.visibilityState` stayed
+// `'visible'` the whole run
 // in every harness tried, and the real STT pipeline (feedAudio -> real GigaAM/Parakeet decoder ->
 // speech:final -> wake gate -> companionConversation.reportUtterance) worked end to end once that
 // was true. That is itself informative: the application-level pipeline is not broken when the
@@ -68,6 +70,8 @@ const SPEECH_MODELS_DIR = path.join(
   'speech-models'
 )
 const WAKE_PHRASE = 'Пятница'
+const SCREENSHOT_DIR = '/Users/evgenijsikunov/assistant/voice-lab/indicator'
+mkdirSync(SCREENSHOT_DIR, { recursive: true })
 
 const MODELS = ['parakeet-tdt-0.6b-v3-int8', 'gigaam-v3-e2e-rnnt-ru'] as const
 
@@ -136,7 +140,11 @@ async function launchWithWakeEnabledAtStartup(args: {
       // showInactive() call under headless background launches, so the panel's hidden->shown
       // transition (this spec's whole point) would never actually happen on the native window.
       // Still background-only — see the @headful note in the file header.
-      ORCA_E2E_HEADFUL: '1'
+      ORCA_E2E_HEADFUL: '1',
+      // Why: this spec asserts the pill shows while Riverline is absent — real System Events
+      // probing would report "running" on any machine (like this repo's own) that already has
+      // the real Riverline app open, making the assertion flaky/host-dependent for no reason.
+      ORCA_E2E_RIVERLINE_ABSENT: '1'
     }
   })
   forwardElectronProcessLogs(app, args.testInfo)
@@ -163,8 +171,27 @@ async function findCompanionPage(app: ElectronApplication): Promise<Page> {
   return page
 }
 
+async function findCompanionIndicatorPage(app: ElectronApplication): Promise<Page> {
+  await expect
+    .poll(
+      async () =>
+        app.windows().find((candidate) => candidate.url().includes('companion-indicator.html')) ??
+        null,
+      { timeout: 30_000 }
+    )
+    .not.toBeNull()
+  const page = app
+    .windows()
+    .find((candidate) => candidate.url().includes('companion-indicator.html'))
+  if (!page) {
+    throw new Error('companion indicator window never appeared')
+  }
+  await page.waitForLoadState('domcontentloaded')
+  return page
+}
+
 for (const modelId of MODELS) {
-  test(`wake mode enabled at launch stays hidden until addressed, then reaches the brain (${modelId}) @headful`, async (// oxlint-disable-next-line no-empty-pattern -- this spec owns its Electron launch.
+  test(`wake mode enabled at launch stays hidden through a bare wake phrase and an addressed request, which still reaches the brain (${modelId}) @headful`, async (// oxlint-disable-next-line no-empty-pattern -- this spec owns its Electron launch.
   {}, testInfo) => {
     test.skip(
       !existsSync(path.join(SPEECH_MODELS_DIR, modelId)),
@@ -191,6 +218,22 @@ for (const modelId of MODELS) {
       expect(
         await (await app.browserWindow(companionPage)).evaluate((window) => window.isVisible())
       ).toBe(false)
+
+      // Backlog #28: the pill indicator takes over instead — background listening already put
+      // companionConversation in 'listening' (non-idle), and this test machine genuinely does
+      // not run Riverline, so companion-riverline-detection.ts's real osascript check resolves
+      // to "not running" and companion-indicator-lifecycle.ts shows the pill.
+      const indicatorPage = await findCompanionIndicatorPage(app)
+      await expect
+        .poll(
+          async () =>
+            (await app.browserWindow(indicatorPage)).evaluate((window) => window.isVisible()),
+          { timeout: 20_000, message: 'the pill never became visible while listening' }
+        )
+        .toBe(true)
+      await indicatorPage.screenshot({
+        path: `${SCREENSHOT_DIR}/companion-indicator-pill-listening.png`
+      })
 
       // Why addInitScript + reload, not a plain page.evaluate() here: the panel's
       // useCompanionStartupHydration effect already called getUserMedia() with the real system
@@ -297,32 +340,24 @@ for (const modelId of MODELS) {
           () =>
             companionPage.evaluate(
               () =>
-                typeof // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __playWakeOnly on window itself via the initScript above.
-                (window as unknown as CompanionTestWindow).__playWakeOnly === 'function'
+                typeof (
+                  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __playWakeOnly on window itself via the initScript above.
+                  (window as unknown as CompanionTestWindow).__playWakeOnly
+                ) === 'function'
             ),
           { timeout: 15_000, message: 'fake mic buffers never finished decoding' }
         )
         .toBe(true)
 
-      // Bare wake phrase: shows the panel (showCompanionPanelForNotice), but must NOT reach the
-      // brain — wake-only waits for the request in the follow-up window instead.
+      // Backlog #28: a bare wake phrase only changes the pill indicator's state
+      // (companion-indicator-lifecycle.ts) — it must NOT open the big panel anymore
+      // (routeCompanionUtterance's `wake-only` branch no longer calls
+      // showCompanionPanelForNotice). STT still finalizing the phrase is the signal that
+      // wake listening heard it; the panel staying hidden is the regression this now guards.
       await companionPage.evaluate(() =>
         // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __playWakeOnly on window itself via the initScript above.
         (window as unknown as CompanionTestWindow).__playWakeOnly()
       )
-      await expect
-        .poll(() => companionWindow.evaluate((window) => window.isVisible()), {
-          timeout: 30_000,
-          message: 'panel never became visible for the bare wake phrase'
-        })
-        .toBe(true)
-      const statesAfterWakeOnly = await companionPage.evaluate(
-        () =>
-          // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __wakeTrace on window itself, set above.
-          (window as unknown as CompanionTestWindow).__wakeTrace.states
-      )
-      expect(statesAfterWakeOnly).not.toContain('thinking')
-
       await expect
         .poll(
           () =>
@@ -334,6 +369,13 @@ for (const modelId of MODELS) {
           { timeout: 20_000, message: 'the bare wake phrase was never finalized by STT' }
         )
         .toBeGreaterThanOrEqual(1)
+      const statesAfterWakeOnly = await companionPage.evaluate(
+        () =>
+          // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __wakeTrace on window itself, set above.
+          (window as unknown as CompanionTestWindow).__wakeTrace.states
+      )
+      expect(statesAfterWakeOnly).not.toContain('thinking')
+      expect(await companionWindow.evaluate((window) => window.isVisible())).toBe(false)
 
       // The silence-driven restart (non-streaming models) needs a moment to start the next
       // dictation session before the next utterance's audio can reach it.
@@ -341,7 +383,9 @@ for (const modelId of MODELS) {
 
       // Addressed utterance ("Пятница, что у меня сегодня?"): must reach
       // routeCompanionUtterance's `addressed` path, observable as the dialogue orchestrator's
-      // reportThinking() firing before any brain/network call (companion-dialogue.ts).
+      // reportThinking() firing before any brain/network call (companion-dialogue.ts). Backlog
+      // #28: default `showPanelOnAddress: false` means this must answer by voice without ever
+      // showing the big panel either.
       await companionPage.evaluate(() =>
         // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: companion renderer stamps __playAddressed on window itself via the initScript above.
         (window as unknown as CompanionTestWindow).__playAddressed()
@@ -356,6 +400,10 @@ for (const modelId of MODELS) {
           { timeout: 30_000, message: 'the addressed utterance never reached the brain' }
         )
         .toBe(true)
+      expect(await companionWindow.evaluate((window) => window.isVisible())).toBe(false)
+      await indicatorPage.screenshot({
+        path: `${SCREENSHOT_DIR}/companion-indicator-pill-thinking.png`
+      })
     } finally {
       await closeElectronAppForE2E(app)
       await cleanupE2EDaemons(userDataDir)
