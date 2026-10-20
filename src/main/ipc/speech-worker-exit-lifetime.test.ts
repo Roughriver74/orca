@@ -59,6 +59,10 @@ vi.mock('../speech/speech-runtime-service', () => ({
   }),
   getSpeechSttService: () => environment.service
 }))
+// Voice focus is off for these sessions; its model manager would otherwise reach for electron `app`.
+vi.mock('../speech/focus-model-manager', () => ({
+  getFocusModelManager: () => ({ getModelPath: () => null, isReady: () => false })
+}))
 vi.mock('../speech/openai-api-key-store', () => ({
   readOpenAiSpeechApiKey: vi.fn(),
   clearOpenAiSpeechApiKey: vi.fn(),
@@ -167,8 +171,8 @@ describe('speech worker exit ownership', () => {
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Local startup reads only these two model-manager methods.
       modelManager as ModelManager
     )
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Mocked runtime accessors do not read the store.
-    registerSpeechHandlers({} as Store)
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: dictation start reads only `getSettings().companion` (absent → VAD off).
+    registerSpeechHandlers({ getSettings: () => ({}) } as unknown as Store)
   })
   afterEach(async () => {
     window.destroyed = true

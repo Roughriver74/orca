@@ -77,13 +77,22 @@ export class SttService {
     this.vadService?.finalizeNow()
   }
 
-  async stopDictation(
+  stopDictation(
     owner = 'desktop',
     options: { cancelStarting?: boolean } = { cancelStarting: true }
   ): Promise<void> {
-    await this.vadService?.stop()
+    const vad = this.vadService
     this.vadService = null
-    return stopSttDictation(this.state, owner, options)
+    // Why not await VAD first: the stop message must reach the STT worker synchronously so
+    // concurrent stop callers share it; the VAD worker shuts down alongside.
+    const sttStopped = stopSttDictation(this.state, owner, options)
+    if (!vad) {
+      return sttStopped
+    }
+    const vadStopped = vad.stop().catch((error: unknown) => {
+      console.error('[voiceFocus] VAD stop failed', error)
+    })
+    return Promise.all([sttStopped, vadStopped]).then(() => undefined)
   }
 
   isActive(): boolean {
