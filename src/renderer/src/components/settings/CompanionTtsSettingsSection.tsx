@@ -3,6 +3,7 @@ import type {
   CompanionTtsProvisioningStatus,
   CompanionTtsVoice
 } from '../../../../shared/companion-types'
+import { isCompanionSileroTtsSupported } from '../../../../shared/companion-tts-support'
 import { Label } from '../ui/label'
 import { Separator } from '../ui/separator'
 import { Switch } from '../ui/switch'
@@ -81,6 +82,9 @@ export function CompanionTtsSettingsSection({
   updateTtsSettings,
   ttsProvisioningStatus
 }: CompanionTtsSettingsSectionProps): React.JSX.Element {
+  const { platform, arch } = window.api.platform.get()
+  const sileroSupported = isCompanionSileroTtsSupported(platform, arch)
+  const isYandex = companionSettings.tts.provider === 'yandex'
   return (
     <>
       <div className="flex items-center justify-between gap-4 py-2">
@@ -88,7 +92,18 @@ export function CompanionTtsSettingsSection({
           <Label>
             {translate('auto.components.settings.CompanionPane.ttsEnable', 'Озвучивать ответы')}
           </Label>
-          <TtsProvisioningRow status={ttsProvisioningStatus} />
+          {/* Why: provisioning never runs for Yandex, so a Silero status shown there is
+              stale; where Silero cannot run at all, say so instead of a raw error. */}
+          {!sileroSupported ? (
+            <p className="text-xs text-muted-foreground">
+              {translate(
+                'auto.components.settings.CompanionPane.tts.sileroUnsupported',
+                'Локальный голос Silero работает только на Mac с Apple Silicon. Здесь озвучивает Яндекс SpeechKit.'
+              )}
+            </p>
+          ) : isYandex ? null : (
+            <TtsProvisioningRow status={ttsProvisioningStatus} />
+          )}
         </div>
         <Switch
           checked={companionSettings.tts.ttsEnabled}
@@ -102,30 +117,41 @@ export function CompanionTtsSettingsSection({
 
       <Separator />
 
-      <div className="flex items-center justify-between gap-4 py-2">
-        <Label>{translate('auto.components.settings.CompanionPane.ttsVoice', 'Голос')}</Label>
-        <Select
-          value={companionSettings.tts.ttsVoice}
-          onValueChange={(value) => {
-            if (isCompanionTtsVoice(value)) {
-              updateTtsSettings({ ttsVoice: value })
-            }
-          }}
-        >
-          <SelectTrigger className="w-40 shrink-0">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TTS_VOICE_OPTIONS.map((voice) => (
-              <SelectItem key={voice} value={voice}>
-                {TTS_VOICE_LABELS[voice]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {sileroSupported ? (
+        <>
+          <div className="flex items-center justify-between gap-4 py-2">
+            <Label>
+              {isYandex
+                ? translate(
+                    'auto.components.settings.CompanionPane.ttsVoiceFallback',
+                    'Голос Silero (запасной)'
+                  )
+                : translate('auto.components.settings.CompanionPane.ttsVoice', 'Голос')}
+            </Label>
+            <Select
+              value={companionSettings.tts.ttsVoice}
+              onValueChange={(value) => {
+                if (isCompanionTtsVoice(value)) {
+                  updateTtsSettings({ ttsVoice: value })
+                }
+              }}
+            >
+              <SelectTrigger className="w-40 shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TTS_VOICE_OPTIONS.map((voice) => (
+                  <SelectItem key={voice} value={voice}>
+                    {TTS_VOICE_LABELS[voice]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-      <Separator />
+          <Separator />
+        </>
+      ) : null}
 
       <div className="space-y-1.5 py-2">
         <div className="flex items-center justify-between gap-4">

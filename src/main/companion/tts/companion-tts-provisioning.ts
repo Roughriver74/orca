@@ -15,6 +15,7 @@ import { join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { runProcess } from '../../../shared/child-process/run-process'
 import type { CompanionTtsProvisioningStatus } from '../../../shared/companion-types'
+import { isCompanionSileroTtsSupported } from '../../../shared/companion-tts-support'
 
 // Why pinned to an exact release + hash rather than "latest": a provisioning step that
 // silently picks up a new uv/torch/model build on every user's first enable is not
@@ -42,14 +43,6 @@ export type CompanionTtsPaths = {
   venvPythonPath: string
   v5ModelPath: string
   v3ModelPath: string
-}
-
-/** Only macOS arm64 ships a pinned `uv`/model combination today; other platforms report unsupported cleanly. */
-export function isCompanionTtsSupported(
-  platform: NodeJS.Platform = process.platform,
-  arch: string = process.arch
-): boolean {
-  return platform === 'darwin' && arch === 'arm64'
 }
 
 export function getCompanionTtsPaths(userDataDir: string): CompanionTtsPaths {
@@ -242,7 +235,7 @@ export async function provisionCompanionTts(
   userDataDir: string,
   onStatus: (status: CompanionTtsProvisioningStatus) => void
 ): Promise<CompanionTtsPaths> {
-  if (!isCompanionTtsSupported()) {
+  if (!isCompanionSileroTtsSupported(process.platform, process.arch)) {
     const status: CompanionTtsProvisioningStatus = {
       status: 'error',
       error: `companion TTS is only supported on macOS arm64 (this host is ${process.platform}/${process.arch})`
@@ -301,7 +294,7 @@ export async function provisionCompanionTts(
 export async function getCompanionTtsProvisioningStatus(
   userDataDir: string
 ): Promise<CompanionTtsProvisioningStatus> {
-  if (!isCompanionTtsSupported()) {
+  if (!isCompanionSileroTtsSupported(process.platform, process.arch)) {
     return { status: 'error', error: 'companion TTS is only supported on macOS arm64' }
   }
   const paths = getCompanionTtsPaths(userDataDir)

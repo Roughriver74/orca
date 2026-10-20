@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { getCompanionTtsPaths, isCompanionTtsSupported } from './companion-tts-provisioning'
+import { getCompanionTtsPaths } from './companion-tts-provisioning'
+import { isCompanionSileroTtsSupported } from '../../../shared/companion-tts-support'
 
-describe('isCompanionTtsSupported', () => {
+describe('isCompanionSileroTtsSupported', () => {
   it('is true only on macOS arm64', () => {
-    expect(isCompanionTtsSupported('darwin', 'arm64')).toBe(true)
-    expect(isCompanionTtsSupported('darwin', 'x64')).toBe(false)
-    expect(isCompanionTtsSupported('linux', 'arm64')).toBe(false)
-    expect(isCompanionTtsSupported('win32', 'arm64')).toBe(false)
+    expect(isCompanionSileroTtsSupported('darwin', 'arm64')).toBe(true)
+    expect(isCompanionSileroTtsSupported('darwin', 'x64')).toBe(false)
+    expect(isCompanionSileroTtsSupported('linux', 'arm64')).toBe(false)
+    expect(isCompanionSileroTtsSupported('win32', 'arm64')).toBe(false)
   })
 })
 

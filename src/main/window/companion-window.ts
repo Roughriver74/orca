@@ -57,7 +57,11 @@ function createCompanionWindow(): BrowserWindow {
     frame: false,
     transparent: true,
     hasShadow: true,
-    resizable: false,
+    // Why: on Wayland with fractional output scales Chromium can settle on a device scale
+    // other than 1 after the surface is mapped; a non-resizable window keeps its old size
+    // while the content re-lays out at the new scale, so the panel is cut off on the
+    // right and bottom. A resizable window grows to fit instead.
+    resizable: process.platform === 'linux',
     movable: false,
     fullscreenable: false,
     skipTaskbar: true,
