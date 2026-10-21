@@ -16,9 +16,14 @@ type WorktreeSnapshot = {
 // cross-render caching without pinning replaced store snapshots in memory.
 const worktreeSnapshotCache = new WeakMap<AppState['worktreesByRepo'], WorktreeSnapshot>()
 const repoMapCache = new WeakMap<AppState['repos'], Map<string, Repo>>()
+// Why: hand-rolled store mocks in component/hook tests routinely omit
+// `worktreesByRepo` entirely (see overlap-radar-selectors.ts for the same
+// convention) — treat a missing slice as empty rather than crashing.
+const EMPTY_WORKTREES_BY_REPO: AppState['worktreesByRepo'] = {}
 
 function getWorktreeSnapshot(worktreesByRepo: AppState['worktreesByRepo']): WorktreeSnapshot {
-  const cachedSnapshot = worktreeSnapshotCache.get(worktreesByRepo)
+  const repo = worktreesByRepo ?? EMPTY_WORKTREES_BY_REPO
+  const cachedSnapshot = worktreeSnapshotCache.get(repo)
   if (cachedSnapshot) {
     return cachedSnapshot
   }
@@ -32,7 +37,7 @@ function getWorktreeSnapshot(worktreesByRepo: AppState['worktreesByRepo']): Work
   // from the sidebar entirely. Last wins within a host: fetchWorktrees replaces,
   // so the later entry is the current one.
   const byHostAndId = new Map<string, Worktree>()
-  for (const worktrees of Object.values(worktreesByRepo)) {
+  for (const worktrees of Object.values(repo)) {
     for (const worktree of worktrees) {
       byHostAndId.set(composeWorktreeHostIdentity(worktree.hostId, worktree.id), worktree)
     }
@@ -61,7 +66,7 @@ function getWorktreeSnapshot(worktreesByRepo: AppState['worktreesByRepo']): Work
     }
   }
   const snapshot = { allWorktrees, worktreeMap, worktreesById }
-  worktreeSnapshotCache.set(worktreesByRepo, snapshot)
+  worktreeSnapshotCache.set(repo, snapshot)
   return snapshot
 }
 

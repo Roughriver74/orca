@@ -7,7 +7,6 @@ import { switchSortToManualAfterDrop } from '../../manual-sort-switch-toast'
 import { useWorktreeStatusMutations } from './use-status-mutations'
 
 const updateWorktreesMeta = vi.fn()
-const updateFolderWorkspace = vi.fn()
 
 function makeFolderWorkspace(id: string, connectionId: string | null): FolderWorkspace {
   return {
@@ -31,7 +30,6 @@ function makeFolderWorkspace(id: string, connectionId: string | null): FolderWor
 const storeState = {
   updateWorktreeMeta: vi.fn(),
   updateWorktreesMeta,
-  updateFolderWorkspace,
   setWorktreesPinnedAndReveal: vi.fn(),
   folderWorkspaces: [makeFolderWorkspace('a', 'conn-1'), makeFolderWorkspace('b', 'conn-1')]
 }
@@ -69,12 +67,13 @@ describe('folder workspace reorder writes', () => {
     })
 
     expect(switchSortToManualAfterDrop).toHaveBeenCalled()
-    expect(updateFolderWorkspace).toHaveBeenCalledTimes(1)
-    const [folderWorkspaceId, updates, options] = updateFolderWorkspace.mock.calls[0]!
-    expect(folderWorkspaceId).toBe('b')
-    expect(updates.manualOrder).toBeGreaterThan(2_000)
+    expect(updateWorktreesMeta).toHaveBeenCalledTimes(1)
+    const [writes] = updateWorktreesMeta.mock.calls[0]!
+    expect(writes).toHaveLength(1)
+    const [write] = writes
+    expect(write.worktreeId).toBe('folder:b')
+    expect(write.updates.manualOrder).toBeGreaterThan(2_000)
     // Why: an SSH folder must be written on its own host, not the local fallback.
-    expect(options).toEqual({ executionHostId: toSshExecutionHostId('conn-1') })
-    expect(updateWorktreesMeta).not.toHaveBeenCalled()
+    expect(write.executionHostId).toBe(toSshExecutionHostId('conn-1'))
   })
 })
