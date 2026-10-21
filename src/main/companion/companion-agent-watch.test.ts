@@ -246,7 +246,7 @@ describe('CompanionAgentWatch', () => {
     h.statusListener({ ...doneEvent(), payload: { state: 'waiting' } })
     vi.advanceTimersByTime(20_000)
     expect(h.delivered).toHaveLength(1)
-    h.setNow(Date.now() + 5 * 60_000 + 1)
+    h.setNow(Date.parse('2026-10-18T12:00:00') + 5 * 60_000 + 1)
     h.statusListener({ ...doneEvent(), payload: { state: 'working' } })
     h.statusListener({ ...doneEvent(), payload: { state: 'blocked' } })
     vi.advanceTimersByTime(20_000)

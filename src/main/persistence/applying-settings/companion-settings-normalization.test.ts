@@ -16,6 +16,8 @@ describe('normalizeCompanionSettings', () => {
       sttModel: 'gigaam-v3-e2e-rnnt-ru',
       endOfUtteranceSeconds: 2,
       voiceBargeIn: true,
+      showPanelOnAddress: true,
+      autoHidePanelAfterReply: false,
       brainModel: 'opus',
       launchAtLogin: true,
       tts: {

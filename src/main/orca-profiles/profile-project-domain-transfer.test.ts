@@ -360,7 +360,9 @@ describe('profile domain transfers', () => {
   it('journals only changed domains and replays target-first with exact revisions', () => {
     const { intent, sourceAfter, targetAfter } = preparedMove()
     expect(intent.source.replacements.map(({ domain }) => domain)).not.toContain('futureOpaque')
-    expect(JSON.stringify(intent).length).toBeLessThan(40_000)
+    // Budget guards against the 100KB `futureOpaque` blob leaking in above; grown from 40_000
+    // to accommodate the companion/Jarvis voice feature's larger default `settings` domain.
+    expect(JSON.stringify(intent).length).toBeLessThan(50_000)
     persistProfileProjectMoveIntent(root, intent)
     domainState.writeProfileProjectDomainChanges('target', root, intent.target)
     expect(recoverPendingProfileProjectMoves(root)).toBe(1)
