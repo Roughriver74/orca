@@ -651,6 +651,47 @@ gate_checks() {
     log "gate: build:electron-vite failed"
     return 1
   fi
+  linux_package_check "$tag" || return 1
+  return 0
+}
+
+# Why via a throwaway GitHub ref, not a direct transfer to office: the Mac-to-office link runs
+# through a Tailscale SOCKS proxy at a few KB/s (measured), while office's own `git fetch origin`
+# from GitHub takes about a second — pushing a disposable `gate/<tag>` ref and having office fetch
+# that is the only practical way to hand it a real tree to package. The ref is deleted either way.
+# Best-effort: this is the only check that can catch a Linux-only packaging break (native module
+# resolution, a resource missing on Linux) before it reaches the follower; if office is unreachable
+# the gate still passes on `pnpm tc` + tests, and the follower's own `pnpm tc` (see `follow()`)
+# remains the last line of defense rather than blocking every release on SSH connectivity.
+linux_package_check() {
+  local tag=$1
+  (( IS_MAC )) || return 0
+  local host=office gate_ref="gate/$tag"
+  if ! run_with_timeout 8 ssh -o BatchMode=yes -o ConnectTimeout=6 "$host" true 2>/dev/null; then
+    log "gate: office unreachable; skipping Linux packaging check for $tag"
+    return 0
+  fi
+  if ! git -C "$REPO" push -q -f origin "HEAD:refs/heads/$gate_ref" >>"$LOG" 2>&1; then
+    log "gate: failed to publish $gate_ref for the Linux packaging check"
+    return 1
+  fi
+  local remote_dir="/tmp/orca-linux-gate-$tag" ok=1
+  if run_with_timeout 900 ssh -o BatchMode=yes "$host" \
+    "rm -rf '$remote_dir' && git clone -q --branch '$gate_ref' --single-branch \
+       https://github.com/Roughriver74/orca.git '$remote_dir' && cd '$remote_dir' \
+     && (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile) \
+     && pnpm exec electron-builder --config config/electron-builder.config.cjs --linux dir --x64 --publish never" \
+    >>"$LOG" 2>&1
+  then
+    ok=0
+  fi
+  run_with_timeout 15 ssh -o BatchMode=yes "$host" "rm -rf '$remote_dir'" >>"$LOG" 2>&1 || true
+  git -C "$REPO" push -q origin --delete "$gate_ref" >>"$LOG" 2>&1 || true
+  if (( ok != 0 )); then
+    log "gate: Linux packaging check failed on office for $tag"
+    return 1
+  fi
+  log "gate: Linux packaging check green on office for $tag"
   return 0
 }
 
