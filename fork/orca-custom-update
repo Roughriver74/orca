@@ -130,14 +130,13 @@ latest_release_tag() {
 }
 
 orca_running() {
+  # Why: the terminal daemon, helpers and the detached provider supervisor (`… -e …`) run the same
+  # binary and outlive a quit, a dock-launched main can linger as an unreaped zombie, and wrapper
+  # scripts mention the path; only the bare app process means Orca is open.
   if (( IS_MAC )); then
-    # Why: the detached agent-provider supervisor runs the same binary (`Orca -e …`) and outlives
-    # a quit, so only the bare app process means Orca is open.
     pgrep -fq "^$APP/Contents/MacOS/Orca\$"
   else
-    # Why: the terminal daemon, helpers and the provider supervisor (`orca-ide -e …`) stay alive as
-    # orca-ide processes; only the main browser process means the app window is open.
-    pgrep -af 'orca-ide' | grep -v -e 'daemon-entry' -e '--type=' -e 'resources/bin/' -e 'crashpad' -e 'orca-ide -e ' | grep -q .
+    pgrep -fq "^$APP/orca-ide\$"
   fi
 }
 
