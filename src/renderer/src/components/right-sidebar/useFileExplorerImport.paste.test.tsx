@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   readClipboardFilePaths: vi.fn(),
   toastError: vi.fn()
 }))
-vi.mock('@/runtime/runtime-file-client', () => ({
+vi.mock('@/runtime/runtime-file-import-client', () => ({
   importExternalPathsToRuntime: mocks.importPaths
 }))
 vi.mock('./file-explorer-operation-owner', () => ({
