@@ -131,13 +131,22 @@ latest_release_tag() {
 
 orca_running() {
   # Why: the terminal daemon, helpers and the detached provider supervisor (`… -e …`) run the same
-  # binary and outlive a quit, a dock-launched main can linger as an unreaped zombie, and wrapper
-  # scripts mention the path; only the bare app process means Orca is open.
-  if (( IS_MAC )); then
-    pgrep -fq "^$APP/Contents/MacOS/Orca\$"
-  else
-    pgrep -fq "^$APP/orca-ide\$"
-  fi
+  # binary and outlive a quit. The main process is the binary with only `--switch` arguments
+  # (orca-remote launches it with --user-data-dir); anything with a script, `-e` or `--type=` is not.
+  # A false "not running" swaps the app out from under a live Orca, so err on "running".
+  local exe
+  if (( IS_MAC )); then exe="$APP/Contents/MacOS/Orca"; else exe="$APP/orca-ide"; fi
+  ps -axo args= | awk -v exe="$exe" '
+    {
+      n = split($0, arg, " ")
+      if (arg[1] != exe) next
+      main = 1
+      for (i = 2; i <= n; i++) {
+        if (arg[i] !~ /^--/ || arg[i] ~ /^--type=/ || arg[i] ~ /^--max-old-space-size/) { main = 0; break }
+      }
+      if (main) found = 1
+    }
+    END { exit !found }'
 }
 
 # The orcad template (remote runtime for SSH hosts) needs node-pty prebuilds from every platform's CI
