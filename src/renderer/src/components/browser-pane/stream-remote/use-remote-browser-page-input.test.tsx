@@ -24,8 +24,10 @@ function Frame(): React.JSX.Element {
   lifecycle.tokens.setRemotePage('page-1')
   const { enqueueRemoteInput } = useRemoteBrowserPageInputQueue()
   const viewport = document.createElement('div')
+  const image = document.createElement('img')
   // Why: happy-dom lays nothing out; left clicks need a non-empty rect to map to a page point.
   viewport.getBoundingClientRect = () => new DOMRect(0, 0, 100, 100)
+  image.getBoundingClientRect = () => new DOMRect(0, 0, 100, 100)
   const {
     handleRemotePointerDown,
     handleRemotePointerUp,
@@ -33,7 +35,7 @@ function Frame(): React.JSX.Element {
     handleRemoteLostPointerCapture
   } = useRemoteBrowserPageInput({
     busy: false,
-    imageRef: { current: document.createElement('img') },
+    imageRef: { current: image },
     remoteViewportRef: { current: viewport },
     remoteCssViewportSizeRef: { current: { width: 100, height: 100 } },
     remoteViewportSizeRef: { current: { width: 100, height: 100 } },
