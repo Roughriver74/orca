@@ -137,14 +137,19 @@ export function createRemoteRuntimeTransportMocks(
         return { unsubscribe: vi.fn(), sendBinary: subscriptionSendBinary }
       }
     )
-    vi.stubGlobal('window', {
-      api: {
-        runtimeEnvironments: {
-          call: runtimeCall,
-          subscribe: runtimeSubscribe
-        }
-      }
-    })
+    // Why not always vi.stubGlobal: a handful of specs run under @vitest-environment happy-dom
+    // (dynamically importing production modules that pull in monaco-editor, which needs a real
+    // `window`/`document`) — layer `api` onto that real window instead of replacing it outright.
+    const runtimeEnvironmentsApi = {
+      runtimeEnvironments: { call: runtimeCall, subscribe: runtimeSubscribe }
+    }
+    if (typeof window === 'undefined') {
+      vi.stubGlobal('window', { api: runtimeEnvironmentsApi })
+    } else {
+      // SAFETY: test-only global augmentation of the real happy-dom window with the preload bridge shape.
+      const windowWithApi = window as unknown as { api: typeof runtimeEnvironmentsApi }
+      windowWithApi.api = runtimeEnvironmentsApi
+    }
   }
 
   return {

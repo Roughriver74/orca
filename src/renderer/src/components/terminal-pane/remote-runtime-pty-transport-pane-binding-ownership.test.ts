@@ -1,3 +1,7 @@
+// @vitest-environment happy-dom
+// The contact-loss recovery case below dynamically imports TerminalPaneRuntimePortals, which
+// now pulls in AgentContextPromptChipRow -> monaco-editor; monaco's module-level init needs a
+// real `window`/`document` (unlike every other spec in this file).
 import { LEAF_1, LEAF_2, unboundSplitLayout } from './terminal-pane-tab-detach-fixture'
 import type { AppState } from '@/store/types'
 import type { TerminalPaneController } from './use-terminal-pane-controller'
