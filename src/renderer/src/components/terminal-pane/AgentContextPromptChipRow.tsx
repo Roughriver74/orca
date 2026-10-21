@@ -12,8 +12,10 @@ import { selectAgentContextPromptChips } from '../prompt-library/prompt-snippet-
 import { useRepoPromptSnippets } from '../prompt-library/repo-prompt-snippets-loader'
 import { useAgentPromptQueue } from '../prompt-library/agent-prompt-queue'
 
-/** Reserves the chip row's height at the bottom of its pane so the terminal refits above it. */
-function useReservePaneBottomSpace(): React.RefObject<HTMLDivElement | null> {
+/** Reserves the chip row's height at the bottom of its pane so the terminal refits above it.
+ *  Why `visible`: the row mounts as `null` until a chip or queued prompt exists, so the
+ *  effect must re-run when the row element actually appears, or it floats over the terminal. */
+function useReservePaneBottomSpace(visible: boolean): React.RefObject<HTMLDivElement | null> {
   const ref = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     const row = ref.current
@@ -31,7 +33,7 @@ function useReservePaneBottomSpace(): React.RefObject<HTMLDivElement | null> {
       observer.disconnect()
       pane.style.removeProperty('--orca-pane-bottom-chip-row-height')
     }
-  }, [])
+  }, [visible])
   return ref
 }
 
@@ -67,7 +69,8 @@ export function AgentContextPromptChipRow({
     )
   )
   const queue = useAgentPromptQueue(paneKey)
-  const ref = useReservePaneBottomSpace()
+  const visible = hasAgentStatus && (chips.length > 0 || queue.length > 0)
+  const ref = useReservePaneBottomSpace(visible)
 
   const handleChipClick = useCallback(
     (body: string) => {
@@ -81,7 +84,7 @@ export function AgentContextPromptChipRow({
     [leafId, paneKey, ptyId, tabId, worktreeId]
   )
 
-  if (!hasAgentStatus || (chips.length === 0 && queue.length === 0)) {
+  if (!visible) {
     return null
   }
 

@@ -38,18 +38,17 @@ const CLOCK_SLOT_MARGIN_PX = 12
 // Why: below this, truncation reads as illegible noise — hide the clock instead.
 const CLOCK_SLOT_MIN_WIDTH_PX = 80
 
-/** Width available for the status bar's absolutely-centered clock, measured as the
- *  free gap between the usage cluster's actually-rendered content and the right-side
- *  segments' content; 0 once that gap is too tight to show the clock legibly. */
+/** Width available for the status bar's clock, which is centred on the bar itself: each
+ *  half must clear the wider of the usage cluster's rendered content and the right-side
+ *  segments, or the clock overlaps whichever side is wider; 0 once that is too tight. */
 export function computeClockSlotWidth(params: {
   availableWidth: number
   usageRenderedWidth: number
   segmentsWidth: number
-  columnGap: number
 }): number {
-  const { availableWidth, usageRenderedWidth, segmentsWidth, columnGap } = params
-  const gap = availableWidth - usageRenderedWidth - segmentsWidth - columnGap
-  const usable = gap - CLOCK_SLOT_MARGIN_PX * 2
+  const { availableWidth, usageRenderedWidth, segmentsWidth } = params
+  const halfGap = availableWidth / 2 - Math.max(usageRenderedWidth, segmentsWidth)
+  const usable = 2 * (halfGap - CLOCK_SLOT_MARGIN_PX)
   return usable < CLOCK_SLOT_MIN_WIDTH_PX ? 0 : usable
 }
 
@@ -174,8 +173,7 @@ export function useStatusBarDensity(): {
     const nextClockSlotWidth = computeClockSlotWidth({
       availableWidth: available,
       usageRenderedWidth: usage.renderedWidth,
-      segmentsWidth,
-      columnGap
+      segmentsWidth
     })
     if (nextClockSlotWidth !== clockSlotWidthRef.current) {
       clockSlotWidthRef.current = nextClockSlotWidth
