@@ -5,39 +5,50 @@
 # pushes `custom` to the fork; followers only build whatever `origin/custom` points at.
 # Runs on macOS (arm64, installs /Applications/Orca.app) and Linux (x64, installs ~/.local/opt/Orca).
 #
-#   orca-custom-update sync       # maintainer: new upstream release? rebase patches, push, build, stage
+#   orca-custom-update sync       # maintainer: new upstream release? gate it, push, build, stage
 #   orca-custom-update follow     # follower: origin/custom moved? build it and stage
+#   orca-custom-update gate <ref> # run the type-check/test/build gate against <ref> in the cwd worktree
 #   orca-custom-update build      # build current `custom` branch and stage it
-#   orca-custom-update install    # swap the staged build in once Orca is not running
+#   orca-custom-update install    # swap the staged build in once Orca is not running / is quiet
+#   orca-custom-update rollback   # restore the previous build over the current one
 #   orca-custom-update bootstrap-follower   # one-time setup on another machine (role, link, scheduler)
 #   orca-custom-update status
+#
+# ORCA_UPDATE_DRY_RUN=1 prints the sync/install/rollback decisions and the actions each would take,
+# without mutating anything (no rebase, no push, no file swap, no quit/relaunch).
 #
 # Patches = commits on `custom` above the release tag it is based on. This script is versioned in the
 # fork (fork/orca-custom-update) and linked into PATH, so every machine gets it through git too.
 set -euo pipefail
 
 # Why: sync/follow rewrite the checkout that holds this file; run from a private copy so zsh never
-# reads a half-replaced script.
-if [[ -z "${ORCA_CUSTOM_UPDATE_COPY:-}" ]]; then
+# reads a half-replaced script. Skipped when sourced for unit tests (ORCA_CUSTOM_UPDATE_TEST=1).
+if [[ -z "${ORCA_CUSTOM_UPDATE_COPY:-}" && -z "${ORCA_CUSTOM_UPDATE_TEST:-}" ]]; then
   copy=$(mktemp "${TMPDIR:-/tmp}/orca-custom-update.XXXXXX")
   cp "$(readlink -f "$0")" "$copy"
   ORCA_CUSTOM_UPDATE_COPY="$copy" exec /bin/zsh "$copy" "$@"
 fi
-trap 'rm -f "$ORCA_CUSTOM_UPDATE_COPY"' EXIT
+[[ -n "${ORCA_CUSTOM_UPDATE_TEST:-}" ]] || trap 'rm -f "$ORCA_CUSTOM_UPDATE_COPY"' EXIT
 
 REPO="$HOME/projects/mac_soft/orca"
-STATE="$HOME/.local/share/orca-custom"
+STATE="${ORCA_CUSTOM_UPDATE_STATE:-$HOME/.local/share/orca-custom}"
 ROLE_FILE="$STATE/role"
+GATE_ROOT="$STATE/gate"
 FORK_URL="https://github.com/Roughriver74/orca.git"
 UPSTREAM_URL="https://github.com/stablyai/orca.git"
 NODE_VERSION="24.2.0"
-mkdir -p "$STATE/bin"
+LINUX_SERVE_SERVICE="orca-serve.service"
+LINUX_ORCA_REMOTE="$HOME/.local/bin/orca-remote"
+DRY_RUN_MODE=0
+[[ "${ORCA_UPDATE_DRY_RUN:-0}" == 1 ]] && DRY_RUN_MODE=1
+mkdir -p "$STATE/bin" "$GATE_ROOT"
 
 if [[ "$(uname -s)" == Darwin ]]; then
   IS_MAC=1
   STAGED="$STATE/Orca.app"
   APP="/Applications/Orca.app"
   OFFICIAL_BACKUP="/Applications/Orca.app.bak"
+  PREV_APP="$STATE/Orca.prev.app"
   LOG="$HOME/Library/Logs/orca-custom-update.log"
   SCRIPT_LINK="$HOME/bin/orca-custom-update"
   export PATH="$STATE/bin:/opt/homebrew/opt/node@24/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
@@ -50,6 +61,7 @@ else
   # Why: the distro package owns /opt/Orca (root); a user-level install needs no sudo and leaves the
   # packaged app as the fallback.
   APP="$HOME/.local/opt/Orca"
+  PREV_APP="$APP.prev"
   LOG="$STATE/update.log"
   SCRIPT_LINK="$HOME/.local/bin/orca-custom-update"
   export PATH="$STATE/bin:$STATE/node$NODE_VERSION/bin:/usr/local/bin:/usr/bin:/bin"
@@ -63,6 +75,21 @@ notify() {
   else
     notify-send "$1" "$2" >/dev/null 2>&1 || true
   fi
+}
+
+# Portable timeout (no GNU coreutils dependency): runs "$@", killing it after $1 seconds. Every step
+# is guarded for `set -e`: a watchdog that already fired, or a job already reaped, must not abort us.
+run_with_timeout() {
+  local secs=$1; shift
+  "$@" &
+  local cmd_pid=$!
+  ( sleep "$secs"; kill -TERM "$cmd_pid" 2>/dev/null || true ) &
+  local watchdog_pid=$!
+  local rc=0
+  wait "$cmd_pid" 2>/dev/null || rc=$?
+  kill "$watchdog_pid" 2>/dev/null || true
+  wait "$watchdog_pid" 2>/dev/null || true
+  return "$rc"
 }
 
 # Why: the repo pins Node 24 (package.json engines); distros ship newer majors.
@@ -110,7 +137,7 @@ exec /usr/bin/swiftc "${args[@]}"' >"$STATE/bin/swiftc"
 }
 
 # Single instance: a scheduler tick must not start a second build next to a running one.
-if [[ "${1:-status}" != status ]]; then
+if [[ -z "${ORCA_CUSTOM_UPDATE_TEST:-}" && "${1:-status}" != status ]]; then
   LOCK="$STATE/lock"
   if ! mkdir "$LOCK" 2>/dev/null; then
     if kill -0 "$(cat "$LOCK/pid" 2>/dev/null)" 2>/dev/null; then
@@ -129,11 +156,19 @@ latest_release_tag() {
     | awk -F/ '{print $3}' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1
 }
 
+# Pure helper (unit-tested): is release tag A strictly newer than B, by `sort -V` order.
+version_gt() {
+  [[ "$1" == "$2" ]] && return 1
+  [[ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" == "$1" ]]
+}
+
 orca_running() {
   # Why: the terminal daemon, helpers and the detached provider supervisor (`… -e …`) run the same
   # binary and outlive a quit. The main process is the binary with only `--switch` arguments
   # (orca-remote launches it with --user-data-dir); anything with a script, `-e` or `--type=` is not.
-  # A false "not running" swaps the app out from under a live Orca, so err on "running".
+  # A false "not running" swaps the app out from under a live Orca, so err on "running". This also
+  # catches a headless `orca serve` process (its args are all `--switch` too); linux_headless()
+  # distinguishes that case so install can swap around it instead of waiting forever.
   local exe
   if (( IS_MAC )); then exe="$APP/Contents/MacOS/Orca"; else exe="$APP/orca-ide"; fi
   ps -axo args= | awk -v exe="$exe" '
@@ -147,6 +182,58 @@ orca_running() {
       if (main) found = 1
     }
     END { exit !found }'
+}
+
+linux_headless() {
+  (( IS_MAC )) && return 1
+  systemctl --user is-active --quiet "$LINUX_SERVE_SERVICE" 2>/dev/null
+}
+
+linux_relaunch() {
+  local was_headless=$1
+  if (( was_headless )); then
+    systemctl --user start "$LINUX_SERVE_SERVICE" >>"$LOG" 2>&1 || true
+  elif [[ -x "$LINUX_ORCA_REMOTE" ]]; then
+    "$LINUX_ORCA_REMOTE" off >>"$LOG" 2>&1 || true
+  else
+    setsid "$APP/orca-ide" >>"$LOG" 2>&1 </dev/null &
+  fi
+}
+
+quit_app_mac() {
+  osascript -e 'tell application "Orca" to quit' >/dev/null 2>&1 || true
+  local waited=0
+  while orca_running; do
+    (( waited >= 60 )) && return 1
+    sleep 2; waited=$((waited + 2))
+  done
+  return 0
+}
+
+# Why: HIDIdleTime is nanoseconds since the last key/mouse event, system-wide and privilege-free.
+mac_idle_ns() {
+  ioreg -c IOHIDSystem -d 1 2>/dev/null | awk -F'= ' '/"HIDIdleTime"/ { gsub(/[^0-9]/, "", $2); print $2; exit }'
+}
+
+# Pure-ish helper (unit-tested via a stubbed `ioreg` function): idle >= 15 minutes on macOS.
+quiet_time_ok() {
+  (( IS_MAC )) || return 0
+  local ns; ns=$(mac_idle_ns)
+  [[ "$ns" =~ ^[0-9]+$ ]] || return 1
+  (( ns / 1000000000 >= 900 ))
+}
+
+# Pure-ish helper (unit-tested via a stubbed `orca` function): true if any worktree has an agent
+# mid-turn. Unknown (no `orca` CLI, or the call fails) is treated as "working" — same bias as
+# orca_running(): a false "idle" would quit Orca out from under a live agent.
+any_agent_working() {
+  command -v orca >/dev/null 2>&1 || return 0
+  local json; json=$(orca worktree ps --json 2>/dev/null) || return 0
+  print -r -- "$json" | grep -q '"state": *"working"'
+}
+
+mac_quiet_for_install() {
+  quiet_time_ok && ! any_agent_working
 }
 
 # The orcad template (remote runtime for SSH hosts) needs node-pty prebuilds from every platform's CI
@@ -240,34 +327,176 @@ Categories=Utility;" >"$user_entry"
   update-desktop-database "$(dirname "$user_entry")" >/dev/null 2>&1 || true
 }
 
-install_staged() {
-  [[ -d "$STAGED" ]] || { log "install: nothing staged"; return 0; }
-  if orca_running; then
-    log "install: Orca is running, will retry later"
+# Up to 120s via `orca status --json`: runtime.state == ready and appVersion == the staged version.
+# No `orca` CLI available: treat as healthy (nothing to check), same as before this existed.
+health_check() {
+  local want=$1 waited=0 json state ver
+  command -v orca >/dev/null 2>&1 || return 0
+  while (( waited < 120 )); do
+    json=$(orca status --json 2>/dev/null) || json=""
+    if [[ -n "$json" ]]; then
+      state=$(print -r -- "$json" | grep -m1 -o '"state": *"[a-zA-Z]*"' | sed -E 's/.*"([a-zA-Z]+)"$/\1/')
+      ver=$(print -r -- "$json" | grep -m1 -o '"appVersion": *"[^"]*"' | sed -E 's/.*"([^"]*)"$/\1/')
+      [[ "$state" == ready && "$ver" == "$want" ]] && return 0
+    fi
+    sleep 5; waited=$((waited + 5))
+  done
+  return 1
+}
+
+do_rollback() {
+  local reason=$1 was_headless=${2:-0}
+  if [[ ! -e "$PREV_APP" ]]; then
+    log "rollback: no previous build at $PREV_APP"
+    notify "Orca: откат невозможен" "Нет предыдущей сборки, почините вручную"
+    return 1
+  fi
+  log "rollback: restoring previous build ($reason)"
+  if (( IS_MAC )); then
+    quit_app_mac || true
+    rm -rf "$APP"
+    mv "$PREV_APP" "$APP"
+    xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
+    open -a "$APP" >/dev/null 2>&1 || true
+  else
+    (( was_headless )) && (systemctl --user stop "$LINUX_SERVE_SERVICE" >>"$LOG" 2>&1 || true)
+    rm -rf "$APP"
+    mv "$PREV_APP" "$APP"
+    write_linux_desktop_entry
+    linux_relaunch "$was_headless"
+  fi
+  local prev; prev=$(cat "$STATE/installed-version.prev" 2>/dev/null || print "?")
+  print -r -- "$prev" >"$STATE/installed-version"
+  notify "Orca: откат" "Новая сборка не поднялась, вернул $prev"
+  log "rollback: restored $prev"
+}
+
+rollback() {
+  if [[ ! -e "$PREV_APP" ]]; then
+    print "rollback: нечего откатывать ($PREV_APP не найден)"
+    log "rollback: nothing to roll back to"
+    return 1
+  fi
+  local was_headless=0
+  if (( ! IS_MAC )) && linux_headless; then was_headless=1; fi
+  if (( DRY_RUN_MODE )); then
+    log "rollback: [dry-run] would restore $PREV_APP over $APP, relaunch (headless=$was_headless), notify"
+    print "[dry-run] would restore $PREV_APP over $APP and relaunch"
     return 0
   fi
-  if (( IS_MAC )); then
-    # Keep the first official app as the rollback target; later self-builds are disposable.
-    if [[ ! -d "$OFFICIAL_BACKUP" ]]; then
-      mv "$APP" "$OFFICIAL_BACKUP"
-    else
-      rm -rf "$APP"
-    fi
-    mv "$STAGED" "$APP"
-    xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
+  do_rollback "ручной откат" "$was_headless"
+}
+
+health_check_or_rollback_mac() {
+  local version=$1
+  if health_check "$version"; then
+    log "install: health check passed for $version"
+    notify "Orca обновлена" "Установлена своя сборка $version"
   else
-    mkdir -p "$(dirname "$APP")"
-    rm -rf "$APP.old"
-    [[ -d "$APP" ]] && mv "$APP" "$APP.old"
-    mv "$STAGED" "$APP"
-    rm -rf "$APP.old"
-    write_linux_desktop_entry
+    log "install: health check FAILED for $version"
+    do_rollback "сборка $version не поднялась"
   fi
-  local version; version=$(<"$STATE/staged-version")
+}
+
+health_check_or_rollback_linux() {
+  local version=$1 was_headless=$2
+  if health_check "$version"; then
+    log "install: health check passed for $version"
+    notify "Orca обновлена" "Установлена своя сборка $version"
+  else
+    log "install: health check FAILED for $version"
+    do_rollback "сборка $version не поднялась" "$was_headless"
+  fi
+}
+
+swap_app_mac() {
+  local version=$1
+  rm -rf "$PREV_APP"
+  if [[ -d "$APP" ]]; then
+    # Keep the first official app as a permanent fallback; later self-builds only feed PREV_APP.
+    [[ -d "$OFFICIAL_BACKUP" ]] || ditto "$APP" "$OFFICIAL_BACKUP"
+    mv "$APP" "$PREV_APP"
+  fi
+  mv "$STAGED" "$APP"
+  xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
+  [[ -f "$STATE/installed-version" ]] && cp "$STATE/installed-version" "$STATE/installed-version.prev"
+  print -r -- "$version" >"$STATE/installed-version"
+  rm -f "$STATE/staged-version"
+  log "installed $version, relaunching for health check"
+  open -a "$APP" >/dev/null 2>&1 || true
+  health_check_or_rollback_mac "$version"
+}
+
+swap_app_linux() {
+  local version=$1
+  rm -rf "$PREV_APP"
+  mkdir -p "$(dirname "$APP")"
+  [[ -d "$APP" ]] && mv "$APP" "$PREV_APP"
+  mv "$STAGED" "$APP"
+  write_linux_desktop_entry
+  [[ -f "$STATE/installed-version" ]] && cp "$STATE/installed-version" "$STATE/installed-version.prev"
   print -r -- "$version" >"$STATE/installed-version"
   rm -f "$STATE/staged-version"
   log "installed $version"
-  notify "Orca обновлена" "Установлена своя сборка $version"
+}
+
+install_staged_mac() {
+  local version=$1
+  if orca_running; then
+    if (( DRY_RUN_MODE )); then
+      log "install: [dry-run] Orca running — would wait for 15min idle + no working agent, then quit, install $version, relaunch, health-check"
+      return 0
+    fi
+    if ! mac_quiet_for_install; then
+      log "install: Orca running, not a quiet moment (idle<15min or an agent is working) — retry later"
+      return 0
+    fi
+    log "install: quiet moment — quitting Orca to install $version"
+    if ! quit_app_mac; then
+      log "install: Orca did not quit within 60s; giving up until next run"
+      return 0
+    fi
+  elif (( DRY_RUN_MODE )); then
+    log "install: [dry-run] Orca not running — would install $version immediately"
+    return 0
+  fi
+  swap_app_mac "$version"
+}
+
+install_staged_linux() {
+  local version=$1 running=0 headless=0
+  orca_running && running=1
+  linux_headless && headless=1
+  if (( running && ! headless )); then
+    log "install: Orca running (desktop) — will retry later"
+    (( DRY_RUN_MODE )) && log "install: [dry-run] Orca running (desktop) — would wait"
+    return 0
+  fi
+  if (( DRY_RUN_MODE )); then
+    if (( headless )); then
+      log "install: [dry-run] headless serve running — would stop $LINUX_SERVE_SERVICE, swap to $version, restart it, health-check"
+    else
+      log "install: [dry-run] Orca not running — would install $version and health-check"
+    fi
+    return 0
+  fi
+  if (( headless )); then
+    log "install: headless serve running — stopping for swap"
+    systemctl --user stop "$LINUX_SERVE_SERVICE" >>"$LOG" 2>&1 || true
+  fi
+  swap_app_linux "$version"
+  linux_relaunch "$headless"
+  health_check_or_rollback_linux "$version" "$headless"
+}
+
+install_staged() {
+  [[ -d "$STAGED" ]] || { log "install: nothing staged"; return 0; }
+  local version; version=$(<"$STATE/staged-version")
+  if (( IS_MAC )); then
+    install_staged_mac "$version"
+  else
+    install_staged_linux "$version"
+  fi
 }
 
 # Commits named `upstream-pr(#N): …` are cherry-picked upstream PRs. Once PR N is merged and its merge
@@ -284,60 +513,232 @@ merged_patch_commits() {
   done
 }
 
-sync() {
-  ensure_toolchain
-  cd "$REPO"
-  git fetch -q upstream --tags
-  local current latest
+# Rebases custom's patches onto $1 (a release tag) in worktree $2, on a new branch sync/$1. On a
+# conflict the worktree is left rebase-aborted (clean) and this returns 1; on success sync/$1 has
+# $1 as an ancestor and this returns 0.
+rebase_patches_onto() {
+  local tag=$1 wt=$2 current
   current=$(base_tag)
-  latest=$(latest_release_tag)
-  if [[ "$current" == "$latest" ]]; then
-    log "sync: up to date with $current"
-    return 0
-  fi
-  log "sync: $current -> $latest"
-  # Why: REPO is also the dev checkout; a dirty tree makes rebase refuse without leaving a rebase dir.
-  if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
-    log "sync: working tree has uncommitted changes; retrying later"
-    notify "Orca: обновление $latest отложено" "Закоммитьте или уберите изменения в $REPO"
-    return 1
-  fi
-  git checkout -q custom
+  git -C "$REPO" worktree prune >>"$LOG" 2>&1 || true
+  rm -rf "$wt"
+  git -C "$REPO" worktree add -q -B "sync/$tag" "$wt" custom >>"$LOG" 2>&1
   local drops
-  drops=$(merged_patch_commits "$current" "$latest" | tr '\n' ' ')
+  drops=$(merged_patch_commits "$current" "$tag" | tr '\n' ' ')
   [[ -n "$drops" ]] && log "sync: dropping patches merged upstream: $drops"
   # Why: the todo editor marks merged-upstream patches as `drop`; every other patch is re-applied.
   local todo_editor="$STATE/rebase-todo-editor"
   print -r -- '#!/bin/zsh
 for sha in ${=ORCA_DROP_SHAS}; do perl -0pi -e "s/^pick (${sha:0:7}[0-9a-f]*) /drop \$1 /mg" "$1"; done' >"$todo_editor"
   chmod +x "$todo_editor"
-  # Why: lockfile conflicts are expected (patches add dependencies); regenerate instead of merging.
-  if ! ORCA_DROP_SHAS="$drops" GIT_SEQUENCE_EDITOR="$todo_editor" \
-    git rebase -q -i --onto "$latest" "$current" custom >>"$LOG" 2>&1; then
-    local conflicts
-    conflicts=$(git diff --name-only --diff-filter=U)
-    if [[ "$conflicts" == "pnpm-lock.yaml" ]]; then
-      git checkout "$latest" -- pnpm-lock.yaml
-      pnpm install --no-frozen-lockfile >>"$LOG" 2>&1
-      git add pnpm-lock.yaml
-      GIT_EDITOR=true git rebase --continue >>"$LOG" 2>&1 || true
-    fi
-    if [[ -d .git/rebase-merge || -d .git/rebase-apply ]]; then
-      git rebase --abort
-      log "sync: conflict rebasing onto $latest: $conflicts"
-      notify "Orca: нужна ручная правка" "Патчи не накладываются на $latest — сборка не обновлена"
-      return 1
+  local ok=1
+  if ( cd "$wt" && ORCA_DROP_SHAS="$drops" GIT_SEQUENCE_EDITOR="$todo_editor" \
+      git rebase -q -i --onto "$tag" "$current" "sync/$tag" ) >>"$LOG" 2>&1; then
+    ok=0
+  else
+    # Why: lockfile conflicts are expected (patches add dependencies); regenerate instead of merging.
+    local conflicts; conflicts=$(cd "$wt" && git diff --name-only --diff-filter=U)
+    if [[ "$conflicts" == "pnpm-lock.yaml" ]] \
+      && ( cd "$wt" && git checkout "$tag" -- pnpm-lock.yaml && pnpm install --no-frozen-lockfile \
+           && git add pnpm-lock.yaml && GIT_EDITOR=true git rebase --continue ) >>"$LOG" 2>&1; then
+      ok=0
+    else
+      log "sync: conflict rebasing onto $tag: $conflicts"
+      ( cd "$wt" && git rebase --abort ) >>"$LOG" 2>&1 || true
+      ok=1
     fi
   fi
-  if ! git merge-base --is-ancestor "$latest" custom; then
-    log "sync: rebase onto $latest did not land; custom unchanged"
-    notify "Orca: нужна ручная правка" "Патчи не перенесены на $latest — сборка не обновлена"
+  (( ok == 0 )) && git -C "$wt" merge-base --is-ancestor "$tag" "sync/$tag" && return 0
+  return 1
+}
+
+retry_stamp() { print -r -- "$STATE/sync-retry-$1"; }
+
+# Never retry the same tag's conflict more than once a day.
+should_retry_today() {
+  local stamp; stamp=$(retry_stamp "$1")
+  [[ -f "$stamp" && -n "$(find "$stamp" -mmin -1440 2>/dev/null)" ]] && return 1
+  return 0
+}
+
+dispatch_conflict_agent() {
+  local tag=$1
+  if ! command -v orca >/dev/null 2>&1; then
+    notify "Orca: нужна ручная правка" "Патчи не накладываются на $tag — нет orca CLI, агент не запущен"
     return 1
   fi
+  if ! orca status --json >/dev/null 2>&1; then
+    notify "Orca: нужна ручная правка" "Патчи не накладываются на $tag — Orca не запущена, агент не запущен"
+    return 1
+  fi
+  log "sync: launching conflict-resolution agent for $tag"
+  local prompt="Rebase custom onto $tag in this worktree, resolving conflicts. Log every resolution to ~/assistant/voice-lab/sync/resolutions-$tag.md. When the rebase lands cleanly, run \`orca-custom-update gate HEAD\` in this worktree and make sure it is green. Do not push anything."
+  if orca worktree create --repo "path:$REPO" --name "sync-$tag" --no-parent --agent claude --prompt "$prompt" --json >>"$LOG" 2>&1; then
+    notify "Orca: правлю $tag автоматически" "Агент чинит перенос патчей в sync-$tag"
+    return 0
+  fi
+  notify "Orca: нужна ручная правка" "Патчи не накладываются на $tag, агент не запустился"
+  return 1
+}
+
+# Pure helper (unit-tested): normalizes vitest's default-reporter failure lines so the same test
+# failing twice, or with a different duration, compares equal.
+normalize_test_failures() {
+  grep '^ FAIL ' | sed -E 's/ [0-9]+ms$//' | LC_ALL=C sort -u
+}
+
+# Pure helper (unit-tested): failures in $1 that are not already in baseline $2, written to $3.
+diff_new_failures() {
+  comm -23 "$1" "$2" >"$3"
+}
+
+last_gate_summary() {
+  local tag=$1
+  local f="$STATE/gate-failures-$tag.txt"
+  [[ -f "$f" ]] || { print -- "-"; return; }
+  if [[ -s "$f" ]]; then print -- "red ($f)"; else print -- "green"; fi
+}
+
+# Computed once per tag in a clean worktree checked out at the tag (no patches), cached under
+# $STATE/baseline-<tag>.txt.
+ensure_baseline() {
+  local tag=$1
+  local baseline="$STATE/baseline-$tag.txt"
+  [[ -f "$baseline" ]] && return 0
+  log "gate: computing test baseline for $tag"
+  local wt="$GATE_ROOT/baseline-$tag"
+  git -C "$REPO" worktree prune >>"$LOG" 2>&1 || true
+  rm -rf "$wt"
+  git -C "$REPO" worktree add -q --detach "$wt" "$tag" >>"$LOG" 2>&1
+  (
+    cd "$wt"
+    ensure_toolchain
+    pnpm install --frozen-lockfile >>"$LOG" 2>&1 || pnpm install --no-frozen-lockfile >>"$LOG" 2>&1
+    local out; out=$(mktemp)
+    pnpm test >"$out" 2>&1 || true
+    normalize_test_failures <"$out" >"$baseline.tmp"
+    rm -f "$out"
+  )
+  [[ -f "$baseline.tmp" ]] && mv "$baseline.tmp" "$baseline"
+  git -C "$REPO" worktree remove --force "$wt" >>"$LOG" 2>&1 || true
+}
+
+# Runs in the CURRENT directory (a worktree checked out at the ref to gate): frozen-lockfile install
+# (falls back to regenerating the lockfile only on conflict), `pnpm tc`, `pnpm test` compared against
+# the $1 baseline, `pnpm run build:electron-vite`. Writes new (non-baseline) failures to $2.
+gate_checks() {
+  local tag=$1 failfile=$2
+  : >"$failfile"
+  ensure_toolchain
+  if ! pnpm install --frozen-lockfile >>"$LOG" 2>&1; then
+    log "gate: lockfile conflict vs $tag; regenerating"
+    pnpm install --no-frozen-lockfile >>"$LOG" 2>&1 || { log "gate: pnpm install failed"; return 1; }
+  fi
+  if ! pnpm run tc >>"$LOG" 2>&1; then
+    log "gate: typecheck failed"
+    return 1
+  fi
+  ensure_baseline "$tag"
+  local out; out=$(mktemp)
+  pnpm test >"$out" 2>&1 || true
+  normalize_test_failures <"$out" >"$STATE/gate-test-$tag.txt"
+  rm -f "$out"
+  diff_new_failures "$STATE/gate-test-$tag.txt" "$STATE/baseline-$tag.txt" "$failfile"
+  if [[ -s "$failfile" ]]; then
+    log "gate: new test failures vs $tag baseline ($(wc -l <"$failfile" | tr -d ' ')): $failfile"
+    return 1
+  fi
+  if ! pnpm run build:electron-vite >>"$LOG" 2>&1; then
+    log "gate: build:electron-vite failed"
+    return 1
+  fi
+  return 0
+}
+
+# `orca-custom-update gate <ref>` — runs the gate against <ref> in the CURRENT directory (meant to be
+# run inside a worktree, e.g. by the conflict-resolution agent after it lands a rebase).
+gate() {
+  local ref=${1:-HEAD} tag
+  if [[ "$ref" == v[0-9]*.[0-9]*.[0-9]* ]]; then
+    tag=$ref
+  else
+    tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "$ref" 2>/dev/null) || tag=$(base_tag)
+  fi
+  local failfile="$STATE/gate-failures-$tag.txt"
+  if gate_checks "$tag" "$failfile"; then
+    log "gate: green for $ref vs baseline $tag"
+    print "gate: green ($ref vs baseline $tag)"
+    return 0
+  fi
+  log "gate: red for $ref vs baseline $tag"
+  print "gate: RED ($ref vs baseline $tag) — $failfile"
+  return 1
+}
+
+sync() {
+  cd "$REPO"
+  local current; current=$(base_tag)
+  if (( DRY_RUN_MODE )); then
+    local latest
+    if run_with_timeout 8 git fetch -q upstream --tags 2>/dev/null; then
+      latest=$(latest_release_tag)
+    else
+      log "sync: [dry-run] upstream unreachable within 8s; would check for a release newer than $current"
+      return 0
+    fi
+    if [[ "$current" == "$latest" ]] || ! version_gt "$latest" "$current"; then
+      log "sync: [dry-run] up to date with $current (latest upstream: $latest)"
+      return 0
+    fi
+    log "sync: [dry-run] would rebase custom onto $latest in sync/$latest, gate it against baseline-$latest, and on green move custom there, push, build, install"
+    return 0
+  fi
+  git fetch -q upstream --tags
+  local latest; latest=$(latest_release_tag)
+  if [[ "$current" == "$latest" ]]; then
+    log "sync: up to date with $current"
+    return 0
+  fi
+  if ! version_gt "$latest" "$current"; then
+    log "sync: latest tag $latest is not newer than current $current; skipping"
+    return 0
+  fi
+  log "sync: $current -> $latest"
+  # Why: REPO is also the dev checkout; a dirty tree makes the worktree carry it into the rebase.
+  if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+    log "sync: working tree has uncommitted changes; retrying later"
+    notify "Orca: обновление $latest отложено" "Закоммитьте или уберите изменения в $REPO"
+    return 1
+  fi
+  ensure_toolchain
+  local wt="$GATE_ROOT/$latest"
+  if ! should_retry_today "$latest"; then
+    log "sync: already hit a conflict for $latest today; skipping until tomorrow"
+    return 0
+  fi
+  if ! rebase_patches_onto "$latest" "$wt"; then
+    touch "$(retry_stamp "$latest")"
+    dispatch_conflict_agent "$latest"
+    return 1
+  fi
+  rm -f "$(retry_stamp "$latest")"
+  local failfile="$STATE/gate-failures-$latest.txt"
+  if ! ( cd "$wt" && gate_checks "$latest" "$failfile" ); then
+    log "sync: gate red for $latest; custom unchanged"
+    notify "Orca $latest: ворота красные" "custom не тронут, список: $failfile"
+    git -C "$REPO" worktree remove --force "$wt" >>"$LOG" 2>&1 || true
+    return 1
+  fi
+  log "sync: gate green for $latest"
+  # Why: `git branch -f custom …` refuses while custom is checked out here; reset --hard is the
+  # equivalent for the branch the current worktree already has checked out.
+  git -C "$REPO" checkout -q custom
+  git -C "$REPO" reset --hard "sync/$latest"
+  git -C "$REPO" worktree remove --force "$wt" >>"$LOG" 2>&1 || true
+  git -C "$REPO" branch -D "sync/$latest" >>"$LOG" 2>&1 || true
   git push -q --force-with-lease origin custom >>"$LOG" 2>&1 || log "sync: push to fork failed (non-fatal)"
   git push -q -f origin "$latest^{commit}:refs/heads/release-base" >>"$LOG" 2>&1 || log "sync: release-base push failed (non-fatal)"
   build
-  notify "Orca $latest собрана" "Закройте Orca полностью — новая сборка установится сама"
+  notify "Orca $latest собрана" "Ворота зелёные — установится в спокойный момент"
   install_staged
 }
 
@@ -349,8 +750,18 @@ follow() {
     log "follow: up to date with origin/custom"
     return 0
   fi
+  if (( DRY_RUN_MODE )); then
+    log "follow: [dry-run] origin/custom moved to $(git rev-parse --short origin/custom) — would run pnpm tc, build, install"
+    return 0
+  fi
   log "follow: origin/custom -> $(git log --oneline -1 origin/custom)"
   git checkout -q -B custom origin/custom
+  ensure_toolchain
+  if ! pnpm run tc >>"$LOG" 2>&1; then
+    log "follow: pnpm tc failed locally on origin/custom; keeping current app"
+    notify "Orca: сборка не обновлена" "Проверка типов упала локально на $(git rev-parse --short origin/custom)"
+    return 1
+  fi
   build
   notify "Новая сборка Orca готова" "Закройте Orca полностью — она установится сама"
   install_staged
@@ -413,8 +824,8 @@ WantedBy=timers.target" >"$units/orca-custom-update.timer"
   log "bootstrap: follower ready; the scheduler builds and installs on its next tick"
 }
 
-# The scheduler runs `auto` every 30 min: install a staged build once Orca is closed, then check for
-# a new build source at most every 6 h (maintainer: upstream release; follower: the fork's `custom`).
+# The scheduler runs `auto` every 30 min: install a staged build once Orca is closed/quiet, then check
+# for a new build source at most every 6 h (maintainer: upstream release; follower: the fork's `custom`).
 auto() {
   install_staged
   local stamp="$STATE/last-sync"
@@ -429,19 +840,25 @@ auto() {
   fi
 }
 
-case "${1:-status}" in
-  auto) auto ;;
-  sync) sync ;;
-  follow) follow ;;
-  bootstrap-follower) bootstrap_follower ;;
-  build) build ;;
-  install) install_staged ;;
-  status)
-    print "role:          $(cat "$ROLE_FILE" 2>/dev/null || print maintainer)"
-    print "base release:  $(base_tag)"
-    print "latest:        $(latest_release_tag)"
-    print "installed:     $(cat "$STATE/installed-version" 2>/dev/null || print official)"
-    print "staged:        $(cat "$STATE/staged-version" 2>/dev/null || print -)"
-    ;;
-  *) print -u2 "usage: orca-custom-update auto|sync|follow|build|install|bootstrap-follower|status"; exit 2 ;;
-esac
+if [[ -z "${ORCA_CUSTOM_UPDATE_TEST:-}" ]]; then
+  case "${1:-status}" in
+    auto) auto ;;
+    sync) sync ;;
+    follow) follow ;;
+    gate) gate "${2:-HEAD}" ;;
+    rollback) rollback ;;
+    bootstrap-follower) bootstrap_follower ;;
+    build) build ;;
+    install) install_staged ;;
+    status)
+      print "role:          $(cat "$ROLE_FILE" 2>/dev/null || print maintainer)"
+      print "base release:  $(base_tag)"
+      print "latest:        $(latest_release_tag)"
+      print "installed:     $(cat "$STATE/installed-version" 2>/dev/null || print official)"
+      print "previous:      $(cat "$STATE/installed-version.prev" 2>/dev/null || print -)"
+      print "staged:        $(cat "$STATE/staged-version" 2>/dev/null || print -)"
+      print "last gate:     $(last_gate_summary "$(latest_release_tag)")"
+      ;;
+    *) print -u2 "usage: orca-custom-update auto|sync|follow|gate|rollback|build|install|bootstrap-follower|status"; exit 2 ;;
+  esac
+fi

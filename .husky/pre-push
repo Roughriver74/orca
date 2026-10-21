@@ -1,0 +1,31 @@
+#!/bin/sh
+# Blocks `git push` to `custom` on a local typecheck/test failure (shared by Mac and Linux, custom-
+# update req #6). Skip for emergencies: ORCA_SKIP_PREPUSH=1 git push.
+set -eu
+
+if [ "${ORCA_SKIP_PREPUSH:-0}" = "1" ]; then
+  echo "orca pre-push: ORCA_SKIP_PREPUSH=1, skipping checks"
+  exit 0
+fi
+
+push_custom=0
+while read -r local_ref local_oid remote_ref remote_oid; do
+  [ -z "${local_ref:-}" ] && continue
+  case "$remote_ref" in
+    refs/heads/custom) push_custom=1 ;;
+  esac
+done
+
+if [ "$push_custom" != "1" ]; then
+  exit 0
+fi
+
+echo "orca pre-push: custom is in this push — checking types and changed tests (ORCA_SKIP_PREPUSH=1 to skip)"
+
+pnpm run tc
+
+base=origin/custom
+git rev-parse --verify --quiet "$base" >/dev/null 2>&1 || base=$(git merge-base HEAD HEAD@{upstream} 2>/dev/null || echo HEAD~1)
+
+echo "orca pre-push: running tests changed vs $base"
+pnpm run test -- --changed "$base"
