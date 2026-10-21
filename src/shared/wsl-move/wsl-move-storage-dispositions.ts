@@ -37,6 +37,10 @@ export const LOCAL_STORAGE_MODULE_DISPOSITIONS: Record<string, WslMoveFieldDispo
       32,
       'Web client only; the desktop keeps visit recency in the session.'
     ),
+  'src/renderer/src/store/workspace-timeline-store.ts': notApplicableDisposition(
+    32,
+    'Keyed by worktree id; a rederivable activity cache, not project-owned state.'
+  ),
   ...Object.fromEntries(
     [
       'src/renderer/src/components/browser-pane/annotate/use-markup-draw-hint.ts',

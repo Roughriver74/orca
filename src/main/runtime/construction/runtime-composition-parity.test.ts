@@ -51,6 +51,12 @@ const DECLARED_HOST_DIFFERENCES: readonly DeclaredDifference[] = [
     reason: 'orcad installs browser automation through the runtime factory when Chromium exists.'
   },
   {
+    wiring: 'runtime.setCompanionTtsSpeaker',
+    missingOn: 'orcad',
+    reason:
+      'The real speaker imports the bundled Python TTS sidecar asset, resolvable only in a Vite/electron-vite build; orcad has no window to stream the audio to either.'
+  },
+  {
     wiring: 'runtime.setEmulatorBridge',
     missingOn: 'orcad',
     reason: 'Device emulators are desktop-only.'
@@ -59,6 +65,12 @@ const DECLARED_HOST_DIFFERENCES: readonly DeclaredDifference[] = [
     wiring: 'runtime.setOffscreenBrowserBackend',
     missingOn: 'orcad',
     reason: 'Offscreen WebContents need Electron.'
+  },
+  {
+    wiring: 'runtime.setWorkspaceCheckService',
+    missingOn: 'orcad',
+    reason:
+      'Check-command runs ride desktop notifications and agent-pane busy/idle status; orcad has neither.'
   },
   {
     wiring: 'ctor:prepareClaudeAuth',

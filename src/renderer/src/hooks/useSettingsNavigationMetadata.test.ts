@@ -75,12 +75,15 @@ describe('settings navigation metadata', () => {
   })
 
   it('puts AI capability panes at the top on desktop', () => {
-    expect(ids().slice(0, 10)).toEqual([
+    // `companion` (voice companion) is an AI capability pane added by the fork; it sorts with
+    // the other AI panes, so the slice widens by one to keep `mobile` in view too.
+    expect(ids().slice(0, 11)).toEqual([
       'agents',
       'accounts',
       'orchestration',
       'computer-use',
       'voice',
+      'companion',
       'orca-account',
       'setup-guide',
       'general',

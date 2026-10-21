@@ -22,6 +22,7 @@ export const HOST_OPERATION_OWNERSHIP = {
   automation: 'host',
   browser: 'host',
   clipboard: 'host',
+  companion: 'host',
   computer: 'host',
   desktopBrowserBridge: 'host',
   diagnostics: 'host',
@@ -69,6 +70,7 @@ export const HOST_OPERATION_OWNERSHIP = {
   terminalDaemon: 'host',
   ui: 'host',
   updater: 'host',
+  workspaceCheck: 'host',
   workspacePorts: 'host',
   worktree: 'host'
 } as const satisfies Record<string, HostOperationOwnership>
