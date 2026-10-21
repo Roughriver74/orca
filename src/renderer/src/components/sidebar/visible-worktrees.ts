@@ -31,7 +31,6 @@ import {
 import { getSidebarShortcutTargets, type SidebarShortcutTarget } from './sidebar-shortcut-targets'
 import { getPinnedWorktreeDisplayPolicy } from '../../../../shared/sidebar-list/row-types'
 
-
 /**
  * Module-level cache of the visible worktree IDs as last computed by
  * WorktreeList's render pipeline.
@@ -129,8 +128,14 @@ export function getVisibleWorktreeShortcutTargets(): VisibleWorktreeShortcutTarg
   }
   const state = useAppStore.getState()
   // Why candidates, not rendered ids: a folded compact project renders no card yet owns a slot.
-  return getSidebarShortcutTargets(
+  const targets = getSidebarShortcutTargets(
     computeRenderedSidebarRows(state, getSidebarCandidateWorktrees(state)),
     getPinnedWorktreeDisplayPolicy(state.settings)
   )
+  // Lineage keys are contextual to the rendered sidebar hierarchy; unmounted shortcuts (palette, etc.)
+  // operate on global visible worktrees without lineage nesting, so strip them for consistency.
+  return targets.map((target) => {
+    const { lineageGroupKey: _, ...rest } = target
+    return rest as VisibleWorktreeShortcutTarget
+  })
 }
