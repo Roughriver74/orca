@@ -25,6 +25,65 @@ import {
   type ProjectAttentionByWorktree
 } from './project-attention-rank'
 
+/**
+ * Ids whose copies, taken together across hosts, would loop if resolved by bare id (#30045's
+ * dedup picks one copy per id; that is only safe when the dropped copies' own parent links do not
+ * depend on ANOTHER duplicated id also picking a specific copy — e.g. host A's copy of X parents
+ * host B's copy of Y while host B's copy of Y parents host A's copy of X). Those ids are exempted
+ * from the dedup below so every host keeps its own acyclic copy instead of losing one side.
+ */
+function findDuplicatedIdsFormingParentCycles(projectGroups: readonly ProjectGroup[]): Set<string> {
+  const idCounts = new Map<string, number>()
+  for (const group of projectGroups) {
+    idCounts.set(group.id, (idCounts.get(group.id) ?? 0) + 1)
+  }
+  const duplicatedIds = new Set([...idCounts].filter(([, count]) => count > 1).map(([id]) => id))
+  if (duplicatedIds.size === 0) {
+    return duplicatedIds
+  }
+  const parentsById = new Map<string, Set<string>>()
+  for (const group of projectGroups) {
+    if (!duplicatedIds.has(group.id) || !group.parentGroupId) {
+      continue
+    }
+    if (!duplicatedIds.has(group.parentGroupId)) {
+      continue
+    }
+    const parents = parentsById.get(group.id) ?? new Set<string>()
+    parents.add(group.parentGroupId)
+    parentsById.set(group.id, parents)
+  }
+  const idsInCycle = new Set<string>()
+  const UNVISITED = 0
+  const VISITING = 1
+  const DONE = 2
+  const state = new Map<string, number>()
+  const path: string[] = []
+  const visit = (id: string): void => {
+    state.set(id, VISITING)
+    path.push(id)
+    for (const parentId of parentsById.get(id) ?? []) {
+      const parentState = state.get(parentId) ?? UNVISITED
+      if (parentState === VISITING) {
+        const cycleStart = path.indexOf(parentId)
+        for (let index = cycleStart; index < path.length; index += 1) {
+          idsInCycle.add(path[index])
+        }
+      } else if (parentState === UNVISITED) {
+        visit(parentId)
+      }
+    }
+    path.pop()
+    state.set(id, DONE)
+  }
+  for (const id of duplicatedIds) {
+    if ((state.get(id) ?? UNVISITED) === UNVISITED) {
+      visit(id)
+    }
+  }
+  return idsInCycle
+}
+
 export function appendProjectGroupSections(
   ctx: SectionAppendContext,
   args: {
@@ -112,7 +171,19 @@ export function appendProjectGroupSections(
   const catalogGroupKeys = new Set(projectGroups.map((group) => catalogGroupKey(group, group.id)))
   const childGroupsByParentKey = new Map<string | null, ProjectGroup[]>()
   // Why distinct: membership is id-keyed, so a same-id copy's header would sit empty (#30045).
-  for (const group of getDistinctProjectGroups(projectGroups)) {
+  // A duplicated id involved in a cross-host parent cycle is the exception: picking one copy
+  // would strand the other's own subtree, so every copy of those ids renders on its own host.
+  const idsInParentCycles = findDuplicatedIdsFormingParentCycles(projectGroups)
+  const groupsToNest =
+    idsInParentCycles.size === 0
+      ? getDistinctProjectGroups(projectGroups)
+      : [
+          ...getDistinctProjectGroups(
+            projectGroups.filter((group) => !idsInParentCycles.has(group.id))
+          ),
+          ...projectGroups.filter((group) => idsInParentCycles.has(group.id))
+        ]
+  for (const group of groupsToNest) {
     const parentKey = group.parentGroupId ? catalogGroupKey(group, group.parentGroupId) : null
     const key = parentKey && catalogGroupKeys.has(parentKey) ? parentKey : null
     const children = childGroupsByParentKey.get(key) ?? []

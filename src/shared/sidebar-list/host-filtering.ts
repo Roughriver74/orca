@@ -80,6 +80,16 @@ export function getProjectGroupExecutionHostIdForRows(
   return group.connectionId ? toSshExecutionHostId(group.connectionId) : defaultHostId
 }
 
+/** Whether a group names its own host, vs. a catalog-wide group the default host merely stands
+ *  in for (`getProjectGroupExecutionHostIdForRows` always returns a concrete id either way). A
+ *  host-named group pins to one host section; a catalog-wide group's header repeats in every
+ *  host section its member repos span. */
+export function projectGroupHasExplicitExecutionHost(
+  group: Pick<ProjectGroup, 'connectionId' | 'executionHostId'>
+): boolean {
+  return normalizeExecutionHostId(group.executionHostId) !== null || !!group.connectionId
+}
+
 export function getFolderWorkspaceExecutionHostIdForRows({
   folderWorkspace,
   projectGroup,

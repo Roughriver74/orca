@@ -14,7 +14,10 @@ import type { SshConnectionStatus } from '../ssh-types'
 import type { Repo } from '../repo-types'
 import type { Row } from './row-types'
 import { getFolderWorkspaceHostId } from './folder-workspace-host-id'
-import { getProjectGroupExecutionHostIdForRows } from './host-filtering'
+import {
+  getProjectGroupExecutionHostIdForRows,
+  projectGroupHasExplicitExecutionHost
+} from './host-filtering'
 
 export type HostHeaderRow = {
   type: 'host-header'
@@ -74,8 +77,12 @@ function getRowHostId(row: Row, defaultHostId: ExecutionHostId): ExecutionHostId
         return getRepoHostId(row.repo, defaultHostId)
       }
       // Why: a project group lives in one host's catalog; buffered like a lane header it floated
-      // above the host cards and capped that host's ungrouped projects.
-      return row.projectGroup && row.projectGroup.id !== null
+      // above the host cards and capped that host's ungrouped projects. A catalog-wide group (no
+      // host of its own) is not pinned here — its header repeats in every host section its
+      // member repos span, same as an ungrouped repo header would.
+      return row.projectGroup &&
+        row.projectGroup.id !== null &&
+        projectGroupHasExplicitExecutionHost(row.projectGroup)
         ? getProjectGroupExecutionHostIdForRows(row.projectGroup, defaultHostId)
         : null
   }
