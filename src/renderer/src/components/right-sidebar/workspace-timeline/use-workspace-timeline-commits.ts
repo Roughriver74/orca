@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getConnectionId } from '@/lib/connection-context'
-import { getRuntimeGitHistory, type RuntimeGitContext } from '@/runtime/runtime-git-client'
+import { getRuntimeGitHistory } from '@/runtime/runtime-git-status-client'
+import type { RuntimeGitContext } from '@/runtime/runtime-git-client-context'
 import {
   WORKSPACE_TIMELINE_COMMIT_LIMIT,
   type WorkspaceTimelineCommitEntry
@@ -24,7 +25,7 @@ export function useWorkspaceTimelineCommits({
 }: {
   worktreeId: string | null
   worktreePath: string | null
-  repoSettings: RuntimeGitContext['settings']
+  repoSettings: RuntimeGitContext['target']
   isGitWorktree: boolean
   createdAt?: number
 }): WorkspaceTimelineCommitsState {
@@ -39,7 +40,7 @@ export function useWorkspaceTimelineCommits({
     setState({ status: 'loading' })
     const connectionId = getConnectionId(worktreeId) ?? undefined
     void getRuntimeGitHistory(
-      { settings: repoSettings, worktreeId, worktreePath, connectionId },
+      { target: repoSettings, worktreeId, worktreePath, connectionId },
       { limit: WORKSPACE_TIMELINE_COMMIT_LIMIT }
     )
       .then((result) => {

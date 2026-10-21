@@ -1,5 +1,6 @@
-import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
-import { callRuntimeRpc, getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
+import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
+import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
+import { ipcOrRuntimeTargetForHostId } from '@/runtime/runtime-client-target'
 import { useAppStore } from '@/store'
 import type { WorkspaceCheckState } from '../../../../shared/workspace-check-types'
 
@@ -7,8 +8,8 @@ import type { WorkspaceCheckState } from '../../../../shared/workspace-check-typ
  *  other worktree-scoped RPCs (e.g. terminal.stop) pick their target. */
 function resolveWorkspaceCheckTarget(worktreeId: string) {
   const state = useAppStore.getState()
-  const runtimeEnvironmentId = getRuntimeEnvironmentIdForWorktree(state, worktreeId)
-  return getActiveRuntimeTarget({ activeRuntimeEnvironmentId: runtimeEnvironmentId })
+  const executionHostId = getExecutionHostIdForWorktree(state, worktreeId)
+  return ipcOrRuntimeTargetForHostId(executionHostId) ?? { kind: 'local' as const }
 }
 
 export async function fetchWorkspaceCheckState(

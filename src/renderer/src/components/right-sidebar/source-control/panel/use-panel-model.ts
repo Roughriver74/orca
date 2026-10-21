@@ -159,7 +159,7 @@ export function useSourceControlPanelModel() {
     [entries]
   )
   const reviewSince = useSourceControlReviewSince({
-    activeRepoTarget,
+    activeRepoTarget: activeRepoTarget ?? { kind: 'local' },
     activeWorktreeId,
     worktreePath,
     isFolder,

@@ -1,5 +1,5 @@
 import { defineMethod } from '../core'
-import { WorktreeSelector } from './git-params'
+import { WorktreeSelector } from '../../../../shared/rpc-contract/git-params'
 
 export const GIT_REVIEWED_METHODS = [
   defineMethod({

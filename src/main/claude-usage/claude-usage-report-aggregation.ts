@@ -35,14 +35,7 @@ export function buildAllWorktreeTodayUsage(
       outputTokens += row.outputTokens
       cacheReadTokens += row.cacheReadTokens
       cacheWriteTokens += row.cacheWriteTokens
-      const cost = estimateCostUsd(
-        row.model,
-        row.inputTokens,
-        row.outputTokens,
-        row.cacheReadTokens,
-        row.cacheWriteTokens,
-        row.cacheWrite1hTokens
-      )
+      const cost = estimateCostUsd(row.model, row)
       if (cost !== null) {
         hasAnyBillableCost = true
         estimatedCostUsd += cost

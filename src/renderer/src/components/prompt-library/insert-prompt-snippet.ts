@@ -59,6 +59,6 @@ export async function insertPromptSnippetIntoTarget(
     return { status: 'no-target' }
   }
   const text = await expandPromptSnippetForTarget(body, toExpansionTarget(resolved))
-  sendRuntimePtyInput(state.settings, resolved.ptyId, buildAgentPromptPasteBytes(text), 'driving')
+  sendRuntimePtyInput(resolved.ptyId, buildAgentPromptPasteBytes(text), 'driving')
   return { status: 'inserted' }
 }

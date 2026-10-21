@@ -1,11 +1,11 @@
 import type { AppState } from '@/store/types'
 import type { Worktree } from '../../../../shared/worktree/types'
-import { tabHasLivePty } from '@/lib/tab-has-live-pty'
+import { tabHasLivePty } from '../../../../shared/tab-has-live-pty'
 import {
   buildAttentionByWorktree,
   hasFreshAttributedAgentStatus,
   type WorktreeAttention
-} from './smart-attention'
+} from '../../../../shared/sidebar-list/smart-attention'
 
 type ProjectAttentionState = Pick<
   AppState,

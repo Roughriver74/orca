@@ -5,7 +5,9 @@ import type { Worktree } from '../../../../../shared/worktree/types'
 import { getConnectionId } from '@/lib/connection-context'
 import { isWindowVisible, installWindowVisibilityInterval } from '@/lib/window-visibility-interval'
 import { resolveSourceControlBaseRef } from '../../right-sidebar/source-control/sync/base-ref-resolution'
-import { getRightSidebarWorktreeRuntimeSettings } from '../../right-sidebar/file-explorer-runtime-owner'
+import { useAppStore } from '@/store'
+import { runtimeTargetForWorkspaceOwner } from '@/lib/resolve-owner'
+import { requireGitOwnerTarget } from '../../right-sidebar/worktree-git-owner-target'
 import {
   createCoalescedPollRunner,
   type SlowTaskBackoffOptions
@@ -90,7 +92,11 @@ export function useOverlapRadarPolling(args: {
           try {
             const paths = await fetchOverlapRadarChangedPaths(
               {
-                settings: getRightSidebarWorktreeRuntimeSettings(worktree.id),
+                target: requireGitOwnerTarget(
+                  runtimeTargetForWorkspaceOwner(useAppStore.getState(), {
+                    workspaceId: worktree.id
+                  })
+                ),
                 worktreeId: worktree.id,
                 worktreePath: worktree.path,
                 connectionId

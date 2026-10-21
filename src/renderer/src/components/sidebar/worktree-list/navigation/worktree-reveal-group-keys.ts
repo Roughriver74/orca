@@ -46,6 +46,7 @@ export function getWorktreeRevealCollapsedGroupKeys(args: {
     args.occurrencePlan ??
     planSidebarRows({
       groupBy: args.groupBy,
+      sortBy: 'manual',
       worktrees: [...(args.visibleWorktrees ?? args.worktrees)],
       repoMap: args.repoMap,
       prGroupOf: createSidebarPRGroupReader(args.repoMap, args.prCache),

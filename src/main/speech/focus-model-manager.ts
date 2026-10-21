@@ -14,6 +14,7 @@ import {
   removeModelDownloadFiles,
   removeModelDownloadStaging
 } from './speech-model-download-cleanup'
+import { openElectronSpeechDownloadRequest } from '../host/electron-speech-services'
 
 type DownloadHandle = { abort: () => void }
 type ProgressCallback = (assetId: FocusModelId, progress: number) => void
@@ -31,7 +32,7 @@ export class FocusModelManager extends SpeechModelDownloadTransport {
   private progressCallbacks = new Set<ProgressCallback>()
 
   constructor(customAssetsDir?: string) {
-    super()
+    super(openElectronSpeechDownloadRequest)
     this.assetsDir = customAssetsDir || join(app.getPath('userData'), 'voice-focus-models')
     mkdirSync(this.assetsDir, { recursive: true })
   }

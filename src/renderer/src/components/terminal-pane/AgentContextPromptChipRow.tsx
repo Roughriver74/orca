@@ -76,8 +76,7 @@ export function AgentContextPromptChipRow({
     (body: string) => {
       void (async () => {
         const text = await expandPromptSnippetForTarget(body, { worktreeId, paneKey })
-        const state = useAppStore.getState()
-        sendRuntimePtyInput(state.settings, ptyId, buildAgentPromptPasteBytes(text), 'driving')
+        sendRuntimePtyInput(ptyId, buildAgentPromptPasteBytes(text), 'driving')
         focusTerminalTabSurface(tabId, leafId)
       })()
     },

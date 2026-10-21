@@ -4,8 +4,8 @@
 // N is still synthesizing/playing).
 
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
-import { spawnProcess } from '../../../shared/child-process/run-process'
-import { forceTerminateProcessTree } from '../../../shared/child-process/process-tree-termination'
+import { spawnProcess } from '@orca/process-host'
+import { forceTerminateProcessTree } from '@orca/process-host/process-tree-termination'
 import {
   createCompanionTtsSidecarFrameReader,
   type CompanionTtsSidecarFrame

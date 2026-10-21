@@ -18,6 +18,7 @@ function context(overrides: Partial<CmdJQuickActionContext> = {}): CmdJQuickActi
     openCreateWorkspace: vi.fn(),
     deleteActiveWorkspace: vi.fn(),
     openAddQuickCommand: vi.fn(),
+    openInsertPromptFromLibrary: vi.fn(),
     ...overrides
   }
 }

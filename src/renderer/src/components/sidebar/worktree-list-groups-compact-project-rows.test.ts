@@ -207,7 +207,7 @@ describe('buildRows attention project order', () => {
       ['wt-a', { cls: 3, attentionTimestamp: 10 }],
       ['wt-b', { cls: 2, attentionTimestamp: 10 }],
       // Why: a project ranks by its most urgent workspace, not its first one.
-      ['wt-c2', { cls: 1, attentionTimestamp: 5, cause: 'waiting' }]
+      ['wt-c2', { cls: 1, attentionTimestamp: 5 }]
     ])
     const rows = build([wA, wB, wC1, wC2], { projectOrderBy: 'attention', attention })
     expect(headers(rows).map((row) => row.key)).toEqual([
@@ -237,7 +237,7 @@ describe('buildRows attention project order', () => {
 
   it('orders compact single-workspace rows by attention too', () => {
     const attention = new Map<string, WorktreeAttention>([
-      ['wt-b', { cls: 1, attentionTimestamp: 1, cause: 'blocked' }]
+      ['wt-b', { cls: 1, attentionTimestamp: 1 }]
     ])
     const rows = build([wA, wB], {
       projectOrderBy: 'attention',
@@ -302,9 +302,7 @@ describe('buildRows attention order details', () => {
       undefined,
       undefined,
       'manual',
-      new Map<string, WorktreeAttention>([
-        ['wt-b', { cls: 1, attentionTimestamp: 1, cause: 'waiting' }]
-      ])
+      new Map<string, WorktreeAttention>([['wt-b', { cls: 1, attentionTimestamp: 1 }]])
     )
     expect(headers(rows).map((row) => row.key)).toEqual([
       'project-group:group-1',

@@ -11,8 +11,11 @@ import {
   getVoiceEnrollmentStatus
 } from '../companion/companion-voice-enrollment'
 import { getFocusModelManager } from '../speech/focus-model-manager'
-import { getSherpaModulePath } from '../speech/stt-worker-paths'
-import { SpeakerEmbeddingExtractor } from '../speech/speaker-embedding-extractor'
+import { getSherpaModulePath, LOCAL_SPEECH_UNAVAILABLE_ERROR } from '../speech/stt-worker-paths'
+import {
+  SpeakerEmbeddingExtractor,
+  type SpeakerEmbeddingBinding
+} from '../speech/speaker-embedding-extractor'
 import { resampleToRate } from '../speech/stt-audio-resample'
 
 const ENROLLMENT_SAMPLE_RATE = 16000
@@ -29,8 +32,13 @@ function getEnrollmentExtractor(): SpeakerEmbeddingExtractor {
   if (cachedExtractor && cachedExtractorModelPath === modelPath) {
     return cachedExtractor
   }
-  // oxlint-disable-next-line typescript-eslint/no-explicit-any -- sherpa-onnx native addon has no type definitions
-  const sherpa: any = require(getSherpaModulePath())
+  const sherpaModulePath = getSherpaModulePath()
+  if (!sherpaModulePath) {
+    throw new Error(LOCAL_SPEECH_UNAVAILABLE_ERROR)
+  }
+  // SAFETY: the sherpa-onnx native addon has no type definitions; this is the same
+  // narrow native-binding cast SpeakerEmbeddingExtractor's other callers use.
+  const sherpa = require(sherpaModulePath) as unknown as SpeakerEmbeddingBinding
   cachedExtractor = new SpeakerEmbeddingExtractor(sherpa, { modelPath })
   cachedExtractorModelPath = modelPath
   return cachedExtractor

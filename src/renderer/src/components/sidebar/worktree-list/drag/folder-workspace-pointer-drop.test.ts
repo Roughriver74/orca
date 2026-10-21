@@ -42,6 +42,7 @@ function setup(drop: { dropIndex: number } | null) {
       currentY: 300,
       worktreeId: 'folder:c',
       draggedIds: ['folder:c'],
+      draggedCopies: [{ id: 'folder:c', hostId: 'local' }],
       reorderDraggedIds: ['folder:c'],
       reorderUnitDraggedIds: ['folder:c'],
       sourceGroupKey: FOLDER_GROUP.key,

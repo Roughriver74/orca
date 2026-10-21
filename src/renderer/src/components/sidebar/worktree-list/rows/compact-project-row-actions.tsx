@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import { getRepoHeaderCreateState } from '../../repo-header-create-state'
 import { ProjectHeaderActions } from '../../ProjectHeaderActions'
-import type { GroupHeaderRow } from '../grouping/row-types'
+import type { GroupHeaderRow } from '../../../../../../shared/sidebar-list/row-types'
 import type { WorktreeSidebarHeaderDrag } from '../drag/use-header-drag'
 import {
   RepoHeaderCreateWorkspaceButton,
@@ -27,10 +27,11 @@ export function getCompactProjectRowDrag(
   attributes: Record<string, string | number | undefined>
   onPointerDown?: (event: React.PointerEvent<HTMLDivElement>) => void
 } {
-  const repoId = header?.repo?.id
-  if (!ctx || !repoId) {
+  const repo = header?.repo
+  if (!ctx || !repo) {
     return { attributes: {} }
   }
+  const repoId = repo.id
   const drag = ctx.headerDrag
   const bucketKey = drag.repoHeaderBucketByRepoId.get(repoId)
   const draggable = Boolean(
@@ -48,9 +49,7 @@ export function getCompactProjectRowDrag(
       'data-repo-header-drag-handle': draggable ? '' : undefined
     },
     // Why: in Manual order the row moves its project, like the header it replaces.
-    onPointerDown: draggable
-      ? (event) => drag.repoDrag.onHandlePointerDown(event, repoId)
-      : undefined
+    onPointerDown: draggable ? (event) => drag.repoDrag.onHandlePointerDown(event, repo) : undefined
   }
 }
 
@@ -69,12 +68,16 @@ export function CompactProjectRowActions({
   if (!repo) {
     return null
   }
+  const label = header.label ?? repo.displayName
   const createState = getRepoHeaderCreateState({
     repo,
-    label: header.label,
-    sshStatus: repo.connectionId
-      ? (ctx.sshConnectionStates.get(repo.connectionId)?.status ?? null)
-      : null
+    label,
+    sshGate: {
+      connectionId: repo.connectionId ?? null,
+      status: repo.connectionId
+        ? (ctx.sshConnectionStates.get(repo.connectionId)?.status ?? null)
+        : null
+    }
   })
   return (
     <div
@@ -92,13 +95,13 @@ export function CompactProjectRowActions({
       >
         <RepoHeaderProjectActionsMenu
           repo={repo}
-          label={header.label}
+          label={label}
           projectGroups={ctx.projectGroups}
           actions={ctx.projectActions}
         />
         <RepoHeaderCreateWorkspaceButton
           repo={repo}
-          label={header.label}
+          label={label}
           createState={createState}
           onCreateForRepo={ctx.projectActions.onCreateForRepo}
         />

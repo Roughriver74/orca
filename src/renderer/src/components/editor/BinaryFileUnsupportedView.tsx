@@ -1,3 +1,4 @@
+import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
@@ -32,7 +33,9 @@ export function BinaryFileUnsupportedView({
             size="sm"
             onClick={async () => {
               try {
-                setOpenFailed(!(await window.api.shell.openFilePath(filePath)))
+                setOpenFailed(
+                  !(await window.api.shell.openFilePath(filePath, LOCAL_EXECUTION_HOST_ID))
+                )
               } catch {
                 setOpenFailed(true)
               }

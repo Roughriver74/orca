@@ -1,8 +1,6 @@
-import {
-  getRuntimeGitBranchCompare,
-  getRuntimeGitStatus,
-  type RuntimeGitContext
-} from '@/runtime/runtime-git-client'
+import { getRuntimeGitBranchCompare } from '@/runtime/runtime-git-diff-client'
+import { getRuntimeGitStatus } from '@/runtime/runtime-git-status-client'
+import type { RuntimeGitContext } from '@/runtime/runtime-git-client-context'
 
 /**
  * A worktree's overlap-radar changed-file set: everything committed since the merge-base

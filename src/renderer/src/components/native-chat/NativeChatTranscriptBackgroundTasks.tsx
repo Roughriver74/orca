@@ -40,7 +40,7 @@ export function NativeChatTranscriptBackgroundTasks(props: {
       tasks={props.tasks}
       settledTasks={props.settledTasks}
       supportsTaskStop={false}
-      supportsStopAll={false}
+      offersStopAll={false}
       stoppingTaskIds={NO_STOPPING}
       stoppingAll={false}
       indicatorActive={!props.turnActive}

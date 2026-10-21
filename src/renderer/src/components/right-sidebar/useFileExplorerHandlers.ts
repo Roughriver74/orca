@@ -3,9 +3,8 @@ import type React from 'react'
 import type { RefObject } from 'react'
 import { detectLanguage } from '@/lib/language-detect'
 import { toast } from 'sonner'
-import { useAppStore } from '@/store'
 import { getConnectionIdForFile } from '@/lib/connection-context'
-import { isLocalPathOpenBlocked } from '@/lib/local-path-open-guard'
+import { getLocalPathOpenOwnerForRoute, isLocalPathOpenBlocked } from '@/lib/local-path-open-guard'
 import { openWithDefaultApp } from '@/lib/open-with-default-app'
 import { shouldOpenWithDefaultApp } from '../../../../shared/external-open-classifier'
 import type { TreeNode } from './file-explorer-types'
@@ -201,10 +200,12 @@ export function useFileExplorerHandlers({
         setSelectedPath(node.path)
         void openWithDefaultApp(
           node.path,
-          isLocalPathOpenBlocked(useAppStore.getState().settings, {
-            connectionId: getConnectionIdForFile(activeWorktreeId, node.path),
-            runtimeEnvironmentId
-          })
+          isLocalPathOpenBlocked(
+            getLocalPathOpenOwnerForRoute({
+              connectionId: getConnectionIdForFile(activeWorktreeId, node.path),
+              runtimeEnvironmentId
+            })
+          )
         )
         return
       }
@@ -246,10 +247,12 @@ export function useFileExplorerHandlers({
         closeFile(node.path)
         void openWithDefaultApp(
           node.path,
-          isLocalPathOpenBlocked(useAppStore.getState().settings, {
-            connectionId: getConnectionIdForFile(activeWorktreeId, node.path),
-            runtimeEnvironmentId
-          })
+          isLocalPathOpenBlocked(
+            getLocalPathOpenOwnerForRoute({
+              connectionId: getConnectionIdForFile(activeWorktreeId, node.path),
+              runtimeEnvironmentId
+            })
+          )
         )
         return
       }

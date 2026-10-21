@@ -13,7 +13,7 @@ import { get as httpsGet } from 'node:https'
 import type { IncomingMessage } from 'node:http'
 import { join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
-import { runProcess } from '../../../shared/child-process/run-process'
+import { runProcess } from '@orca/process-host'
 import type { CompanionTtsProvisioningStatus } from '../../../shared/companion-types'
 import { isCompanionSileroTtsSupported } from '../../../shared/companion-tts-support'
 

@@ -721,12 +721,12 @@ describe('Store', () => {
     const store = await createStore()
     store.addRepo(makeRepo())
 
-    expect(store.updateRepo('r1', { hideWhenIdle: true })!.hideWhenIdle).toBe(true)
+    expect(store.updateRepo({ id: 'r1' }, { hideWhenIdle: true })!.hideWhenIdle).toBe(true)
     store.flush()
     const reloaded = await createStore()
     expect(reloaded.getRepo('r1')!.hideWhenIdle).toBe(true)
 
-    expect(reloaded.updateRepo('r1', { hideWhenIdle: false })!.hideWhenIdle).toBe(false)
+    expect(reloaded.updateRepo({ id: 'r1' }, { hideWhenIdle: false })!.hideWhenIdle).toBe(false)
   })
 
   it('updateRepo ignores a non-boolean hideWhenIdle', async () => {
@@ -734,7 +734,7 @@ describe('Store', () => {
     store.addRepo(makeRepo({ hideWhenIdle: true }))
 
     // Why JSON: a malformed renderer/RPC patch arrives untyped, with no assertion needed to build it.
-    const updated = store.updateRepo('r1', JSON.parse('{"hideWhenIdle":"yes"}'))
+    const updated = store.updateRepo({ id: 'r1' }, JSON.parse('{"hideWhenIdle":"yes"}'))
 
     expect(updated!.hideWhenIdle).toBe(true)
   })

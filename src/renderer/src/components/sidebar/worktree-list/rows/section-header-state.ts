@@ -1,6 +1,6 @@
 import type { FolderWorkspacePathStatus } from '../../../../../../shared/folder-workspace-path-status'
 import { isConfirmedStaleFolderPathStatus } from '../../../../../../shared/folder-workspace-path-status'
-import type { GroupHeaderRow } from '../grouping/row-types'
+import type { GroupHeaderRow } from '../../../../../../shared/sidebar-list/row-types'
 
 function hasCompactProjectWorkspaces(row: GroupHeaderRow): boolean {
   return row.compactProjectActive !== undefined && (row.projectWorktreeIds?.length ?? 0) > 0

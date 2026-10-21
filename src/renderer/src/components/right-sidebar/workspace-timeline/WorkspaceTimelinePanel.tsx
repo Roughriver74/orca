@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { History } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { useActiveWorktree, useRepoById } from '@/store/selectors'
 import { useWorkspaceTimelineStore } from '@/store/workspace-timeline-store'
-import { getRepoOwnerRoutedSettings } from '@/lib/repo-runtime-owner'
+import { runtimeTargetForRepoOwner } from '@/lib/repo-runtime-owner'
 import { translate } from '@/i18n/i18n'
 import { isFolderRepo } from '../../../../../shared/repo-kind'
 import { parseWorkspaceKey } from '../../../../../shared/workspace-scope'
@@ -27,22 +28,24 @@ export default function WorkspaceTimelinePanel(): React.JSX.Element {
   const activeWorktreeId = useAppStore((s) => s.activeWorktreeId)
   const activeWorktree = useActiveWorktree()
   const activeRepo = useRepoById(activeWorktree?.repoId ?? null)
-  const settings = useAppStore((s) => s.settings)
   const worktreePath = activeWorktree?.path ?? null
 
   const activeWorkspaceScope = parseWorkspaceKey(activeWorktreeId ?? '')
   const isFolderWorkspace = activeWorkspaceScope?.type === 'folder'
   const isFolder = isFolderWorkspace || (activeRepo ? isFolderRepo(activeRepo) : false)
 
-  const repoSettings = useMemo(
-    () => getRepoOwnerRoutedSettings(settings, activeRepo),
-    [settings, activeRepo]
+  const repoTarget = useAppStore(
+    useShallow((s) =>
+      activeRepo
+        ? (runtimeTargetForRepoOwner(s, activeRepo.id) ?? { kind: 'local' as const })
+        : { kind: 'local' as const }
+    )
   )
 
   const commitsState = useWorkspaceTimelineCommits({
     worktreeId: activeWorktreeId,
     worktreePath,
-    repoSettings,
+    repoSettings: repoTarget,
     isGitWorktree: !isFolder,
     createdAt: activeWorktree?.createdAt
   })
@@ -63,7 +66,7 @@ export default function WorkspaceTimelinePanel(): React.JSX.Element {
   const openCommit = useOpenWorkspaceTimelineCommit({
     worktreeId: activeWorktreeId,
     worktreePath,
-    repoSettings
+    repoSettings: repoTarget
   })
   const openFile = useOpenWorkspaceTimelineFile({ worktreeId: activeWorktreeId, worktreePath })
 

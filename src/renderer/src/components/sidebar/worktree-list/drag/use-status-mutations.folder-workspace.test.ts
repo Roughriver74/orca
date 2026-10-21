@@ -49,7 +49,6 @@ describe('folder workspace reorder writes', () => {
   it('persists manualOrder through the folder workspace owner and switches to Manual', () => {
     const { result } = renderHook(() =>
       useWorktreeStatusMutations({
-        worktreeMap: new Map(),
         manualOrderCatalog: {
           orderedIds: ['folder:a', 'folder:b'],
           rankByWorktreeId: new Map([

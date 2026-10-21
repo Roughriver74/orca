@@ -14,7 +14,7 @@ import type { SshConnectionStatus } from '../ssh-types'
 import type { Repo } from '../repo-types'
 import type { Row } from './row-types'
 import { getFolderWorkspaceHostId } from './folder-workspace-host-id'
-import { getProjectGroupExecutionHostIdForRows } from './worktree-list/listing/host-filtering'
+import { getProjectGroupExecutionHostIdForRows } from './host-filtering'
 
 export type HostHeaderRow = {
   type: 'host-header'

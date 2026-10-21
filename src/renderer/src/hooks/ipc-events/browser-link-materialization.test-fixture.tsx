@@ -1,4 +1,5 @@
 import { buildDefaultSettings } from '../../../../shared/default-global-settings'
+import { getDefaultCompanionSettings } from '../../../../shared/companion-defaults'
 import { createRoot } from 'react-dom/client'
 import { useAppStore } from '@/store'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -86,7 +87,8 @@ export function installBrowserLinkMaterializationProbe() {
         openAiApiKeyConfigured: false,
         microphoneDeviceId: null,
         microphoneDeviceLabel: null
-      }
+      },
+      companion: getDefaultCompanionSettings()
     })
   useAppStore.setState({
     activeWorktreeId: worktreeId,

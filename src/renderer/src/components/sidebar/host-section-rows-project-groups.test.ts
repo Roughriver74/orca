@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
 import type { ProjectGroup } from '../../../../shared/project-group-types'
 import type { Repo } from '../../../../shared/repo-types'
-import type { Row } from './worktree-list/grouping/row-types'
-import { addHostSectionRows, type HostSectionOption } from './host-section-rows'
+import type { Row } from '../../../../shared/sidebar-list/row-types'
+import {
+  addHostSectionRows,
+  type HostSectionOption
+} from '../../../../shared/sidebar-list/host-section-rows'
 import { getRenderRowKey } from './worktree-list/listing/render-row'
 
 const OFFICE: ExecutionHostId = 'runtime:03ef704c-b180-4b10-998d-e28fbd5de9a3'
@@ -36,7 +39,7 @@ function groupHeader(id: string, executionHostId?: ExecutionHostId): Row {
     key: `project-group:${id}`,
     label: id,
     count: 1,
-    tone: 'text-foreground',
+    icon: { kind: 'project' },
     projectGroup,
     projectGroupDepth: 0
   }
@@ -48,7 +51,7 @@ function projectHeader(project: Repo): Row {
     key: `repo:${project.id}`,
     label: project.id,
     count: 1,
-    tone: 'text-foreground',
+    icon: { kind: 'project' },
     repo: project
   }
 }
@@ -58,7 +61,8 @@ function sectionedKeys(rows: Row[]): string[] {
     rows,
     hostOptions: HOSTS,
     workspaceHostScope: 'all',
-    defaultHostId: 'local'
+    defaultHostId: 'local',
+    localHostLabel: 'Local Mac'
   }).map(getRenderRowKey)
 }
 
@@ -92,7 +96,7 @@ describe('project groups in host sections', () => {
       key: 'all',
       label: 'All',
       count: 2,
-      tone: 'text-foreground'
+      icon: { kind: 'all' }
     }
     const rows = [ungrouped, projectHeader(repo('wstom', OFFICE)), projectHeader(repo('orca'))]
 

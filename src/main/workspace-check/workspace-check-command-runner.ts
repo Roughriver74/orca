@@ -9,8 +9,8 @@ import {
   WORKSPACE_CHECK_MAX_OUTPUT_CHARS,
   WORKSPACE_CHECK_TIMEOUT_SECONDS
 } from '../../shared/workspace-check-types'
-import { getSshConnectionManager } from '../ssh/ssh-target-registry'
-import { shellEscape } from '../ssh/ssh-connection-utils'
+import { getSshConnectionManager } from '../ssh/targets/ssh-target-registry'
+import { quotePosixShell } from '../../shared/shell-argument-quoting'
 import { killLocalPrecheckProcessTree } from '../automations/precheck-runner'
 
 export type WorkspaceCheckExecutionTarget =
@@ -244,7 +244,7 @@ function startSshWorkspaceCheck(
 
   let cancelFn: (() => void) | null = null
   let cancelledBeforeChannel = false
-  const remoteCommand = `cd ${shellEscape(target.cwd)} && ${command}`
+  const remoteCommand = `cd ${quotePosixShell(target.cwd)} && ${command}`
   const result = connection
     .exec(remoteCommand)
     .then((channel) => {

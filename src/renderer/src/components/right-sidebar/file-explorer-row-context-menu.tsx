@@ -36,11 +36,12 @@ import {
   revealInFileManager
 } from '@/lib/reveal-in-file-manager'
 import { openWithDefaultApp } from '@/lib/open-with-default-app'
-import { isRevealOrEditorOpenBlocked, isLocalPathOpenBlocked } from '@/lib/local-path-open-guard'
 import {
-  getRuntimeEnvironmentIdForWorktree,
-  runtimeEnvironmentIdWithLegacyFallbackUnlessTwin
-} from '@/lib/worktree-runtime-owner'
+  isRevealOrEditorOpenBlocked,
+  isLocalPathOpenBlocked,
+  getLocalPathOpenOwnerForRoute
+} from '@/lib/local-path-open-guard'
+import { runtimeEnvironmentIdWithLegacyFallbackUnlessTwin } from '@/lib/worktree-runtime-owner'
 import type { FileExplorerRowProps } from './FileExplorerRow'
 import {
   shouldShowCollapseFolderAction,
@@ -136,10 +137,15 @@ export function FileExplorerRowContextMenu({
   )
   const revealBlocked = isRevealOrEditorOpenBlocked(revealOwner)
   const openExternalBlocked = useAppStore((s) =>
-    isLocalPathOpenBlocked(s.settings, {
-      connectionId,
-      runtimeEnvironmentId: getRuntimeEnvironmentIdForWorktree(s, s.activeWorktreeId)
-    })
+    isLocalPathOpenBlocked(
+      getLocalPathOpenOwnerForRoute({
+        connectionId,
+        runtimeEnvironmentId: runtimeEnvironmentIdWithLegacyFallbackUnlessTwin(
+          s,
+          s.activeWorktreeId
+        )
+      })
+    )
   )
   const handleOpenWithDefaultApp = useCallback(() => {
     void openWithDefaultApp(node.path, openExternalBlocked)

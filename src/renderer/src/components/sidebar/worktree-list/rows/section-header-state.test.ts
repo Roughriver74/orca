@@ -1,9 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { GroupHeaderRow } from '../grouping/row-types'
+import type { GroupHeaderRow } from '../../../../../../shared/sidebar-list/row-types'
 import { activateSectionHeader, getSectionHeaderExpansion } from './section-header-state'
 
 function header(overrides: Partial<GroupHeaderRow> = {}): GroupHeaderRow {
-  return { type: 'header', key: 'repo:a', label: 'a', count: 2, tone: '', ...overrides }
+  return {
+    type: 'header',
+    key: 'repo:a',
+    label: 'a',
+    count: 2,
+    icon: { kind: 'project' },
+    ...overrides
+  }
 }
 
 function activate(row: GroupHeaderRow, isCollapsed = false) {

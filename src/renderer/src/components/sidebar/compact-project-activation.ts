@@ -4,7 +4,7 @@ import { activateWorktreeFromSidebar } from '@/lib/sidebar-worktree-activation'
 import { getRepoExecutionHostId, type ExecutionHostId } from '../../../../shared/execution-host'
 import type { Worktree } from '../../../../shared/worktree/types'
 import { buildProjectAttentionFromState } from './project-attention-order'
-import { IDLE, type WorktreeAttention } from './smart-attention'
+import { IDLE, type WorktreeAttention } from '../../../../shared/sidebar-list/smart-attention'
 
 /** Which workspace a collapsed project row opens: most urgent agent, else most recent, else primary. */
 export function pickCompactProjectTargetWorktree(

@@ -10,10 +10,7 @@ import {
   reviewedScopeKey
 } from '../../git/status'
 import type { ReviewedGitExec } from '../../git/source-control/reviewed-snapshot'
-import {
-  getSshGitProvider,
-  SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE
-} from '../../providers/ssh-git-dispatch'
+import { SshHostNotServedError } from '../../providers/ssh-host-not-served-error'
 import { resolveRegisteredWorktreePath } from '../registered-worktree-roots-cache'
 import { getLocalGitOptionsForRegisteredWorktree } from '../local-worktree-runtime-options'
 import type { FilesystemHandlerContext } from './filesystem-handler-context'
@@ -26,14 +23,7 @@ async function resolveReviewedExec(
   args: ReviewedArgs
 ): Promise<{ exec: ReviewedGitExec; scopeKey: string }> {
   if (args.connectionId) {
-    const provider = getSshGitProvider(args.connectionId)
-    if (!provider) {
-      throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
-    }
-    return {
-      exec: (gitArgs: string[]) => provider.exec(gitArgs, args.worktreePath),
-      scopeKey: reviewedScopeKey(args.connectionId, args.worktreePath)
-    }
+    throw new SshHostNotServedError(args.connectionId)
   }
   const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, context.store)
   const gitOptions = getLocalGitOptionsForRegisteredWorktree(

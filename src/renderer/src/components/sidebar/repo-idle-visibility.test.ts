@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { computeVisibleWorktreeIds } from './visible-worktrees'
-import { getEmptyProjectPlaceholderRepoIds } from './empty-project-placeholder-repos'
+import { getEmptyProjectPlaceholderRepoIds } from '../../../../shared/sidebar-list/empty-project-placeholder-repos'
 import { someRepoHidesWhenIdle } from './repo-idle-visibility'
 import type { Repo } from '../../../../shared/repo-types'
 import type { Worktree } from '../../../../shared/worktree/types'

@@ -11,7 +11,6 @@ const AiVaultSidebarPanel = lazy(() => import('./AiVaultSidebarPanel'))
 const FolderWorkspaceWorktreesPanel = lazy(() => import('./FolderWorkspaceWorktreesPanel'))
 const FolderWorkspacePrChecksPanel = lazy(() => import('./FolderWorkspacePrChecksPanel'))
 const PluginPanel = lazy(() => import('./PluginPanel'))
-const NativeChatVisualPanel = lazy(() => import('../native-chat/NativeChatVisualPanel'))
 const WorkspaceTimelinePanel = lazy(() => import('./workspace-timeline/WorkspaceTimelinePanel'))
 
 type RightSidebarPanelContentProps = {

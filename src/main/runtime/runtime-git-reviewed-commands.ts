@@ -9,7 +9,7 @@ import {
   reviewedScopeKey
 } from '../git/status'
 import type { ReviewedGitExec } from '../git/source-control/reviewed-snapshot'
-import { SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE } from '../providers/ssh-git-dispatch'
+import { SshHostNotServedError } from '../providers/ssh-host-not-served-error'
 import {
   localGitOptionsForTarget,
   runtimeGitRouteForTarget,
@@ -40,13 +40,6 @@ export class RuntimeGitReviewedCommands {
         scopeKey: reviewedScopeKey(null, target.worktree.path)
       }
     }
-    if (!route.provider) {
-      throw new Error(SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE)
-    }
-    const provider = route.provider
-    return {
-      exec: (args: string[]) => provider.exec(args, target.worktree.path),
-      scopeKey: reviewedScopeKey(route.connectionId, target.worktree.path)
-    }
+    throw new SshHostNotServedError(route.connectionId)
   }
 }

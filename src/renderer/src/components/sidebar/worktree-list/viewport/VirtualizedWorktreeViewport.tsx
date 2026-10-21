@@ -327,6 +327,7 @@ export const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktr
     measureVirtualRowElement,
     settings,
     worktreeVisibilityDefaultsByHost,
+    sshConnectionStates,
     getRepoSshGate,
     newCardStyle,
     folderBackedProjectGroupIds,

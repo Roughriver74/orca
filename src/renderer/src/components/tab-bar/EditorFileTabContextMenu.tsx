@@ -31,7 +31,11 @@ import {
   revealInFileManager
 } from '@/lib/reveal-in-file-manager'
 import { openWithDefaultApp } from '@/lib/open-with-default-app'
-import { isRevealOrEditorOpenBlocked, isLocalPathOpenBlocked } from '@/lib/local-path-open-guard'
+import {
+  getLocalPathOpenOwnerForRoute,
+  isLocalPathOpenBlocked,
+  isRevealOrEditorOpenBlocked
+} from '@/lib/local-path-open-guard'
 import { TabWorkspaceLayoutMenuSection } from './TabWorkspaceLayoutMenuSection'
 import { TAB_CONTEXT_MENU_CONTENT_CLASS } from './tab-context-menu-sizing'
 import { CopyTabIdMenuItem } from './CopyTabIdMenuItem'
@@ -114,8 +118,8 @@ export function EditorFileTabContextMenu({
     })
   )
   const revealBlocked = isRevealOrEditorOpenBlocked(revealOwner)
-  const openExternalBlocked = useAppStore((s) =>
-    isLocalPathOpenBlocked(s.settings, {
+  const openExternalBlocked = isLocalPathOpenBlocked(
+    getLocalPathOpenOwnerForRoute({
       connectionId: file.externalSshTargetId ?? repoConnectionId,
       runtimeEnvironmentId: file.runtimeEnvironmentId
     })

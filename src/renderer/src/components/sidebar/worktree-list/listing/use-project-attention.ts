@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '@/store'
-import { SORT_SETTLE_MS } from '@/store/settled-sort-epoch'
+import { SORT_SETTLE_MS } from '../../../../../../shared/sidebar-list/sort-settle'
 import type { Worktree } from '../../../../../../shared/worktree/types'
-import type { WorktreeAttention } from '../../smart-attention'
+import type { WorktreeAttention } from '../../../../../../shared/sidebar-list/smart-attention'
 import {
   buildProjectAttentionFromState,
   hasLiveSmartAttentionSignal

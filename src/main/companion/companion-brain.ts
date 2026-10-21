@@ -149,9 +149,9 @@ export class CompanionBrain {
     const providerSessionId = randomUUID()
     const command = this.deps.resolveCommand()
     const sources = await resolveClaudeChildEnvSources({ resolveCommand: this.deps.resolveCommand })
-    // `stripAuthEnv: false` — the companion runs as the signed-in user's own Claude
-    // login (system account), never a managed/rotated credential.
-    const env = claudeChildEnv(sources, false)
+    // Why default decorateEnv: the companion runs as the signed-in user's own Claude
+    // login (system account), never a managed/rotated credential, so auth env must pass through.
+    const env = claudeChildEnv(sources)
     const options: ClaudeStructuredSdkOptions = {
       ...CLAUDE_STRUCTURED_BASE_OPTIONS,
       model: this.model,

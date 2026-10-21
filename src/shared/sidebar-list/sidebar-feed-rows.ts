@@ -34,13 +34,9 @@ import {
   filterReposForVisibleHosts,
   getVisibleSidebarHostIdSet
 } from './host-filtering'
-import { deferHostSectionCollapse, scopeHostSectionCollapse } from './host-section-collapse'
 import { orderHostSectionOptions } from './host-section-order'
-import {
-  addHostSectionRows,
-  type HostSectionOption,
-  type HostSectionRow
-} from './host-section-rows'
+import { renderSidebarFeedRows } from './sidebar-feed-rows-render'
+import type { HostSectionOption, HostSectionRow } from './host-section-rows'
 import type {
   ImportedWorktreesCardCandidate,
   NewExternalWorktreesInboxCandidate,
@@ -229,6 +225,7 @@ export function planSidebarFeedRows(
   const repoOrder = getLogicalRepoOrderRankById(repos.map((repo) => repo.id))
   const plan = planSidebarRows({
     groupBy,
+    sortBy: view.sortBy,
     worktrees: visibleWorktrees,
     repoMap,
     prGroupOf: (worktree) => prGroupOfReviewFact(domains.review.get(worktree.id)),
@@ -266,34 +263,7 @@ export function planSidebarFeedRows(
       view.workspaceHostScope !== ALL_EXECUTION_HOSTS_SCOPE || view.visibleWorkspaceHostIds !== null
   }
 }
-
-/** The planned rows under `collapsedGroups`, wrapped in host sections. */
-export function renderSidebarFeedRows(
-  planned: SidebarFeedPlan,
-  view: SidebarFeedView,
-  collapsedGroups: ReadonlySet<string>,
-  forceCollapseHosts = false
-): Pick<SidebarFeedRows, 'rows' | 'sectionRows'> {
-  const collapsed = new Set(collapsedGroups)
-  const rows = planned.plan.render(
-    planned.hostScoped ? deferHostSectionCollapse(collapsed) : collapsed
-  )
-  const sectioned = addHostSectionRows({
-    rows,
-    hostOptions: planned.orderedHostOptions,
-    workspaceHostScope: view.workspaceHostScope,
-    visibleWorkspaceHostIds: view.visibleWorkspaceHostIds,
-    defaultHostId: view.defaultHostId,
-    localHostLabel: view.localHostLabel,
-    collapsedHostKeys: collapsed,
-    forceCollapseHosts,
-    preferProjectGrouping: true
-  })
-  const sectionRows = planned.hostScoped
-    ? scopeHostSectionCollapse({ rows: sectioned, collapsedGroups: collapsed })
-    : sectioned
-  return { rows, sectionRows }
-}
+export { renderSidebarFeedRows }
 
 /**
  * The sidebar a feed reader shows: the host's published inputs through the same builder, filters

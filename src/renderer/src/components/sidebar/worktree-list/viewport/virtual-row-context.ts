@@ -31,6 +31,7 @@ type BuildArgs = {
   measureVirtualRowElement: (element: HTMLDivElement | null) => void
   settings: AppState['settings']
   worktreeVisibilityDefaultsByHost: AppState['worktreeVisibilityDefaultsByHost']
+  sshConnectionStates: AppState['sshConnectionStates']
   getRepoSshGate: RepoSshGateResolver
   newCardStyle: boolean
   folderBackedProjectGroupIds: ReadonlySet<string>

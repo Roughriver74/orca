@@ -2,7 +2,8 @@ import { useCallback } from 'react'
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { getConnectionId } from '@/lib/connection-context'
-import { getRuntimeGitCommitCompare, type RuntimeGitContext } from '@/runtime/runtime-git-client'
+import { getRuntimeGitCommitCompare } from '@/runtime/runtime-git-diff-client'
+import type { RuntimeGitContext } from '@/runtime/runtime-git-client-context'
 import { translate } from '@/i18n/i18n'
 import type { WorkspaceTimelineCommitEntry } from './workspace-timeline-types'
 
@@ -18,7 +19,7 @@ export function useOpenWorkspaceTimelineCommit({
 }: {
   worktreeId: string | null
   worktreePath: string | null
-  repoSettings: RuntimeGitContext['settings']
+  repoSettings: RuntimeGitContext['target']
 }): (entry: WorkspaceTimelineCommitEntry) => void {
   const openCommitAllDiffs = useAppStore((s) => s.openCommitAllDiffs)
 
@@ -29,7 +30,7 @@ export function useOpenWorkspaceTimelineCommit({
       }
       const connectionId = getConnectionId(worktreeId) ?? undefined
       void getRuntimeGitCommitCompare(
-        { settings: repoSettings, worktreeId, worktreePath, connectionId },
+        { target: repoSettings, worktreeId, worktreePath, connectionId },
         entry.commitId
       )
         .then((result) => {
