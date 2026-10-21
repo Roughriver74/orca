@@ -4,7 +4,8 @@ import { getDefaultCompanionSettings } from '../../shared/constants'
 import type {
   CompanionConversationState,
   CompanionSettings,
-  CompanionTtsProvisioningStatus
+  CompanionTtsProvisioningStatus,
+  CompanionTtsVoice
 } from '../../shared/companion-types'
 import { getCompanionBrain, type CompanionBrainEvent } from '../companion/companion-brain'
 import { companionConversation } from '../companion/companion-conversation'
@@ -24,10 +25,34 @@ export type RuntimeCompanionStatusResult = {
 }
 export type RuntimeCompanionToggleResult = { state: CompanionConversationState }
 
+/** Synthesizes one utterance. Injected from the Electron-only TTS wiring (`main-process-
+ *  runtime-service.ts`) because its real implementation imports `companion-tts-service.ts`,
+ *  which pulls in the bundled `.py?asset&asarUnpack` Silero sidecar path at import time —
+ *  resolvable only inside a real (or asset-mocked) Vite/electron-vite build. Importing that
+ *  module from this file, even behind a dynamic `import()`, would still make orcad's plain
+ *  esbuild bundle (which has no `.py` loader, by design: orcad is a headless Node host that
+ *  must never need a Python sidecar) try to resolve that asset, since esbuild inlines every
+ *  module an entry point reaches, dynamic imports included. Keeping the import out of this
+ *  file entirely — not just out of `say()`'s hot path — is what keeps orcad's graph clean. */
+export type CompanionTtsSpeaker = (params: {
+  userDataDir: string
+  text: string
+  utteranceId: string
+  voice: CompanionTtsVoice
+  rate: number
+}) => Promise<void>
+
 /** Bridges the RPC/CLI surface to the one persistent `CompanionBrain` conversation,
  *  the same role `RuntimeMobileSpeechCatalog` plays for the speech services. */
 export class RuntimeCompanionController {
+  private ttsSpeaker: CompanionTtsSpeaker | null = null
+
   constructor(private readonly getStore: () => RuntimeStore | null) {}
+
+  /** Wired once from Electron main startup; stays null on orcad (see `CompanionTtsSpeaker`). */
+  setTtsSpeaker(speaker: CompanionTtsSpeaker): void {
+    this.ttsSpeaker = speaker
+  }
 
   async ask(params: { text: string; reset?: boolean }): Promise<RuntimeCompanionAskResult> {
     const store = this.requireStore()
@@ -67,16 +92,18 @@ export class RuntimeCompanionController {
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: `GlobalSettings` has no `companion` field yet; CompanionShell adds it, and this reads only the one optional field, structurally compatible with whatever shape it lands as.
     const settings = store.getSettings() as unknown as { companion?: CompanionSettings }
     const tts = settings.companion?.tts ?? getDefaultCompanionSettings().tts
-    // Why dynamic rather than a top-level import: the TTS module pulls in the bundled
-    // `.py?asset&asarUnpack` sidecar path at import time, which only resolves inside a
-    // real (or asset-mocked) Vite/electron-vite build — loading it eagerly would force
-    // every caller of this file, including the unrelated `ask()` path and its tests, to
-    // carry that asset resolution for a platform-gated feature they never touch.
-    const { getCompanionTtsService } = await import('../companion/tts/companion-tts-service')
+    if (!this.ttsSpeaker) {
+      throw new Error('companion_tts_unavailable')
+    }
     const userDataDir = getAppEnvironment().getPath('userData')
-    const service = getCompanionTtsService(userDataDir)
     const utteranceId = randomUUID()
-    await service.speak(params.text, { utteranceId, voice: tts.ttsVoice, rate: tts.ttsRate })
+    await this.ttsSpeaker({
+      userDataDir,
+      text: params.text,
+      utteranceId,
+      voice: tts.ttsVoice,
+      rate: tts.ttsRate
+    })
     return { utteranceId }
   }
 

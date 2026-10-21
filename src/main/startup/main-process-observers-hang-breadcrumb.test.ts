@@ -75,6 +75,12 @@ vi.mock('../muse-usage/store', () => ({ MuseUsageStore: class {} }))
 vi.mock('../repo-maintenance-idle-gate', () => ({
   installRepoMaintenanceIdleGate: () => () => {}
 }))
+vi.mock('../workspace-check/workspace-check-service', () => ({
+  WorkspaceCheckService: class {}
+}))
+vi.mock('../ipc/notifications', () => ({
+  getNotificationDeliveryService: () => ({})
+}))
 
 const { mainProcessState } = await import('./main-process-state')
 const { initializeMainProcessObservers } = await import('./main-process-observers')

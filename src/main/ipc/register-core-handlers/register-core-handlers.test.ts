@@ -68,9 +68,13 @@ const {
   registerCompanionVoiceFocusHandlersMock,
   registerCompanionTtsHandlersMock,
   initCompanionTtsProviderSettingsMock,
+  startCompanionTtsServiceWarmupMock,
+  getWarmedCompanionTtsServiceMock,
   initCompanionHotkeyMock,
   initCompanionDialogueMock,
   initCompanionAgentWatchMock,
+  initCompanionIndicatorMock,
+  initCompanionPanelAutoHideMock,
   registerSkillsHandlersMock,
   registerSkillDeleteIpcHandlersMock,
   registerWorkspaceSpaceHandlersMock,
@@ -147,9 +151,13 @@ const {
   registerCompanionVoiceFocusHandlersMock: vi.fn(),
   registerCompanionTtsHandlersMock: vi.fn(),
   initCompanionTtsProviderSettingsMock: vi.fn(),
-  initCompanionHotkeyMock: vi.fn(() => () => {}),
+  startCompanionTtsServiceWarmupMock: vi.fn(),
+  getWarmedCompanionTtsServiceMock: vi.fn(() => null),
   initCompanionDialogueMock: vi.fn(() => () => {}),
+  initCompanionHotkeyMock: vi.fn(() => () => {}),
   initCompanionAgentWatchMock: vi.fn(() => () => {}),
+  initCompanionIndicatorMock: vi.fn(() => () => {}),
+  initCompanionPanelAutoHideMock: vi.fn(() => () => {}),
   registerSkillsHandlersMock: vi.fn(),
   registerSkillDeleteIpcHandlersMock: vi.fn(),
   registerWorkspaceSpaceHandlersMock: vi.fn(),
@@ -219,6 +227,11 @@ vi.mock('../../companion/tts/companion-tts-provider-settings-wiring', () => ({
   initCompanionTtsProviderSettings: initCompanionTtsProviderSettingsMock
 }))
 
+vi.mock('../../companion/tts/companion-tts-speaker-wiring', () => ({
+  startCompanionTtsServiceWarmup: startCompanionTtsServiceWarmupMock,
+  getWarmedCompanionTtsService: getWarmedCompanionTtsServiceMock
+}))
+
 vi.mock('../../companion/companion-shortcut', () => ({
   initCompanionHotkey: initCompanionHotkeyMock
 }))
@@ -237,6 +250,14 @@ vi.mock('../../companion/companion-assets', () => ({
 
 vi.mock('../../companion/companion-wake-listening', () => ({
   initCompanionWakeListening: () => () => {}
+}))
+
+vi.mock('../../companion/companion-indicator-lifecycle', () => ({
+  initCompanionIndicator: initCompanionIndicatorMock
+}))
+
+vi.mock('../../companion/companion-panel-visibility', () => ({
+  initCompanionPanelAutoHide: initCompanionPanelAutoHideMock
 }))
 
 vi.mock('../cli', () => ({
@@ -712,6 +733,9 @@ describe('registerCoreHandlers', () => {
     expect(registerFilesystemWatcherHandlersMock).toHaveBeenCalled()
     expect(registerSpeechHandlersMock).toHaveBeenCalledWith(store)
     expect(registerCompanionVoiceFocusHandlersMock).toHaveBeenCalled()
+    expect(startCompanionTtsServiceWarmupMock).toHaveBeenCalled()
+    expect(initCompanionIndicatorMock).toHaveBeenCalled()
+    expect(initCompanionPanelAutoHideMock).toHaveBeenCalledWith(store)
 
     await expect(
       aiVaultOptions.scanRuntimeAiVaultSessions(

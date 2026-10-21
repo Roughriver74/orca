@@ -69,6 +69,10 @@ import { registerCompanionTtsHandlers } from '../companion-tts'
 import { initCompanionTtsProviderSettings } from '../../companion/tts/companion-tts-provider-settings-wiring'
 import { initCompanionHotkey } from '../../companion/companion-shortcut'
 import { initCompanionDialogue } from '../../companion/companion-dialogue'
+import {
+  getWarmedCompanionTtsService,
+  startCompanionTtsServiceWarmup
+} from '../../companion/tts/companion-tts-speaker-wiring'
 import { initCompanionAgentWatch } from '../../companion/companion-agent-watch'
 import { initCompanionAssets } from '../../companion/companion-assets'
 import { initCompanionWakeListening } from '../../companion/companion-wake-listening'
@@ -316,7 +320,8 @@ export function registerCoreHandlers(
   registerCompanionVoiceFocusHandlers()
   const disposeCompanionHotkey = initCompanionHotkey(store)
   app.once('will-quit', disposeCompanionHotkey)
-  const disposeCompanionDialogue = initCompanionDialogue(store)
+  startCompanionTtsServiceWarmup()
+  const disposeCompanionDialogue = initCompanionDialogue(store, getWarmedCompanionTtsService)
   app.once('will-quit', disposeCompanionDialogue)
   const disposeCompanionAgentWatch = initCompanionAgentWatch(store)
   app.once('will-quit', disposeCompanionAgentWatch)

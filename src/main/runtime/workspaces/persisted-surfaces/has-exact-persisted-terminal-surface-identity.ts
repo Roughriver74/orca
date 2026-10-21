@@ -1,3 +1,4 @@
+import type { CompanionTtsSpeaker } from '../../runtime-companion-controller'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
 import type { RuntimePtyWorktreeRecord } from '../../runtime-terminal-state-records'
 import { OrcaRuntimeWithRestoredTerminalPlacement } from './restored-terminal-placement'
@@ -243,6 +244,12 @@ export abstract class OrcaRuntimeWithHasExactPersistedTerminalSurfaceIdentity ex
       throw new Error('runtime_unavailable')
     }
     return this.workspaceCheckService.runNow(worktreeId)
+  }
+
+  // Why public: the real TTS implementation imports the bundled Python sidecar asset, which
+  // only resolves inside Electron's Vite build — see `CompanionTtsSpeaker`'s doc comment.
+  setCompanionTtsSpeaker(speaker: CompanionTtsSpeaker): void {
+    this.companion.setTtsSpeaker(speaker)
   }
 
   // Why public: WorkspaceCheckService is wired from startup composition (main-process-observers.ts)

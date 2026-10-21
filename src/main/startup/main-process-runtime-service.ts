@@ -36,6 +36,7 @@ import { resolveHostAgentBaseEnvironment } from '../runtime/structured-agent-she
 import type { RuntimeDesktopWindowStatus } from '../../shared/runtime-types'
 import { ArtifactCloudService } from '../artifacts/artifact-cloud-service'
 import { SkillCloudService } from '../skills/skill-cloud-service'
+import { getCompanionTtsService } from '../companion/tts/companion-tts-service'
 import { isArtifactSharingEnabled } from '../../shared/artifact-sharing-gate'
 import {
   AgentStatusObservedPaneIdentities,
@@ -195,4 +196,8 @@ export function configureRuntimeServices(runtime: OrcaRuntimeService): void {
   if (state.workspaceCheckService) {
     runtime.setWorkspaceCheckService(state.workspaceCheckService)
   }
+  runtime.setCompanionTtsSpeaker(async ({ userDataDir, text, utteranceId, voice, rate }) => {
+    const service = getCompanionTtsService(userDataDir)
+    await service.speak(text, { utteranceId, voice, rate })
+  })
 }

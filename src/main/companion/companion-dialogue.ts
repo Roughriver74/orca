@@ -325,18 +325,19 @@ export const companionDialogueHandle: { current: CompanionDialogue | null } = { 
 
 /** Wires the real brain/TTS/window singletons together and keeps the module-level
  *  instance the hotkey (barge-in) and the "New conversation" IPC handler read from.
- *  Returns a disposer; safe to call once per app lifetime (mirrors `initCompanionHotkey`). */
-export function initCompanionDialogue(store: CompanionDialogueSettingsStore): () => void {
+ *  Returns a disposer; safe to call once per app lifetime (mirrors `initCompanionHotkey`).
+ *
+ *  `getTtsService` is injected by the Electron-only caller (`register-core-handlers.ts`):
+ *  the real implementation imports the bundled `.py?asset&asarUnpack` Silero sidecar path,
+ *  which only resolves inside a real (or asset-mocked) Vite/electron-vite build. A dynamic
+ *  `import()` here would still make orcad's plain esbuild bundle — which must never need a
+ *  `.py` loader — try to resolve that asset, since this module is itself reachable from
+ *  orcad's graph via `companion-shortcut.ts`'s barge-in handle. */
+export function initCompanionDialogue(
+  store: CompanionDialogueSettingsStore,
+  getTtsService?: (userDataDir: string) => CompanionTtsService | null
+): () => void {
   const brain = getCompanionBrain(store)
-
-  // Why dynamic: the TTS module pulls in the bundled `.py?asset&asarUnpack` sidecar path
-  // at import time, which only resolves inside a real (or asset-mocked) Vite/electron-vite
-  // build — a static import here would force that resolution on every test that merely
-  // imports this file for `createCompanionDialogue`, including this module's own tests.
-  let getTtsService: ((userDataDir: string) => CompanionTtsService) | null = null
-  void import('./tts/companion-tts-service').then((mod) => {
-    getTtsService = mod.getCompanionTtsService
-  })
 
   const dialogue = createCompanionDialogue({
     conversation: companionConversation,
@@ -351,8 +352,12 @@ export function initCompanionDialogue(store: CompanionDialogueSettingsStore): ()
         return null
       }
       const userDataDir = getAppEnvironment().getPath('userData')
+      const service = getTtsService(userDataDir)
+      if (!service) {
+        return null
+      }
       return {
-        service: getTtsService(userDataDir),
+        service,
         voice: tts.ttsVoice,
         rate: tts.ttsRate,
         pronunciationsPath: join(
