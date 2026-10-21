@@ -82,7 +82,8 @@ export function buildSidebarRowPlan(
     pinnedDisplayPolicy,
     filterRepoIds,
     projectAttentionByWorktree,
-    activeWorktreeId
+    activeWorktreeId,
+    compactProjectRows: settings?.compactProjectRows === true
   })
 }
 
