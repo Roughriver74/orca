@@ -803,9 +803,6 @@ follow() {
   log "follow: origin/custom -> $(git log --oneline -1 origin/custom)"
   git checkout -q -B custom origin/custom
   ensure_toolchain
-  # Why install first: `pnpm run` auto-installs missing deps with default settings, which would
-  # lay node_modules out in the global virtual store before build() gets to use the pinned flag.
-  pnpm_install --frozen-lockfile >>"$LOG" 2>&1
   if ! pnpm run tc >>"$LOG" 2>&1; then
     log "follow: pnpm tc failed locally on origin/custom; keeping current app"
     notify "Orca: сборка не обновлена" "Проверка типов упала локально на $(git rev-parse --short origin/custom)"
