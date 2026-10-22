@@ -10,7 +10,10 @@ export function getRenderRowKey(row: RenderRow): string {
     return `host:${row.hostId}`
   }
   if (row.type === 'header') {
-    return row.hostId ? `hdr:${row.hostId}:${row.key}` : `hdr:${row.key}`
+    // Why: a project group's header is placed in its host section(s) by position alone — its
+    // key stays stable across every host it floats into, unlike a plain lane header (e.g. "All")
+    // which repeats verbatim per host and needs the hostId to stay unique in the flat row list.
+    return row.hostId && !row.projectGroup ? `hdr:${row.hostId}:${row.key}` : `hdr:${row.key}`
   }
   if (row.type === 'lineage-group') {
     return `lineage-group:${row.key}`

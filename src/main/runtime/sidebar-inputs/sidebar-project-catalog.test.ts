@@ -83,8 +83,11 @@ describe('readSidebarProjectCatalog', () => {
     })
     // An uploaded icon is a data URL a phone reads through sidebarInputs.repoIcons instead.
     expect(catalog.repos.find((entry) => entry.id === 'upload')).not.toHaveProperty('repoIcon')
+    // A catalog-wide group (no connectionId of its own) keeps no host stamp now — forcing it to
+    // "local" would hide that its real members can span multiple hosts from the sidebar's
+    // cross-host-floating logic (host-section-rows.ts's computeProjectGroupActualHosts).
     expect(catalog.projectGroups?.map((entry) => [entry.id, entry.executionHostId])).toEqual([
-      ['school', 'local'],
+      ['school', undefined],
       ['remote', 'ssh:box'],
       ['hub-g', 'runtime:hub']
     ])

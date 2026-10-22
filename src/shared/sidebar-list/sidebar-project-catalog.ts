@@ -68,13 +68,17 @@ export function buildSidebarProjectCatalog(
     resolveProjectHostSetupProjection(repos, rows.projects, rows.projectHostSetups),
     ui?.projectOrderBy ?? 'manual',
     [
-      // Stamped as the window's adoption stamps this host's groups.
-      ...own.projectGroups.map((group) => ({
-        ...group,
-        executionHostId: group.connectionId
-          ? toSshExecutionHostId(group.connectionId)
-          : LOCAL_EXECUTION_HOST_ID
-      })),
+      // Stamped as the window's adoption stamps this host's repos — but only when the group names
+      // an SSH connection of its own. A catalog-wide group (no connectionId) keeps whatever
+      // executionHostId it already has (usually none): forcing it to "local" here would hide that
+      // its real members can span multiple hosts, which addHostSectionRows otherwise lets it float
+      // into every host section those members actually live under, same as the desktop window
+      // (reading the store's own unstamped groups) already does.
+      ...own.projectGroups.map((group) =>
+        group.connectionId
+          ? { ...group, executionHostId: toSshExecutionHostId(group.connectionId) }
+          : group
+      ),
       ...servers.flatMap((server) => server.projectGroups)
     ]
   )

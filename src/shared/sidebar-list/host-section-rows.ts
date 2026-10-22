@@ -1,7 +1,5 @@
 import {
   ALL_EXECUTION_HOSTS_SCOPE,
-  LOCAL_EXECUTION_HOST_ID,
-  getRepoExecutionHostId,
   getWorktreeExecutionHostId,
   type ExecutionHostId,
   type ExecutionHostKind,
@@ -11,13 +9,18 @@ import type { ExecutionHostHealth } from '../execution-host-registry'
 import type { RuntimeCompatVerdict } from '../protocol-compat'
 import type { RuntimeHostBlockedReason } from '../runtime-host-status'
 import type { SshConnectionStatus } from '../ssh-types'
-import type { Repo } from '../repo-types'
 import type { Row } from './row-types'
 import { getFolderWorkspaceHostId } from './folder-workspace-host-id'
 import {
   getProjectGroupExecutionHostIdForRows,
   projectGroupHasExplicitExecutionHost
 } from './host-filtering'
+import {
+  computeProjectGroupActualHosts,
+  getProjectGroupHeaderDepth,
+  getRepoHostId
+} from './project-group-host-spans'
+import { countWorkspaceRows, getFallbackHost } from './host-section-row-helpers'
 
 export type HostHeaderRow = {
   type: 'host-header'
@@ -50,19 +53,11 @@ export type HostSectionOption = {
   connectionStatus?: SshConnectionStatus
 }
 
-function getRepoHostId(
-  repo: Pick<Repo, 'connectionId' | 'executionHostId'> | undefined,
-  defaultHostId: ExecutionHostId
-): ExecutionHostId {
-  // Why: explicit executionHostId must win over the focused/default host, or
-  // runtime-owned repos group under whichever host happens to be focused.
-  if (repo?.connectionId || repo?.executionHostId) {
-    return getRepoExecutionHostId(repo)
-  }
-  return defaultHostId
-}
-
-function getRowHostId(row: Row, defaultHostId: ExecutionHostId): ExecutionHostId | null {
+function getRowHostId(
+  row: Row,
+  defaultHostId: ExecutionHostId,
+  projectGroupActualHosts?: ReadonlyMap<Row, ReadonlySet<ExecutionHostId>>
+): ExecutionHostId | null {
   switch (row.type) {
     case 'item':
       return getWorktreeExecutionHostId(row.worktree, row.repo, defaultHostId)
@@ -72,81 +67,31 @@ function getRowHostId(row: Row, defaultHostId: ExecutionHostId): ExecutionHostId
       return getRepoHostId(row.repo, defaultHostId)
     case 'folder-workspace':
       return getFolderWorkspaceHostId(row.folderWorkspace, row.projectGroup, defaultHostId)
-    case 'header':
+    case 'header': {
       if (row.repo) {
         return getRepoHostId(row.repo, defaultHostId)
       }
+      if (!row.projectGroup || row.projectGroup.id === null) {
+        return null
+      }
       // Why: a project group lives in one host's catalog; buffered like a lane header it floated
-      // above the host cards and capped that host's ungrouped projects. A catalog-wide group (no
-      // host of its own) is not pinned here — its header repeats in every host section its
-      // member repos span, same as an ungrouped repo header would.
-      return row.projectGroup &&
-        row.projectGroup.id !== null &&
-        projectGroupHasExplicitExecutionHost(row.projectGroup)
+      // above the host cards and capped that host's ungrouped projects. Prefer its real descendant
+      // membership over its stored executionHostId/connectionId stamp: the feed/mobile catalog
+      // (buildSidebarProjectCatalog) stamps every own-host group as local regardless of where its
+      // members actually live, which would otherwise wrongly pin a genuinely cross-host catalog-wide
+      // group to one section instead of letting it float into every host it spans, like the desktop
+      // window (reading the store directly, unstamped) already does.
+      const actualHosts = projectGroupActualHosts?.get(row)
+      if (actualHosts && actualHosts.size > 0) {
+        return actualHosts.size === 1 ? [...actualHosts][0] : null
+      }
+      // No resolvable descendants right now (empty, not-yet-loaded, or its subtree is collapsed
+      // so its rows never reached this pass): fall back to its own stamp.
+      return projectGroupHasExplicitExecutionHost(row.projectGroup)
         ? getProjectGroupExecutionHostIdForRows(row.projectGroup, defaultHostId)
         : null
-  }
-}
-
-function getFallbackHost(hostId: ExecutionHostId, localHostLabel: string): HostSectionOption {
-  const isLocal = hostId === LOCAL_EXECUTION_HOST_ID
-  return {
-    id: hostId,
-    kind: isLocal ? 'local' : hostId.startsWith('ssh:') ? 'ssh' : 'runtime',
-    label: isLocal ? localHostLabel : hostId,
-    detail: isLocal ? 'This computer' : 'Host',
-    health: isLocal ? 'local' : 'available'
-  }
-}
-
-function countWorkspaceRows(rows: readonly Row[]): number {
-  // Why: a collapsed repo group contributes a header row but no item rows;
-  // fall back to the header's own count so the host badge doesn't read 0
-  // while a visibly populated project sits right under it.
-  let count = 0
-  const seenWorktreeIds = new Set<string>()
-  let pendingHeader: Extract<Row, { type: 'header' }> | null = null
-  let pendingHeaderHadWorkspaces = false
-  const flushHeader = (): void => {
-    if (pendingHeader && !pendingHeaderHadWorkspaces) {
-      if (pendingHeader.worktreeIds) {
-        const headerWorktreeIds = new Set(pendingHeader.worktreeIds)
-        for (const worktreeId of pendingHeader.worktreeIds) {
-          if (!seenWorktreeIds.has(worktreeId)) {
-            count += 1
-            seenWorktreeIds.add(worktreeId)
-          }
-        }
-        // Folder workspaces contribute to the header count but have no worktree id.
-        count += Math.max(0, pendingHeader.count - headerWorktreeIds.size)
-      } else {
-        count += pendingHeader.count
-      }
-    }
-    pendingHeader = null
-    pendingHeaderHadWorkspaces = false
-  }
-  for (const row of rows) {
-    if (row.type === 'header') {
-      flushHeader()
-      pendingHeader = row
-      continue
-    }
-    if (row.type === 'item') {
-      if (!seenWorktreeIds.has(row.worktree.id)) {
-        count += 1
-        seenWorktreeIds.add(row.worktree.id)
-      }
-      pendingHeaderHadWorkspaces = pendingHeader !== null
-      continue
-    }
-    if (row.type === 'folder-workspace') {
-      count += 1
-      pendingHeaderHadWorkspaces = pendingHeader !== null
     }
   }
-  flushHeader()
-  return count
 }
 
 function localizePendingRowsForHost(
@@ -175,13 +120,6 @@ function localizePendingRowsForHost(
 
 function getPendingRowKey(row: Extract<Row, { type: 'header' }>): string {
   return `${row.key}:${row.count}:${row.worktreeIds?.join(',') ?? ''}`
-}
-
-/** A project group's header (it names no host itself): its nesting depth, else null. */
-function getProjectGroupHeaderDepth(row: Row): number | null {
-  return row.type === 'header' && row.projectGroup && !row.repo
-    ? (row.projectGroupDepth ?? 0)
-    : null
 }
 
 export function addHostSectionRows(args: {
@@ -250,9 +188,32 @@ export function addHostSectionRows(args: {
       }
     }
   }
+  const projectGroupActualHosts = computeProjectGroupActualHosts(args.rows, args.defaultHostId)
 
   for (const row of args.rows) {
-    const rowHostId = getRowHostId(row, args.defaultHostId)
+    const rowHostId = getRowHostId(row, args.defaultHostId, projectGroupActualHosts)
+    if (row.type === 'header') {
+      const depth = getProjectGroupHeaderDepth(row)
+      if (depth !== null) {
+        // A nested group keeps its ancestors pending, so each host section gets the whole path.
+        // A sibling or shallower group header — host-named or not — ends the prior group's reach,
+        // so a host-direct header must trim stale pending ancestors just like a floating one does.
+        const kept =
+          depth > 0
+            ? pendingRows.filter(
+                (pending) => (getProjectGroupHeaderDepth(pending) ?? depth) < depth
+              )
+            : []
+        flushUnusedPendingRows(pendingRows.filter((pending) => !kept.includes(pending)))
+        pendingRows = kept
+        if (!rowHostId) {
+          pendingRows = [...kept, row]
+          continue
+        }
+        // A host-named group: falls through to push itself directly below, using the trimmed
+        // ancestor chain rather than any stale sibling group's leftover pending headers.
+      }
+    }
     if (rowHostId) {
       const hostRows = rowsByHostId.get(rowHostId) ?? []
       const localizedPendingRows = localizePendingRowsForHost(pendingRows, rowHostId)
@@ -276,14 +237,8 @@ export function addHostSectionRows(args: {
     // Why: status/"All" headers describe the rows that follow. Buffer them
     // for every host-owned run so host remains above the existing grouping.
     if (row.type === 'header') {
-      const depth = getProjectGroupHeaderDepth(row)
-      // A nested group keeps its ancestors pending, so each host section gets the whole path.
-      const kept =
-        depth !== null && depth > 0
-          ? pendingRows.filter((pending) => (getProjectGroupHeaderDepth(pending) ?? depth) < depth)
-          : []
-      flushUnusedPendingRows(pendingRows.filter((pending) => !kept.includes(pending)))
-      pendingRows = [...kept, row]
+      flushUnusedPendingRows(pendingRows)
+      pendingRows = [row]
     } else {
       globalRows.push(row)
     }
