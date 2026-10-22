@@ -287,10 +287,22 @@ build() {
   commit=$(git rev-parse --short=12 HEAD)
   version="$(node -p "require('./package.json').version")-local.$(date +%s)000.$commit"
   template=$(official_orcad_template "$(base_tag)")
+  # Why electronDist: packaging otherwise re-downloads the Electron zip on every build, and on a
+  # weak link that request times out after 10 min; node_modules/electron already holds the same
+  # version for this host's arch, the only arch these builds target. Copied because the pnpm
+  # store files are read-only and electron-builder rewrites plists inside the bundle.
+  local electron_ver electron_copy
+  electron_ver=$(node -p "require('./node_modules/electron/package.json').version")
+  electron_copy="$STATE/electron-dist/$electron_ver"
+  if [[ ! -d "$electron_copy" ]]; then
+    rm -rf "$STATE/electron-dist" && mkdir -p "$electron_copy"
+    cp -R node_modules/electron/dist/. "$electron_copy/" && chmod -R u+w "$electron_copy"
+  fi
+  local electron_dist="-c.electronDist=$electron_copy"
   if (( IS_MAC )); then
     rm -rf dist/mac-arm64
     ORCA_BUILD_COMMIT="$commit" ORCA_LOCAL_BUILD_VERSION="$version" \
-      pnpm exec electron-builder --config config/electron-builder.config.cjs --mac dir --arm64 --publish never >>"$LOG" 2>&1
+      pnpm exec electron-builder --config config/electron-builder.config.cjs "$electron_dist" --mac dir --arm64 --publish never >>"$LOG" 2>&1
     rm -rf "$STAGED"
     ditto dist/mac-arm64/Orca.app "$STAGED"
     rm -rf "$STAGED/Contents/Resources/orcad-template"
@@ -300,7 +312,7 @@ build() {
   else
     rm -rf dist/linux-unpacked
     ORCA_BUILD_COMMIT="$commit" ORCA_LOCAL_BUILD_VERSION="$version" ORCA_SELF_BUILD_SKIP_GLIBC_FLOOR=1 \
-      pnpm exec electron-builder --config config/electron-builder.config.cjs --linux dir --x64 --publish never >>"$LOG" 2>&1
+      pnpm exec electron-builder --config config/electron-builder.config.cjs "$electron_dist" --linux dir --x64 --publish never >>"$LOG" 2>&1
     rm -rf "$STAGED"
     cp -a dist/linux-unpacked "$STAGED"
     rm -rf "$STAGED/resources/orcad-template"
