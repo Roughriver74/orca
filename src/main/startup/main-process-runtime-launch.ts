@@ -178,6 +178,9 @@ async function launchServeMode(
     console.error('[runtime] Failed to start headless RPC transport:', error)
     throw error
   })
+  // Why: a phone paired over Relay reaches this host only through the Relay cell; without the
+  // provider a headless host reads as offline (4404) to every phone that is off its Tailscale.
+  startDesktopRelayService(runtimeRpc)
   scheduleAgentLaunchRecordWarmup(null)
   // Why: a phone paired to a headless host still registers and unregisters its token;
   // it simply never receives a push, because nothing dispatches notifications here.
