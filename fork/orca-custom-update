@@ -42,6 +42,11 @@ LINUX_ORCA_REMOTE="$HOME/.local/bin/orca-remote"
 DRY_RUN_MODE=0
 [[ "${ORCA_UPDATE_DRY_RUN:-0}" == 1 ]] && DRY_RUN_MODE=1
 mkdir -p "$STATE/bin" "$GATE_ROOT"
+# Why a CLI flag, not pnpm-workspace.yaml/.npmrc/env: pnpm 12 ignored all three here and a fresh
+# install on Linux landed in the global virtual store, where tunnel-rat cannot resolve its react
+# peer and the renderer build fails. Only the command-line setting was honored (verified on office).
+PNPM_STORE_FLAG="--config.enable-global-virtual-store=false"
+pnpm_install() { pnpm install "$PNPM_STORE_FLAG" "$@"; }
 
 if [[ "$(uname -s)" == Darwin ]]; then
   IS_MAC=1
@@ -268,9 +273,9 @@ build() {
   cd "$REPO"
   git checkout -q custom
   log "build: $(git log --oneline -1)"
-  pnpm install --frozen-lockfile >>"$LOG" 2>&1
+  pnpm_install --frozen-lockfile >>"$LOG" 2>&1
   # Why: mobile/ is a separate pnpm project; packaging asserts its web bundle exists.
-  (cd mobile && pnpm install --frozen-lockfile) >>"$LOG" 2>&1
+  (cd mobile && pnpm_install --frozen-lockfile) >>"$LOG" 2>&1
   pnpm run build:desktop >>"$LOG" 2>&1
   if (( IS_MAC )); then
     rm -rf native/computer-use-macos/.build native/keyboard-layout-macos/.build native/notification-status-macos/.build
@@ -538,7 +543,7 @@ for sha in ${=ORCA_DROP_SHAS}; do perl -0pi -e "s/^pick (${sha:0:7}[0-9a-f]*) /d
     # Why: lockfile conflicts are expected (patches add dependencies); regenerate instead of merging.
     local conflicts; conflicts=$(cd "$wt" && git diff --name-only --diff-filter=U)
     if [[ "$conflicts" == "pnpm-lock.yaml" ]] \
-      && ( cd "$wt" && git checkout "$tag" -- pnpm-lock.yaml && pnpm install --no-frozen-lockfile \
+      && ( cd "$wt" && git checkout "$tag" -- pnpm-lock.yaml && pnpm_install --no-frozen-lockfile \
            && git add pnpm-lock.yaml && GIT_EDITOR=true git rebase --continue ) >>"$LOG" 2>&1; then
       ok=0
     else
@@ -612,7 +617,7 @@ ensure_baseline() {
   (
     cd "$wt"
     ensure_toolchain
-    pnpm install --frozen-lockfile >>"$LOG" 2>&1 || pnpm install --no-frozen-lockfile >>"$LOG" 2>&1
+    pnpm_install --frozen-lockfile >>"$LOG" 2>&1 || pnpm_install --no-frozen-lockfile >>"$LOG" 2>&1
     local out; out=$(mktemp)
     pnpm test >"$out" 2>&1 || true
     normalize_test_failures <"$out" >"$baseline.tmp"
@@ -629,9 +634,9 @@ gate_checks() {
   local tag=$1 failfile=$2
   : >"$failfile"
   ensure_toolchain
-  if ! pnpm install --frozen-lockfile >>"$LOG" 2>&1; then
+  if ! pnpm_install --frozen-lockfile >>"$LOG" 2>&1; then
     log "gate: lockfile conflict vs $tag; regenerating"
-    pnpm install --no-frozen-lockfile >>"$LOG" 2>&1 || { log "gate: pnpm install failed"; return 1; }
+    pnpm_install --no-frozen-lockfile >>"$LOG" 2>&1 || { log "gate: pnpm install failed"; return 1; }
   fi
   if ! pnpm run tc >>"$LOG" 2>&1; then
     log "gate: typecheck failed"
@@ -679,7 +684,7 @@ linux_package_check() {
   if run_with_timeout 900 ssh -o BatchMode=yes "$host" \
     "rm -rf '$remote_dir' && git clone -q --branch '$gate_ref' --single-branch \
        https://github.com/Roughriver74/orca.git '$remote_dir' && cd '$remote_dir' \
-     && (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile) \
+     && (pnpm install $PNPM_STORE_FLAG --frozen-lockfile || pnpm install $PNPM_STORE_FLAG --no-frozen-lockfile) \
      && pnpm exec electron-builder --config config/electron-builder.config.cjs --linux dir --x64 --publish never" \
     >>"$LOG" 2>&1
   then
