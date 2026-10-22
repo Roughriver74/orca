@@ -112,8 +112,12 @@ ensure_toolchain() {
     pinned=$(node -p "require('$REPO/package.json').packageManager.split('@')[1].split('+')[0]")
     dir="$HOME/.cache/node/corepack/v1/pnpm/$pinned"
     [[ -x "$dir/pnpm" ]] || (cd "$REPO" && corepack install >>"$LOG" 2>&1)
+    # Why the flag on every call: this pnpm lays a fresh install into the global virtual store,
+    # where tunnel-rat cannot see its react peer and the renderer build fails. workspace yaml, .npmrc
+    # and env were all ignored on office; only the CLI flag sticks, and `pnpm run` reinstalls with
+    # defaults unless nested calls (package scripts use bare `pnpm`) carry it too.
     print -r -- "#!/bin/sh
-exec \"$dir/pnpm\" \"\$@\"" >"$STATE/bin/pnpm"
+exec \"$dir/pnpm\" --config.enable-global-virtual-store=false \"\$@\"" >"$STATE/bin/pnpm"
     chmod +x "$STATE/bin/pnpm"
     return 0
   fi
@@ -679,8 +683,9 @@ linux_package_check() {
   if run_with_timeout 900 ssh -o BatchMode=yes "$host" \
     "rm -rf '$remote_dir' && git clone -q --branch '$gate_ref' --single-branch \
        https://github.com/Roughriver74/orca.git '$remote_dir' && cd '$remote_dir' \
-     && (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile) \
-     && pnpm exec electron-builder --config config/electron-builder.config.cjs --linux dir --x64 --publish never" \
+     && G=--config.enable-global-virtual-store=false \
+     && (pnpm \$G install --frozen-lockfile || pnpm \$G install --no-frozen-lockfile) \
+     && pnpm \$G exec electron-builder --config config/electron-builder.config.cjs --linux dir --x64 --publish never" \
     >>"$LOG" 2>&1
   then
     ok=0
