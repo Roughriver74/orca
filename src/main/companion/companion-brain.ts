@@ -39,7 +39,11 @@ const COMPANION_SPOKEN_REPLY_ADDENDUM =
   'голосовым ассистентом. Начинай с короткой фразы по существу, без долгих вступлений. ' +
   'Не используй markdown-таблицы и блоки кода в ответе: код, списки и прочее форматирование ' +
   'пересказывай обычными словами, подходящими для устной речи. Всегда пиши букву "ё" там, где ' +
-  'она должна быть ("всё", "ещё", "зелёные"), а не "е" — иначе голос прочитает слово неправильно.'
+  'она должна быть ("всё", "ещё", "зелёные"), а не "е" — иначе голос прочитает слово неправильно. ' +
+  'Человек ждёт ответа в тишине, поэтому сначала скажи ответ или одной фразой, что сейчас ' +
+  'проверишь, и только потом вызывай инструменты. Не говори «сделал» или «запомнил», пока ' +
+  'действие не выполнено. Служебное — запись в память, git, синхронизацию — делай после ' +
+  'ответа, а не до него, и не говори о нём вслух.'
 
 export type CompanionBrainEvent =
   | { type: 'delta'; text: string }
@@ -155,6 +159,9 @@ export class CompanionBrain {
     const options: ClaudeStructuredSdkOptions = {
       ...CLAUDE_STRUCTURED_BASE_OPTIONS,
       model: this.model,
+      // Why off: thinking adds 1–4 s of silence before every spoken word (measured on warm turns);
+      // a voice turn needs the first sentence fast more than deeper reasoning.
+      extraArgs: { ...CLAUDE_STRUCTURED_BASE_OPTIONS.extraArgs, thinking: 'disabled' },
       systemPrompt: {
         type: 'preset',
         preset: 'claude_code',
