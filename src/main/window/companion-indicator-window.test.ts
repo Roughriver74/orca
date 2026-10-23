@@ -68,6 +68,10 @@ vi.mock('electron', () => {
   }
 })
 vi.mock('@electron-toolkit/utils', () => ({ is: { dev: false } }))
+vi.mock('./companion-window-paths', () => ({
+  companionPreloadPath: () => '/app/out/preload/index.js',
+  companionRendererPage: (fileName: string) => `/app/out/renderer/${fileName}`
+}))
 vi.mock('./foreground-activation-policy', () => ({ isWindowlessLaunch: isWindowlessLaunchMock }))
 vi.mock('./privileged-window-navigation', () => ({
   installPrivilegedWindowNavigationPolicy: vi.fn()

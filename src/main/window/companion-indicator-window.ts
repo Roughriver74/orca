@@ -1,5 +1,5 @@
 import { BrowserWindow, screen } from 'electron'
-import { join } from 'node:path'
+import { companionPreloadPath, companionRendererPage } from './companion-window-paths'
 import { is } from '@electron-toolkit/utils'
 import { isWindowlessLaunch } from './foreground-activation-policy'
 import { installPrivilegedWindowNavigationPolicy } from './privileged-window-navigation'
@@ -46,7 +46,7 @@ function loadCompanionIndicator(window: BrowserWindow): void {
   if (is.dev && process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(`${process.env.ELECTRON_RENDERER_URL}/companion-indicator.html`)
   } else {
-    void window.loadFile(join(__dirname, '../renderer/companion-indicator.html'))
+    void window.loadFile(companionRendererPage('companion-indicator.html'))
   }
 }
 
@@ -74,7 +74,7 @@ function createCompanionIndicatorWindow(): BrowserWindow {
     acceptFirstMouse: true,
     backgroundColor: '#00000000',
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: companionPreloadPath(),
       sandbox: true,
       partition: COMPANION_INDICATOR_PARTITION,
       webviewTag: false
