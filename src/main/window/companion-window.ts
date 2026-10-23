@@ -53,6 +53,10 @@ function createCompanionWindow(): BrowserWindow {
     ...bounds,
     minWidth: PANEL_WIDTH,
     minHeight: PANEL_HEIGHT,
+    // Why: Hyprland floats this panel by its title (`^Джарвис$`) at map time. Without an explicit
+    // title the surface maps as "Orca", like the main window, and a resizable panel gets tiled into
+    // an empty transparent half of the screen.
+    title: 'Джарвис',
     show: false,
     frame: false,
     transparent: true,
