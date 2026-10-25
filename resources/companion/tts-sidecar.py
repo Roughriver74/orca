@@ -1,8 +1,8 @@
 """Silero TTS sidecar for Orca's companion ("Джарвис").
 
-Usage: tts-sidecar.py <v5_4_ru.pt path> <v3_1_ru.pt path>
-Either path may be the literal string "-" if that voice family was not provisioned;
-a request for a voice in that family then errors instead of crashing the sidecar.
+Usage: tts-sidecar.py <v5_4_ru.pt path> <v3_1_ru.pt path> [<v5_6_ru.pt path>]
+Any path may be the literal string "-" if that model was not provisioned; a request for
+a voice no provisioned model covers then errors instead of crashing the sidecar.
 
 Protocol on stdin: one JSON object per line.
   Synthesize: {"id": "...", "text": "...", "speaker": "aidar", "rate": 1.0}
@@ -33,10 +33,16 @@ graph, not a plain TorchScript module) — this matches snakers4/silero-models' 
 v3_1_ru.pt (CC BY-NC-SA, no homograph/questions support, ~59MB), the other four
 speakers need v5_4_ru.pt (homograph + auto-stress + questions, ~145MB) — a
 conversation that only ever uses one family never pays to load the other.
+
+When v5_6_ru.pt is provisioned it serves every voice instead: it moves `eugene` into the
+v5 family, so the default voice gains homograph stress and `*word*` focus (v3_1 drops the
+asterisks without any effect on the audio). v5_4/v3_1 stay the fallback — a v5_6 file that fails to load is logged to stderr
+once and the legacy families take over for the rest of the process.
 """
 
 import json
 import os
+import re
 import sys
 import threading
 
@@ -52,6 +58,11 @@ V5_SPEAKERS = {"aidar", "baya", "kseniya", "xenia"}
 V5_TTS_KWARGS = {"put_accent": True, "put_yo": True, "put_stress_homo": True, "put_yo_homo": True}
 V3_SPEAKERS = {"eugene"}
 V3_TTS_KWARGS = {"put_accent": True, "put_yo": True}
+V56_SPEAKERS = V5_SPEAKERS | V3_SPEAKERS
+# v5_6's yo-homograph pass turns a bare "все" before a plural noun into "всё" ("всё тесты
+# прошли") and then drops `*все*` focus because the word no longer matches. The brain is
+# told to always write "ё", so a bare "все" is the plural and is pinned with a stress mark.
+BARE_VSE = re.compile(r"(?<![\w+-])([Вв])се(?![\w+-])")
 
 # Own stdout fd for the framed protocol; stray prints from imports/warnings must not
 # corrupt the stream, so stdout is redirected to stderr for everything else.
@@ -90,15 +101,31 @@ def load_package_model(path: str):
 
 
 class ModelRegistry:
-    """Lazily loads and caches the v5/v3 model families by path, keyed once per process."""
+    """Lazily loads and caches the v5_6 / v5 / v3 model families by path, keyed once per process."""
 
-    def __init__(self, v5_path: str, v3_path: str):
+    def __init__(self, v5_path: str, v3_path: str, v56_path: str = "-"):
         self.v5_path = v5_path if v5_path and v5_path != "-" else None
         self.v3_path = v3_path if v3_path and v3_path != "-" else None
+        self.v56_path = v56_path if v56_path and v56_path != "-" else None
         self._v5_model = None
         self._v3_model = None
+        self._v56_model = None
+
+    def _resolve_v56(self):
+        if self._v56_model is None and self.v56_path:
+            try:
+                self._v56_model = load_package_model(self.v56_path)
+            except Exception as e:  # noqa: BLE001 - any load failure means "use the legacy families"
+                print(f"v5_6_ru.pt failed to load, falling back to v5_4/v3_1: {e}", file=sys.stderr)
+                self.v56_path = None
+        return self._v56_model
+
+    def is_v56(self, model) -> bool:
+        return model is not None and model is self._v56_model
 
     def resolve(self, speaker: str):
+        if speaker in V56_SPEAKERS and self._resolve_v56() is not None:
+            return self._v56_model, V5_TTS_KWARGS
         if speaker in V5_SPEAKERS:
             if not self.v5_path:
                 raise RuntimeError(f"voice '{speaker}' needs v5_4_ru.pt, which was not provisioned")
@@ -125,6 +152,8 @@ class ModelRegistry:
 def synthesize(registry: ModelRegistry, request_id, text: str, speaker: str, rate: float) -> None:
     model, kwargs = registry.resolve(speaker)
     clipped = text[:MAX_CHARS]
+    if registry.is_v56(model):
+        clipped = BARE_VSE.sub(r"\1с+е", clipped)
     audio = model.apply_tts(text=clipped, speaker=speaker, sample_rate=SAMPLE_RATE, **kwargs)
     pcm_bytes = audio.numpy().astype("float32").tobytes()
     reported_rate = int(round(SAMPLE_RATE * rate)) if rate and rate > 0 else SAMPLE_RATE
@@ -135,9 +164,10 @@ def synthesize(registry: ModelRegistry, request_id, text: str, speaker: str, rat
 def main() -> None:
     v5_path = sys.argv[1] if len(sys.argv) > 1 else "-"
     v3_path = sys.argv[2] if len(sys.argv) > 2 else "-"
-    registry = ModelRegistry(v5_path, v3_path)
-    if not registry.v5_path and not registry.v3_path:
-        send_header({"type": "error", "id": None, "message": "no model provisioned (both paths are '-')"})
+    v56_path = sys.argv[3] if len(sys.argv) > 3 else "-"
+    registry = ModelRegistry(v5_path, v3_path, v56_path)
+    if not registry.v5_path and not registry.v3_path and not registry.v56_path:
+        send_header({"type": "error", "id": None, "message": "no model provisioned (every path is '-')"})
         sys.exit(1)
 
     import torch

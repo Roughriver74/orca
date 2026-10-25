@@ -26,6 +26,8 @@ export type CompanionTtsSidecarConfig = {
   v5ModelPath: string | null
   /** Absolute path to v3_1_ru.pt, or null if the v3 voice family (eugene) was not provisioned. */
   v3ModelPath: string | null
+  /** Absolute path to v5_6_ru.pt; when set it serves every voice and v5/v3 become the fallback. */
+  v56ModelPath: string | null
 }
 
 export class CompanionTtsCancelledError extends Error {
@@ -95,10 +97,10 @@ export class CompanionTtsSidecarProcess {
   }
 
   private spawnChild(): Promise<void> {
-    const { pythonPath, scriptPath, v5ModelPath, v3ModelPath } = this.config
+    const { pythonPath, scriptPath, v5ModelPath, v3ModelPath, v56ModelPath } = this.config
     const child = this.spawn({
       program: pythonPath,
-      args: [scriptPath, v5ModelPath ?? '-', v3ModelPath ?? '-']
+      args: [scriptPath, v5ModelPath ?? '-', v3ModelPath ?? '-', v56ModelPath ?? '-']
     })
     this.child = child
     this.stderrTail = ''

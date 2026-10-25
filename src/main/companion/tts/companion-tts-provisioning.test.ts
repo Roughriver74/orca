@@ -20,5 +20,6 @@ describe('getCompanionTtsPaths', () => {
     expect(paths.venvPythonPath).toBe('/tmp/userData/companion-tts/venv/bin/python')
     expect(paths.v5ModelPath).toBe('/tmp/userData/companion-tts/models/v5_4_ru.pt')
     expect(paths.v3ModelPath).toBe('/tmp/userData/companion-tts/models/v3_1_ru.pt')
+    expect(paths.v56ModelPath).toBe('/tmp/userData/companion-tts/models/v5_6_ru.pt')
   })
 })
