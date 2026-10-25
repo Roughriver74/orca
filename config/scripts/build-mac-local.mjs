@@ -31,9 +31,22 @@ export function getLocalBuildIdentity() {
 if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) {
   const identity = getLocalBuildIdentity()
   console.log(`[build:mac] local update version ${identity.version}`)
+  // Host arch only: a frozen install carries only this machine's natives (pnpm install:release adds the rest),
+  // so the installed Electron (verified by ensure:electron-runtime) is packaged instead of re-downloading its zip.
+  // Targets are named because config-level target archs override a bare --arm64/--x64.
   execFileSync(
     process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
-    ['exec', 'electron-builder', '--config', 'config/electron-builder.config.cjs', '--mac'],
+    [
+      'exec',
+      'electron-builder',
+      '--config',
+      'config/electron-builder.config.cjs',
+      '--mac',
+      'dmg',
+      'zip',
+      `--${process.arch}`,
+      '-c.electronDist=node_modules/electron/dist'
+    ],
     {
       env: {
         ...process.env,

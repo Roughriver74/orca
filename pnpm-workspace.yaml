@@ -163,6 +163,10 @@ packageExtensions:
   remark-parse:
     dependencies:
       vfile: ^6.0.0
+  # Excalidraw's tunnel-rat imports react without declaring it.
+  tunnel-rat:
+    peerDependencies:
+      react: '*'
 
 overrides:
   monaco-editor>dompurify: 3.4.16
