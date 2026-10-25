@@ -187,6 +187,40 @@ describe('CompanionBrain', () => {
     expect(events).toEqual([{ type: 'final', text: 'root reply' }])
   })
 
+  it('hands a root turn Claude started itself (background task finished) to unprompted-reply listeners', async () => {
+    const { openConnection, opened } = fakeOpenConnection()
+    const brain = new CompanionBrain('/home/assistant', 'sonnet', {
+      openConnection,
+      resolveCommand: () => 'claude'
+    })
+    const unprompted: string[] = []
+    brain.onUnpromptedReply((text) => unprompted.push(text))
+    const events: CompanionBrainEvent[] = []
+
+    const sendPromise = brain.send('Собери в фоне', (event) => events.push(event))
+    await vi.waitFor(() => expect(opened).toHaveLength(1))
+    const [first] = opened
+    first.handlers.onMessage?.(resultFrame('Запустил, скажу когда будет готово.'))
+    await sendPromise
+
+    first.handlers.onMessage?.(textDelta('Сборка готова.'))
+    first.handlers.onMessage?.({
+      type: 'result',
+      subtype: 'success',
+      result: 'child done',
+      is_error: false,
+      parent_tool_use_id: 'toolu_1'
+    })
+    first.handlers.onMessage?.(resultFrame('boom', true))
+    first.handlers.onMessage?.({
+      ...resultFrame('Сборка готова.'),
+      origin: { kind: 'task-notification' }
+    })
+
+    expect(events).toEqual([{ type: 'final', text: 'Запустил, скажу когда будет готово.' }])
+    expect(unprompted).toEqual(['Сборка готова.'])
+  })
+
   it('surfaces an is_error result frame as an error event', async () => {
     const { openConnection, opened } = fakeOpenConnection()
     const brain = new CompanionBrain('/home/assistant', 'sonnet', {

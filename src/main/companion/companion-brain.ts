@@ -98,6 +98,7 @@ export class CompanionBrain {
   // Why serialized: the connection's handlers are per-connection, not per-message, so two
   // in-flight turns would interleave their deltas into one onEvent stream unreadably.
   private queue: Promise<void> = Promise.resolve()
+  private readonly unpromptedReplyListeners = new Set<(text: string) => void>()
 
   constructor(homeDir: string, model: CompanionBrainModel, deps: Partial<CompanionBrainDeps> = {}) {
     this.homeDir = homeDir
@@ -109,6 +110,13 @@ export class CompanionBrain {
    *  and exclude the companion's own headless turns from signals meant for other agents. */
   getProviderSessionId(): string | null {
     return this.providerSessionId
+  }
+
+  /** Root turns Claude starts on its own — a background task/agent it launched finished
+   *  (`origin: task-notification`) — arrive with no turn of ours open; listeners get the reply text. */
+  onUnpromptedReply(listener: (text: string) => void): () => void {
+    this.unpromptedReplyListeners.add(listener)
+    return () => this.unpromptedReplyListeners.delete(listener)
   }
 
   reset(): void {
@@ -206,7 +214,11 @@ export class CompanionBrain {
     // Claude's stream-json frames carry `parent_tool_use_id` on every frame; a string names
     // the tool call (subagent/background task) that produced it, so only its absence is this
     // conversation's own root turn.
-    if (!this.activeTurn || typeof frame.parent_tool_use_id === 'string') {
+    if (typeof frame.parent_tool_use_id === 'string') {
+      return
+    }
+    if (!this.activeTurn) {
+      this.handleUnpromptedFrame(frame)
       return
     }
     if (frame.type === 'stream_event') {
@@ -237,6 +249,19 @@ export class CompanionBrain {
       } else {
         this.endActiveTurn({ type: 'final', text })
       }
+    }
+  }
+
+  private handleUnpromptedFrame(frame: Record<string, unknown>): void {
+    if (frame.type !== 'result' || frame.is_error === true || typeof frame.result !== 'string') {
+      return
+    }
+    const text = frame.result.trim()
+    if (!text) {
+      return
+    }
+    for (const listener of this.unpromptedReplyListeners) {
+      listener(text)
     }
   }
 

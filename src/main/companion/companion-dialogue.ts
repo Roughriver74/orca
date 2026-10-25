@@ -8,28 +8,21 @@
 // the hotkey / voice barge-in and the "New conversation" IPC handler can reach it.
 
 import { randomUUID } from 'node:crypto'
-import { join } from 'node:path'
-import { getAppEnvironment } from '../../shared/app-environment'
 import type {
   CompanionConversationState,
   CompanionSettings,
   CompanionVoiceActivityFrame
 } from '../../shared/companion-types'
-import { getDefaultCompanionSettings } from '../../shared/constants'
 import {
   companionConversation,
   onCompanionStateChange,
   onCompanionUtterance
 } from './companion-conversation'
-import {
-  getCompanionBrain,
-  resolveCompanionHomeDir,
-  type CompanionBrainEvent
-} from './companion-brain'
+import { getCompanionBrain, type CompanionBrainEvent } from './companion-brain'
 import { onAudioState } from './companion-audio-output'
 import { sendToCompanionWindow } from '../window/companion-window'
 import type { CompanionTtsService } from './tts/companion-tts-service'
-import { COMPANION_TTS_PRONUNCIATIONS_FILE_NAME } from './tts/companion-tts-pronunciation-dictionary'
+import { resolveCompanionDialogueTts } from './companion-dialogue-tts-resolution'
 import { takeCompanionAgentBriefing, takePendingDiscussionContext } from './companion-agent-watch'
 import { createCompanionVoiceBargeInDetector } from './companion-voice-barge-in'
 import type {
@@ -42,6 +35,10 @@ import {
   pickCompanionThinkingAckPhrase,
   scheduleCompanionThinkingAck
 } from './companion-dialogue-thinking-ack'
+import {
+  createCompanionUnpromptedSpeechQueue,
+  type CompanionUnpromptedSpeech
+} from './companion-dialogue-speech-queue'
 
 // Why a fixed phrase rather than speaking `event.message`: brain errors are often raw
 // English exception text (connection drops, provider errors) — unfit for a Russian voice
@@ -70,8 +67,18 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
     return options
   }
 
+  const speechQueue = createCompanionUnpromptedSpeechQueue({
+    getState: () => deps.conversation.getState(),
+    isSpeakerBusy: () => activeUtteranceId !== null || announcementUtteranceId !== null,
+    play: playUnprompted
+  })
+
   const offUtterance = deps.onUtterance((text) => {
     void handleUtterance(text)
+  })
+
+  const offUnpromptedReply = deps.brain.onUnpromptedReply((text) => {
+    speechQueue.enqueue({ kind: 'reply', text })
   })
 
   const offState = deps.onStateChange((state) => {
@@ -83,6 +90,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
       turnGeneration += 1
       activeUtteranceId = null
       announcementUtteranceId = null
+      speechQueue.clear()
       deps.getTts()?.service.stop()
     } else if (announcementUtteranceId) {
       deps.getTts()?.service.stop(announcementUtteranceId)
@@ -95,6 +103,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
     if (audio.utteranceId === announcementUtteranceId) {
       if (audio.state !== 'playing') {
         announcementUtteranceId = null
+        speechQueue.drain()
       }
       return
     }
@@ -114,6 +123,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
     if (deps.conversation.getState() !== 'idle') {
       deps.conversation.reportListening()
     }
+    speechQueue.drain()
   })
 
   async function handleUtterance(text: string): Promise<void> {
@@ -192,6 +202,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
       streamHandle.finish()
     } else if (deps.conversation.getState() !== 'idle') {
       deps.conversation.reportListening()
+      speechQueue.drain()
     }
   }
 
@@ -229,30 +240,52 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
   function resetConversation(): void {
     turnGeneration += 1
     activeUtteranceId = null
+    speechQueue.clear()
     deps.getTts()?.service.stop()
     deps.brain.reset()
   }
 
   function speakAnnouncement(text: string): void {
-    if (deps.conversation.getState() !== 'idle' || activeUtteranceId !== null) {
-      return
+    if (deps.conversation.getState() === 'idle') {
+      speechQueue.enqueue({ kind: 'notice', text })
+    }
+  }
+
+  /** Idle: an announcement that leaves conversation state alone. In an open conversation: a reply
+   *  utterance, so playback drives 'speaking' and barge-in works on it like on any answer. */
+  function playUnprompted(item: CompanionUnpromptedSpeech): boolean {
+    const idle = deps.conversation.getState() === 'idle'
+    if (item.kind === 'reply') {
+      deps.conversation.reportAssistantFinal(item.text)
+      if (!idle) {
+        deps.sendAssistantFinal(item.text)
+      }
     }
     const tts = deps.getTts()
     if (!tts) {
-      return
-    }
-    if (announcementUtteranceId) {
-      tts.service.stop(announcementUtteranceId)
+      return false
     }
     const utteranceId = deps.randomUUID()
-    announcementUtteranceId = utteranceId
-    tts.service.speak(text, ttsOptions(tts, utteranceId)).catch((error: unknown) => {
-      console.error('[companion] notice announcement failed', error)
+    if (idle) {
+      announcementUtteranceId = utteranceId
+    } else {
+      activeUtteranceId = utteranceId
+    }
+    tts.service.speak(item.text, ttsOptions(tts, utteranceId)).catch((error: unknown) => {
+      console.error('[companion] unprompted speech failed', error)
+      if (announcementUtteranceId === utteranceId) {
+        announcementUtteranceId = null
+      } else if (activeUtteranceId === utteranceId) {
+        activeUtteranceId = null
+      }
+      speechQueue.drain()
     })
+    return true
   }
 
   function dispose(): void {
     offUtterance()
+    offUnpromptedReply()
     offState()
     offAudio()
   }
@@ -298,27 +331,7 @@ export function initCompanionDialogue(
     onStateChange: onCompanionStateChange,
     onAudioState,
     brain,
-    getTts: () => {
-      const companion = store.getSettings().companion
-      const tts = companion?.tts ?? getDefaultCompanionSettings().tts
-      if (!tts.ttsEnabled || !getTtsService) {
-        return null
-      }
-      const userDataDir = getAppEnvironment().getPath('userData')
-      const service = getTtsService(userDataDir)
-      if (!service) {
-        return null
-      }
-      return {
-        service,
-        voice: tts.ttsVoice,
-        rate: tts.ttsRate,
-        pronunciationsPath: join(
-          resolveCompanionHomeDir(companion?.homeDir),
-          COMPANION_TTS_PRONUNCIATIONS_FILE_NAME
-        )
-      }
-    },
+    getTts: () => resolveCompanionDialogueTts(store.getSettings().companion, getTtsService),
     sendAssistantDelta: (text) => sendToCompanionWindow('companion:assistantDelta', text),
     sendAssistantFinal: (text) => sendToCompanionWindow('companion:assistantFinal', text),
     sendAssistantError: (message) => sendToCompanionWindow('companion:assistantError', message),

@@ -20,6 +20,8 @@ export type CompanionDialogueConversation = {
 export type CompanionDialogueBrain = {
   send(text: string, onEvent: (event: CompanionBrainEvent) => void): Promise<void>
   reset(): void
+  /** Replies to turns Claude started itself (a background task finished); returns an unsubscribe. */
+  onUnpromptedReply(listener: (text: string) => void): () => void
 }
 
 export type CompanionDialogueTtsStream = {
@@ -101,8 +103,9 @@ export type CompanionDialogue = {
   hasConfirmedRealSpeech(): boolean
   /** Drops the brain session and any in-flight turn/audio; the next utterance starts fresh. */
   resetConversation(): void
-  /** Unprompted short line (an agent notice). Spoken only while the conversation is idle and no
-   *  reply is playing; cut off the moment a conversation opens so it never talks over the user. */
+  /** Unprompted short line (an agent notice), accepted only while the conversation is idle. Never
+   *  preempts: waits behind whatever is playing, then plays in order. Cut off the moment a
+   *  conversation opens so it never talks over the user. */
   speakAnnouncement(text: string): void
   dispose(): void
 }

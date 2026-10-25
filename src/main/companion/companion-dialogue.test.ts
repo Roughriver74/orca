@@ -94,6 +94,7 @@ class FakeConversation {
 function fakeBrain(): {
   brain: CompanionDialogueBrain
   nextTurn: () => Promise<DeferredBrainTurn>
+  emitUnpromptedReply: (text: string) => void
 } {
   const readyTurns: DeferredBrainTurn[] = []
   const waitingResolvers: ((turn: DeferredBrainTurn) => void)[] = []
@@ -117,7 +118,19 @@ function fakeBrain(): {
     waitingResolvers.push(resolve)
     return promise
   }
-  return { brain: { send, reset: vi.fn() }, nextTurn }
+  let unpromptedListeners: ((text: string) => void)[] = []
+  const onUnpromptedReply = (listener: (text: string) => void): (() => void) => {
+    unpromptedListeners.push(listener)
+    return () => {
+      unpromptedListeners = unpromptedListeners.filter((l) => l !== listener)
+    }
+  }
+  const emitUnpromptedReply = (text: string): void => {
+    for (const listener of unpromptedListeners) {
+      listener(text)
+    }
+  }
+  return { brain: { send, reset: vi.fn(), onUnpromptedReply }, nextTurn, emitUnpromptedReply }
 }
 
 function fakeTts(): { tts: CompanionDialogueTts; pushed: string[] } {
@@ -137,7 +150,7 @@ function buildHarness(overrides: Partial<CompanionDialogueDeps> = {}) {
   const conversation = new FakeConversation()
   let utteranceListeners: ((text: string) => void)[] = []
   let audioListeners: ((state: CompanionAudioState) => void)[] = []
-  const { brain, nextTurn } = fakeBrain()
+  const { brain, nextTurn, emitUnpromptedReply } = fakeBrain()
   const { tts, pushed } = fakeTts()
   const assistantDeltas: string[] = []
   const assistantFinals: string[] = []
@@ -198,7 +211,8 @@ function buildHarness(overrides: Partial<CompanionDialogueDeps> = {}) {
     assistantErrors,
     stateChanges,
     emitUtterance,
-    emitAudioState
+    emitAudioState,
+    emitUnpromptedReply
   }
 }
 
@@ -684,5 +698,119 @@ describe('companion dialogue announcements', () => {
     h.conversation.start()
     expect(h.tts.stop).toHaveBeenCalledWith('uuid-1')
     expect(h.conversation.getState()).toBe('listening')
+  })
+})
+
+describe('companion dialogue unprompted speech never cuts a reply', () => {
+  const BUILD_DONE = 'Сборка готова, снял экраны.'
+
+  it('lets the reply finish, then speaks a background-task reply that arrived mid-phrase', async () => {
+    const h = buildHarness()
+    h.conversation.start()
+    h.emitUtterance('собери приложение')
+    const turn = await h.nextTurn()
+    turn.emit({ type: 'delta', text: 'Запускаю сборку в фоне. ' })
+    turn.emit({ type: 'tool-start' })
+    h.emitAudioState({ utteranceId: 'uuid-1', state: 'playing' })
+
+    h.emitUnpromptedReply(BUILD_DONE)
+    expect(h.tts.speak).not.toHaveBeenCalled()
+    expect(h.tts.stop).not.toHaveBeenCalled()
+    expect(h.conversation.getState()).toBe('speaking')
+
+    turn.emit({ type: 'delta', text: 'Скажу, как будет готово.' })
+    turn.emit({ type: 'final', text: 'Запускаю сборку в фоне. Скажу, как будет готово.' })
+    turn.resolve()
+    await Promise.resolve()
+    expect(h.tts.speak).not.toHaveBeenCalled()
+
+    h.emitAudioState({ utteranceId: 'uuid-1', state: 'ended' })
+    expect(h.tts.speak).toHaveBeenCalledWith(
+      BUILD_DONE,
+      expect.objectContaining({ utteranceId: 'uuid-2' })
+    )
+    expect(h.tts.stop).not.toHaveBeenCalled()
+    expect(h.assistantFinals.at(-1)).toBe(BUILD_DONE)
+    h.emitAudioState({ utteranceId: 'uuid-2', state: 'playing' })
+    expect(h.conversation.getState()).toBe('speaking')
+  })
+
+  it('queues lines behind each other instead of replacing the one playing', async () => {
+    const h = await speakingHarness()
+    h.emitUnpromptedReply(BUILD_DONE)
+    h.emitUnpromptedReply('Агент по диску закончил.')
+
+    h.emitAudioState({ utteranceId: 'uuid-1', state: 'ended' })
+    expect(h.tts.speak).toHaveBeenCalledTimes(1)
+    h.emitAudioState({ utteranceId: 'uuid-2', state: 'playing' })
+    h.emitAudioState({ utteranceId: 'uuid-2', state: 'ended' })
+
+    expect(vi.mocked(h.tts.speak).mock.calls.map(([text]) => text)).toEqual([
+      BUILD_DONE,
+      'Агент по диску закончил.'
+    ])
+    expect(h.tts.stop).not.toHaveBeenCalled()
+  })
+
+  it('queues an agent notice behind the announcement already playing while idle', () => {
+    const h = buildHarness()
+    h.dialogue.speakAnnouncement('В проекте zveno агент закончил.')
+    h.emitAudioState({ utteranceId: 'uuid-1', state: 'playing' })
+    h.dialogue.speakAnnouncement('В проекте orca агент ждёт решения.')
+    expect(h.tts.speak).toHaveBeenCalledTimes(1)
+    expect(h.tts.stop).not.toHaveBeenCalled()
+
+    h.emitAudioState({ utteranceId: 'uuid-1', state: 'ended' })
+    expect(h.tts.speak).toHaveBeenLastCalledWith(
+      'В проекте orca агент ждёт решения.',
+      expect.objectContaining({ utteranceId: 'uuid-2' })
+    )
+    expect(h.conversation.getState()).toBe('idle')
+  })
+
+  it('still lets real voice cut the reply at once, and holds queued lines until the next pause', async () => {
+    const h = await speakingHarness({ isVoiceBargeInEnabled: () => true })
+    h.emitUnpromptedReply(BUILD_DONE)
+    reportVoiceFor(h.dialogue, 600, 0.06, 0.2)
+
+    expect(reportVoiceFor(h.dialogue, 300, 0.35, 0.2)).toBe(true)
+    expect(h.tts.stop).toHaveBeenCalledWith('uuid-1')
+    expect(h.conversation.getState()).toBe('listening')
+    h.emitAudioState({ utteranceId: 'uuid-1', state: 'stopped' })
+    expect(h.tts.speak).not.toHaveBeenCalled()
+
+    h.emitUtterance('подожди, а что с диском')
+    const turn = await h.nextTurn()
+    turn.emit({ type: 'final', text: 'Диск чистится.' })
+    turn.resolve()
+    await Promise.resolve()
+    h.emitAudioState({ utteranceId: 'uuid-2', state: 'playing' })
+    h.emitAudioState({ utteranceId: 'uuid-2', state: 'ended' })
+    expect(h.tts.speak).toHaveBeenCalledWith(
+      BUILD_DONE,
+      expect.objectContaining({ utteranceId: 'uuid-3' })
+    )
+  })
+
+  it('a stop (conversation closed) silences everything and drops queued lines', async () => {
+    const h = await speakingHarness()
+    h.emitUnpromptedReply(BUILD_DONE)
+
+    h.conversation.stop()
+    expect(h.tts.stop).toHaveBeenCalledWith()
+    h.emitAudioState({ utteranceId: 'uuid-1', state: 'stopped' })
+    expect(h.tts.speak).not.toHaveBeenCalled()
+  })
+
+  it('speaks a background-task reply at once while idle, without opening the conversation', () => {
+    const h = buildHarness()
+    h.emitUnpromptedReply(BUILD_DONE)
+    expect(h.tts.speak).toHaveBeenCalledWith(
+      BUILD_DONE,
+      expect.objectContaining({ utteranceId: 'uuid-1' })
+    )
+    h.emitAudioState({ utteranceId: 'uuid-1', state: 'playing' })
+    expect(h.conversation.getState()).toBe('idle')
+    expect(h.assistantFinals).toEqual([])
   })
 })
