@@ -6,13 +6,16 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('../window/companion-window', () => ({ sendToCompanionWindow: vi.fn() }))
 vi.mock('./companion-audio-output', () => ({ onAudioState: vi.fn(() => () => {}) }))
 vi.mock('./companion-brain', () => ({ getCompanionBrain: vi.fn() }))
-vi.mock('./companion-agent-watch', () => ({ takePendingDiscussionContext: vi.fn(() => null) }))
-import {
-  createCompanionDialogue,
-  type CompanionDialogueBrain,
-  type CompanionDialogueDeps,
-  type CompanionDialogueTts
-} from './companion-dialogue'
+vi.mock('./companion-agent-watch', () => ({
+  takePendingDiscussionContext: vi.fn(() => null),
+  takeCompanionAgentBriefing: vi.fn(() => null)
+}))
+import { createCompanionDialogue } from './companion-dialogue'
+import type {
+  CompanionDialogueBrain,
+  CompanionDialogueDeps,
+  CompanionDialogueTts
+} from './companion-dialogue-contract'
 import type {
   CompanionAudioState,
   CompanionConversationState,
@@ -164,6 +167,7 @@ function buildHarness(overrides: Partial<CompanionDialogueDeps> = {}) {
     sendAssistantError: (message) => assistantErrors.push(message),
     sendStateChanged: (state) => stateChanges.push(state),
     takeDiscussionContext: () => null,
+    takeAgentBriefing: () => null,
     isVoiceBargeInEnabled: () => false,
     isWakeModeActive: () => false,
     pickThinkingAckPhrase: () => 'Секунду, смотрю…',
@@ -331,6 +335,29 @@ describe('createCompanionDialogue', () => {
     expect(turn.prompt).toBe('привет')
     turn.emit({ type: 'final', text: 'ok' })
     turn.resolve()
+  })
+
+  it('prepends the agent briefing to whichever turn comes next, not only the first', async () => {
+    let briefing: string | null = null
+    const h = buildHarness({
+      takeDiscussionContext: () => ({ text: 'Контекст уведомления.' }),
+      takeAgentBriefing: () => briefing
+    })
+    h.conversation.start()
+    h.emitUtterance('привет')
+    const firstTurn = await h.nextTurn()
+    expect(firstTurn.prompt).toBe('Контекст уведомления.\n\nпривет')
+    firstTurn.emit({ type: 'final', text: 'ok' })
+    firstTurn.resolve()
+    await Promise.resolve()
+    h.emitAudioState({ utteranceId: 'uuid-1', state: 'ended' })
+
+    briefing = '- zveno: готово'
+    h.emitUtterance('что нового?')
+    const secondTurn = await h.nextTurn()
+    expect(secondTurn.prompt).toBe('- zveno: готово\n\nчто нового?')
+    secondTurn.emit({ type: 'final', text: 'ok2' })
+    secondTurn.resolve()
   })
 
   it('a stop phrase closing the conversation stops any in-flight audio', async () => {
@@ -625,5 +652,37 @@ describe('createCompanionDialogue thinking-ack', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('companion dialogue announcements', () => {
+  it('speaks an announcement while idle without touching conversation state', () => {
+    const h = buildHarness()
+    h.dialogue.speakAnnouncement('В проекте zveno агент закончил, ждёт тебя.')
+    expect(h.tts.speak).toHaveBeenCalledWith(
+      'В проекте zveno агент закончил, ждёт тебя.',
+      expect.objectContaining({ utteranceId: 'uuid-1' })
+    )
+    h.emitAudioState({ utteranceId: 'uuid-1', state: 'playing' })
+    expect(h.conversation.getState()).toBe('idle')
+  })
+
+  it.each(['listening', 'thinking', 'speaking'] as const)(
+    'never speaks an announcement while the conversation is %s',
+    (state) => {
+      const h = buildHarness()
+      h.conversation.state = state
+      h.dialogue.speakAnnouncement('В проекте zveno агент закончил, ждёт тебя.')
+      expect(h.tts.speak).not.toHaveBeenCalled()
+    }
+  )
+
+  it('cuts the announcement off the moment a conversation opens', () => {
+    const h = buildHarness()
+    h.dialogue.speakAnnouncement('В проекте zveno агент закончил, ждёт тебя.')
+    h.emitAudioState({ utteranceId: 'uuid-1', state: 'playing' })
+    h.conversation.start()
+    expect(h.tts.stop).toHaveBeenCalledWith('uuid-1')
+    expect(h.conversation.getState()).toBe('listening')
   })
 })

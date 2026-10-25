@@ -237,6 +237,7 @@ vi.mock('../../companion/companion-shortcut', () => ({
 }))
 
 vi.mock('../../companion/companion-dialogue', () => ({
+  companionDialogueHandle: { current: null },
   initCompanionDialogue: initCompanionDialogueMock
 }))
 

@@ -63,21 +63,7 @@ import { registerUIHandlers, setTrustedUIRendererWebContentsId } from '../ui'
 import { registerEmulatorFrameStreamHandlers } from '../emulator-frame-stream'
 import { registerEmulatorVideoStreamHandlers } from '../emulator-video-stream'
 import { registerSpeechHandlers } from '../speech'
-import { registerCompanionHandlers } from '../companion'
-import { registerCompanionVoiceFocusHandlers } from '../companion-voice-focus'
-import { registerCompanionTtsHandlers } from '../companion-tts'
-import { initCompanionTtsProviderSettings } from '../../companion/tts/companion-tts-provider-settings-wiring'
-import { initCompanionHotkey } from '../../companion/companion-shortcut'
-import { initCompanionDialogue } from '../../companion/companion-dialogue'
-import {
-  getWarmedCompanionTtsService,
-  startCompanionTtsServiceWarmup
-} from '../../companion/tts/companion-tts-speaker-wiring'
-import { initCompanionAgentWatch } from '../../companion/companion-agent-watch'
-import { initCompanionAssets } from '../../companion/companion-assets'
-import { initCompanionWakeListening } from '../../companion/companion-wake-listening'
-import { initCompanionIndicator } from '../../companion/companion-indicator-lifecycle'
-import { initCompanionPanelAutoHide } from '../../companion/companion-panel-visibility'
+import { registerCompanionCoreHandlers } from './register-companion-core-handlers'
 import { registerTerminalRenderDesyncEvidenceHandler } from '../terminal-render-desync-evidence'
 import { registerOrcaProfileHandlers } from '../orca-profiles'
 import { registerCodexAccountHandlers } from '../codex-accounts'
@@ -316,19 +302,5 @@ export function registerCoreHandlers(
   })
   registerUpdaterHandlers(store)
   registerSpeechHandlers(store)
-  registerCompanionHandlers(store)
-  registerCompanionVoiceFocusHandlers()
-  const disposeCompanionHotkey = initCompanionHotkey(store)
-  app.once('will-quit', disposeCompanionHotkey)
-  startCompanionTtsServiceWarmup()
-  const disposeCompanionDialogue = initCompanionDialogue(store, getWarmedCompanionTtsService)
-  app.once('will-quit', disposeCompanionDialogue)
-  const disposeCompanionAgentWatch = initCompanionAgentWatch(store)
-  app.once('will-quit', disposeCompanionAgentWatch)
-  app.once('will-quit', initCompanionAssets(store))
-  registerCompanionTtsHandlers(store)
-  initCompanionTtsProviderSettings(store)
-  app.once('will-quit', initCompanionWakeListening(store))
-  app.once('will-quit', initCompanionIndicator())
-  app.once('will-quit', initCompanionPanelAutoHide(store))
+  registerCompanionCoreHandlers(store)
 }

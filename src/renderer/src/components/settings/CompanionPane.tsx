@@ -342,13 +342,13 @@ export function CompanionPane({ settings, updateSettings }: CompanionPaneProps):
           <p className="text-xs text-muted-foreground">
             {translate(
               'auto.components.settings.CompanionPane.notifySpeakDescription',
-              'Проговаривать уведомление вслух, а не только показывать текст.'
+              'Джарвис коротко говорит, какой агент закончил или ждёт решения. Молчит в тихие часы и во время разговора.'
             )}
           </p>
         </div>
         <Switch
-          checked={companionSettings.notify.speak}
-          onCheckedChange={(checked) => updateNotifySettings({ speak: checked })}
+          checked={companionSettings.notify.speakAloud}
+          onCheckedChange={(checked) => updateNotifySettings({ speakAloud: checked })}
           aria-label={translate(
             'auto.components.settings.CompanionPane.notifySpeak',
             'Озвучивать уведомления'

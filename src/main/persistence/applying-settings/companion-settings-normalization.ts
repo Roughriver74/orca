@@ -95,12 +95,12 @@ function normalizeCompanionNotifySettings(
   const enabledRaw = source && 'enabled' in source ? source.enabled : undefined
   const quietFromRaw = source && 'quietFrom' in source ? source.quietFrom : undefined
   const quietToRaw = source && 'quietTo' in source ? source.quietTo : undefined
-  const speakRaw = source && 'speak' in source ? source.speak : undefined
+  const speakAloudRaw = source && 'speakAloud' in source ? source.speakAloud : undefined
   return {
     enabled: typeof enabledRaw === 'boolean' ? enabledRaw : defaults.enabled,
     quietFrom: isCompanionTimeString(quietFromRaw) ? quietFromRaw : defaults.quietFrom,
     quietTo: isCompanionTimeString(quietToRaw) ? quietToRaw : defaults.quietTo,
-    speak: typeof speakRaw === 'boolean' ? speakRaw : defaults.speak
+    speakAloud: typeof speakAloudRaw === 'boolean' ? speakAloudRaw : defaults.speakAloud
   }
 }
 
