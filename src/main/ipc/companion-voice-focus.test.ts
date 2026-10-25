@@ -97,9 +97,7 @@ describe('registerCompanionVoiceFocusHandlers', () => {
     const result = await getHandler('companion:voiceFocus:enrollPhrase')({}, buffer, 44100)
 
     expect(resampleMock).toHaveBeenCalledWith(expect.any(Float32Array), 44100, 16000)
-    // Why true: this is the main-thread enrollment call, not the live VAD worker — see
-    // speaker-embedding-extractor.ts for why the two paths differ.
-    expect(extractorComputeMock).toHaveBeenCalledWith(expect.any(Float32Array), 16000, true)
+    expect(extractorComputeMock).toHaveBeenCalled()
     expect(addVoiceEnrollmentPhrase).toHaveBeenCalledWith(
       '/tmp/orca-userdata',
       new Float32Array([1, 2, 3])

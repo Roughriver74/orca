@@ -69,11 +69,7 @@ export function registerCompanionVoiceFocusHandlers(): void {
       }
       const raw = new Float32Array(buffer.buffer, buffer.byteOffset, buffer.byteLength / 4)
       const samples = resampleToRate(raw, sampleRate, ENROLLMENT_SAMPLE_RATE)
-      const embedding = getEnrollmentExtractor().computeEmbedding(
-        samples,
-        ENROLLMENT_SAMPLE_RATE,
-        true
-      )
+      const embedding = getEnrollmentExtractor().computeEmbedding(samples, ENROLLMENT_SAMPLE_RATE)
       addVoiceEnrollmentPhrase(userDataDir(), embedding)
       return getVoiceEnrollmentStatus(userDataDir())
     }

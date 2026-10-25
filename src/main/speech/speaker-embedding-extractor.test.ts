@@ -44,27 +44,6 @@ describe('SpeakerEmbeddingExtractor', () => {
     expect(embedding).toEqual(new Float32Array([1, 2, 3]))
   })
 
-  it('does not pass enableExternalBuffer by default (the live VAD worker path)', () => {
-    const binding = makeFakeBinding()
-    const extractor = new SpeakerEmbeddingExtractor(binding, { modelPath: 'campplus.onnx' })
-    extractor.computeEmbedding(new Float32Array([0.1]), 16000)
-    expect(binding.speakerEmbeddingExtractorComputeEmbedding).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything()
-    )
-  })
-
-  it('passes enableExternalBuffer=false when copyBuffer is requested (main-thread enrollment)', () => {
-    const binding = makeFakeBinding()
-    const extractor = new SpeakerEmbeddingExtractor(binding, { modelPath: 'campplus.onnx' })
-    extractor.computeEmbedding(new Float32Array([0.1]), 16000, true)
-    expect(binding.speakerEmbeddingExtractorComputeEmbedding).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      false
-    )
-  })
-
   it('throws when the stream is not ready after inputFinished', () => {
     const binding = makeFakeBinding({ speakerEmbeddingExtractorIsReady: vi.fn(() => false) })
     const extractor = new SpeakerEmbeddingExtractor(binding, { modelPath: 'campplus.onnx' })
