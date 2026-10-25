@@ -43,6 +43,7 @@ export function initCompanionAssets(
   let ttsInFlight: Promise<unknown> | null = null
   let sttInFlight: Promise<void> | null = null
   let voiceFocusInFlight: Promise<void> | null = null
+  let wakeKeywordInFlight: Promise<void> | null = null
 
   const ensure = (): void => {
     const companion = store.getSettings().companion
@@ -94,6 +95,16 @@ export function initCompanionAssets(
         .then(() => undefined)
         .finally(() => {
           voiceFocusInFlight = null
+        })
+    }
+    if (companion.wake.enabled && companion.wake.keywordSpotter && !wakeKeywordInFlight) {
+      wakeKeywordInFlight = deps
+        .downloadFocusModel('wake-keyword-spotter-ru')
+        .catch((error: unknown) =>
+          console.error('[companion] wake keyword model download failed', error)
+        )
+        .finally(() => {
+          wakeKeywordInFlight = null
         })
     }
   }

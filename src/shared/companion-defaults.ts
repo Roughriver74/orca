@@ -33,7 +33,8 @@ export function getDefaultCompanionSettings(): CompanionSettings {
     wake: {
       enabled: false,
       phrases: ['джарвис'],
-      followUpMs: 8000
+      followUpMs: 8000,
+      keywordSpotter: false
     },
     endKeyword: {
       enabled: false,

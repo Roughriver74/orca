@@ -8,6 +8,7 @@ import { getSpeechModelManager, getSpeechSttService } from '../speech/speech-run
 import { buildCompanionVadOptions } from '../speech/companion-vad-options'
 import { getFocusModelManager } from '../speech/focus-model-manager'
 import { normalizeCompanionSettings } from '../persistence/applying-settings/companion-settings-normalization'
+import { feedCompanionWakeKeywordSpotter } from '../companion/companion-wake-keyword-spotting'
 import {
   clearOpenAiSpeechApiKey,
   getOpenAiSpeechApiKeyProtection,
@@ -241,6 +242,7 @@ export function registerSpeechHandlers(store: Store): void {
         sampleRate,
         getDesktopOwner(_event.sender.id, sessionId)
       )
+      feedCompanionWakeKeywordSpotter(samples, sampleRate, sessionId)
     }
   )
 

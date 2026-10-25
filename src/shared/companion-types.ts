@@ -39,6 +39,11 @@ export type CompanionWakeSettings = {
   phrases: string[]
   /** After a reply, follow-ups without the name are accepted this long; 0 = always say the name. */
   followUpMs: number
+  /** Address only when a dedicated keyword-spotting model (sherpa-onnx KWS, ~29 MB download)
+   *  also heard a phrase acoustically, not when the transcript merely contains it — keeps
+   *  "в эту пятницу" from the TV from addressing "Пятница". Falls back to transcript matching
+   *  while the model is missing. */
+  keywordSpotter: boolean
 }
 
 /** "Слово-сигнал": finalized segments accumulate instead of each going to the brain, so

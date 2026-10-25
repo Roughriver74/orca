@@ -198,6 +198,34 @@ export function CompanionVoiceInteractionSettingsSection({
 
       <Separator />
 
+      <div className="flex items-center justify-between gap-4 py-2">
+        <div className="space-y-0.5">
+          <Label>
+            {translate(
+              'auto.components.settings.CompanionPane.wakeKeywordSpotter',
+              'Узнавать обращение по звуку (бета)'
+            )}
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            {translate(
+              'auto.components.settings.CompanionPane.wakeKeywordSpotterDescription',
+              'Отдельная маленькая модель (~29 МБ, локально) слушает имя в самом звуке. Обращение засчитывается, только если она его услышала, — «в эту пятницу» из телевизора больше не будит. Пока модель не скачана, работает как раньше.'
+            )}
+          </p>
+        </div>
+        <Switch
+          checked={wake.keywordSpotter}
+          disabled={!wake.enabled}
+          onCheckedChange={(checked) => updateWakeSettings({ keywordSpotter: checked })}
+          aria-label={translate(
+            'auto.components.settings.CompanionPane.wakeKeywordSpotter',
+            'Узнавать обращение по звуку (бета)'
+          )}
+        />
+      </div>
+
+      <Separator />
+
       <div className="space-y-1.5 py-2">
         <div className="flex items-center justify-between gap-4">
           <div className="space-y-0.5">

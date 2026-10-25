@@ -161,6 +161,7 @@ function normalizeCompanionWakeSettings(
   const enabledRaw = source && 'enabled' in source ? source.enabled : undefined
   const phrasesRaw = source && 'phrases' in source ? source.phrases : undefined
   const followUpMsRaw = source && 'followUpMs' in source ? source.followUpMs : undefined
+  const keywordSpotterRaw = source && 'keywordSpotter' in source ? source.keywordSpotter : undefined
   const phrases = normalizeCompanionPhraseList(phrasesRaw)
   return {
     enabled: typeof enabledRaw === 'boolean' ? enabledRaw : defaults.enabled,
@@ -169,7 +170,9 @@ function normalizeCompanionWakeSettings(
     followUpMs:
       typeof followUpMsRaw === 'number' && Number.isFinite(followUpMsRaw)
         ? Math.min(MAX_WAKE_FOLLOW_UP_MS, Math.max(0, followUpMsRaw))
-        : defaults.followUpMs
+        : defaults.followUpMs,
+    keywordSpotter:
+      typeof keywordSpotterRaw === 'boolean' ? keywordSpotterRaw : defaults.keywordSpotter
   }
 }
 

@@ -36,15 +36,20 @@ describe('findWakePhrase', () => {
   })
 })
 
-function gateHarness(overrides: Partial<CompanionWakeSettings> = {}) {
+function gateHarness(overrides: Partial<CompanionWakeSettings> = {}, keywordSpotterActive = false) {
   let now = 0
   const settings: CompanionWakeSettings = {
     enabled: true,
     phrases: ['джарвис'],
     followUpMs: 8000,
+    keywordSpotter: false,
     ...overrides
   }
-  const gate = createCompanionWakeGate({ getSettings: () => settings, now: () => now })
+  const gate = createCompanionWakeGate({
+    getSettings: () => settings,
+    now: () => now,
+    isKeywordSpotterActive: () => keywordSpotterActive
+  })
   return {
     gate,
     settings,
@@ -190,6 +195,57 @@ describe('createCompanionWakeGate', () => {
       expect(gate.decide('эхо ответа', { state: 'speaking', continuing: true })).toEqual({
         kind: 'ignore'
       })
+    })
+  })
+})
+
+describe('createCompanionWakeGate with the keyword spotter running', () => {
+  it('ignores a transcript wake phrase the spotter did not hear (TV weekday)', () => {
+    const { gate } = gateHarness({ phrases: ['пятница'] }, true)
+    expect(gate.decide('В эту пятницу состоится матч.', { state: 'listening' })).toEqual({
+      kind: 'ignore'
+    })
+  })
+
+  it('addresses only when the spotter hit and the transcript name agree', () => {
+    const { gate } = gateHarness({}, true)
+    gate.noteKeyword()
+    expect(gate.decide('Джарвис, открой почту.', { state: 'listening' })).toEqual({
+      kind: 'pass',
+      text: 'открой почту.',
+      addressed: true
+    })
+    // A spotter hit on TV audio whose transcript names nobody stays ignored.
+    gate.noteKeyword()
+    expect(gate.decide('Дарвин писал о видах.', { state: 'listening' })).toEqual({
+      kind: 'ignore'
+    })
+  })
+
+  it('falls back to transcript matching when the spotter is not running', () => {
+    const { gate } = gateHarness({ keywordSpotter: true }, false)
+    expect(gate.decide('Джарвис, свет', { state: 'listening' })).toMatchObject({ kind: 'pass' })
+  })
+
+  it('spends a hit on the next utterance and drops a stale one', () => {
+    const { gate, advance } = gateHarness({}, true)
+    gate.noteKeyword()
+    expect(gate.decide('Джарвис!', { state: 'listening' })).toEqual({ kind: 'wake-only' })
+    advance(9000)
+    expect(gate.decide('Джарвис, свет', { state: 'listening' })).toEqual({ kind: 'ignore' })
+    gate.noteKeyword()
+    advance(61_000)
+    expect(gate.decide('Джарвис, свет', { state: 'listening' })).toEqual({ kind: 'ignore' })
+  })
+
+  it('still lets follow-ups through without a hit', () => {
+    const { gate } = gateHarness({}, true)
+    gate.noteKeyword()
+    expect(gate.decide('Джарвис', { state: 'listening' })).toEqual({ kind: 'wake-only' })
+    expect(gate.decide('какая погода', { state: 'listening' })).toEqual({
+      kind: 'pass',
+      text: 'какая погода',
+      addressed: false
     })
   })
 })

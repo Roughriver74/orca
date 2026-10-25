@@ -29,6 +29,11 @@ import {
   strictnessToThreshold,
   type VoiceFocusMode
 } from './companion-voice-focus'
+import {
+  isCompanionWakeKeywordSpotterActive,
+  stopCompanionWakeKeywordSpotter,
+  syncCompanionWakeKeywordSpotter
+} from './companion-wake-keyword-spotting'
 
 export type CompanionWakeListeningStore = {
   getSettings: () => { companion?: CompanionSettings }
@@ -58,7 +63,15 @@ function readCompanionSettings(): CompanionSettings {
   return normalizeCompanionSettings(activeStore?.getSettings().companion)
 }
 
-const wakeGate = createCompanionWakeGate({ getSettings: readWakeSettings, now: () => Date.now() })
+const wakeGate = createCompanionWakeGate({
+  getSettings: readWakeSettings,
+  now: () => Date.now(),
+  isKeywordSpotterActive: isCompanionWakeKeywordSpotterActive
+})
+
+function syncWakeKeywordSpotter(): void {
+  syncCompanionWakeKeywordSpotter(readCompanionSettings(), () => wakeGate.noteKeyword())
+}
 
 const endKeywordBuffer = createCompanionEndKeywordBuffer({
   getSettings: () => readCompanionSettings().endKeyword,
@@ -289,11 +302,13 @@ export function initCompanionWakeListening(store: CompanionWakeListeningStore): 
   if (wasEnabled) {
     startBackgroundListening()
   }
+  syncWakeKeywordSpotter()
   const offSettings = store.onSettingsChanged((updates) => {
     if (!('companion' in updates)) {
       return
     }
     const enabled = isCompanionWakeListeningEnabled()
+    syncWakeKeywordSpotter()
     if (enabled && !wasEnabled) {
       startBackgroundListening()
     } else if (!enabled && wasEnabled) {
@@ -314,6 +329,7 @@ export function initCompanionWakeListening(store: CompanionWakeListeningStore): 
   return () => {
     offSettings()
     offState()
+    stopCompanionWakeKeywordSpotter()
     stopPreventingAppSuspension()
     activeStore = null
   }

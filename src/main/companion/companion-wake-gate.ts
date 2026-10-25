@@ -9,6 +9,10 @@
 //     reaches the mic much quieter than the person who just spoke to it.
 // While Jarvis is talking or thinking only the wake phrase counts, so neither the TV nor
 // Jarvis's own voice leaking into the mic can interrupt or supersede a turn.
+// With the keyword spotter on (wake.keywordSpotter, model loaded) a wake phrase in the
+// transcript only counts if the spotter also heard one acoustically during that utterance:
+// both detectors must agree, so a near-miss from either one alone ("в эту пятницу" in the
+// transcript, a TV "Джарвин" in the audio) does not address Jarvis.
 
 import type {
   CompanionConversationState,
@@ -34,6 +38,10 @@ export type CompanionWakeUtteranceContext = {
 /** After an explicit address (hotkey or bare wake phrase) the request may follow a pause. */
 const ADDRESSED_WINDOW_MS = 8000
 const FOLLOW_UP_LEVEL_RATIO = 0.5
+/** A spotter hit is spent by the next finalized utterance — the one it was spoken in. The
+ *  final lands after the rest of the utterance plus the end-of-utterance pause, and the
+ *  offline recognizer flushes at least every 30 s, so a hit older than this is stale. */
+const KEYWORD_PENDING_MS = 60_000
 
 export type UtteranceWordSpan = { word: string; start: number; end: number }
 
@@ -121,15 +129,20 @@ export type CompanionWakeGate = {
    *  addressed exchange ("hotkey" mode, lenient) from pure background listening
    *  ("wake" mode, strict) when deciding whether to drop a non-owner segment. */
   isAddressed(): boolean
+  /** The keyword spotter heard a wake phrase in the audio just now. */
+  noteKeyword(): void
 }
 
 export function createCompanionWakeGate(deps: {
   getSettings: () => CompanionWakeSettings
   now: () => number
+  /** True while the keyword spotter runs; its hits then gate transcript matches. */
+  isKeywordSpotterActive?: () => boolean
 }): CompanionWakeGate {
   let followUpUntil: number | null = null
   let addresserLevel: number | null = null
   let previousState: CompanionConversationState = 'idle'
+  let keywordHeardAt: number | null = null
 
   function openFollowUp(durationMs: number): void {
     followUpUntil = durationMs > 0 ? deps.now() + durationMs : null
@@ -148,7 +161,11 @@ export function createCompanionWakeGate(deps: {
     if (!settings.enabled) {
       return { kind: 'pass', text, addressed: false }
     }
-    const match = findWakePhrase(text, settings.phrases)
+    const keywordHeard =
+      keywordHeardAt !== null && deps.now() - keywordHeardAt <= KEYWORD_PENDING_MS
+    keywordHeardAt = null
+    const transcriptMatch = findWakePhrase(text, settings.phrases)
+    const match = deps.isKeywordSpotterActive?.() && !keywordHeard ? null : transcriptMatch
     const continuing =
       context.continuing === true && context.state === 'listening' && loudEnough(context.level)
     // Mid-request, a name inside the sentence ("сделай, чтобы Джарвис…") is just a word —
@@ -196,5 +213,9 @@ export function createCompanionWakeGate(deps: {
     previousState = state
   }
 
-  return { decide, address, dismiss, onStateChange, isAddressed }
+  function noteKeyword(): void {
+    keywordHeardAt = deps.now()
+  }
+
+  return { decide, address, dismiss, onStateChange, isAddressed, noteKeyword }
 }

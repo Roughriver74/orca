@@ -30,7 +30,12 @@ describe('normalizeCompanionSettings', () => {
         yandexMonthlyBudgetRub: 150
       },
       notify: { enabled: false, quietFrom: '23:00', quietTo: '07:30', speak: true },
-      wake: { enabled: true, phrases: ['джарвис', 'эй компьютер'], followUpMs: 5000 },
+      wake: {
+        enabled: true,
+        phrases: ['джарвис', 'эй компьютер'],
+        followUpMs: 5000,
+        keywordSpotter: true
+      },
       endKeyword: { enabled: true, words: ['думай', 'на этом всё'], fallbackPauseSeconds: 6 },
       voiceFocus: {
         enabled: true,
@@ -56,7 +61,7 @@ describe('normalizeCompanionSettings', () => {
       tts: { ttsEnabled: 'yes', ttsVoice: 'robot', ttsRate: 'fast' },
       voiceBargeIn: 'on',
       notify: { enabled: 'yes', quietFrom: '25:99', quietTo: 42, speak: 'no' },
-      wake: { enabled: 1, phrases: 'джарвис', followUpMs: 'long' }
+      wake: { enabled: 1, phrases: 'джарвис', followUpMs: 'long', keywordSpotter: 'on' }
     })
     expect(normalized).toEqual(getDefaultCompanionSettings())
   })
@@ -190,7 +195,12 @@ describe('normalizeCompanionSettings', () => {
     const wake = normalizeCompanionSettings({
       wake: { enabled: true, phrases: ['  Пятница ', '', '!!!', 7], followUpMs: 120_000 }
     }).wake
-    expect(wake).toEqual({ enabled: true, phrases: ['Пятница'], followUpMs: 30_000 })
+    expect(wake).toEqual({
+      enabled: true,
+      phrases: ['Пятница'],
+      followUpMs: 30_000,
+      keywordSpotter: false
+    })
     expect(normalizeCompanionSettings({ wake: { phrases: [] } }).wake.phrases).toEqual(['джарвис'])
     expect(normalizeCompanionSettings({ wake: { followUpMs: -5 } }).wake.followUpMs).toBe(0)
   })
