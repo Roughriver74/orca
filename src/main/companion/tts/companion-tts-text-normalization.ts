@@ -8,12 +8,7 @@
 // is told to emit them for stressed words — so every step here is written to leave a
 // lone `*...*` span untouched while still stripping markdown's double-asterisk bold.
 
-import {
-  MONTH_GENITIVE_RU,
-  cardinalRu,
-  ordinalDayGenitiveRu,
-  timeOfDayRu
-} from './companion-tts-number-words-ru'
+import { expandNumbers } from './companion-tts-number-expansion-ru'
 import {
   EMPTY_PRONUNCIATION_DICTIONARY,
   transliterateLatinForSpeech,
@@ -22,22 +17,6 @@ import {
 import { applyRussianPronunciations } from './companion-tts-russian-pronunciations'
 
 const INLINE_CODE_DROP_THRESHOLD = 20
-const FEMININE_UNIT_WORDS: Record<string, true> = {
-  минута: true,
-  минуты: true,
-  минут: true,
-  секунда: true,
-  секунды: true,
-  секунд: true,
-  неделя: true,
-  недели: true,
-  недель: true,
-  тысяча: true,
-  тысячи: true,
-  тысяч: true
-}
-
-const MONTH_PATTERN = MONTH_GENITIVE_RU.join('|')
 
 /** Drops fenced code blocks and pipe tables wholesale — neither reads sensibly aloud. */
 function dropCodeBlocksAndTables(text: string): string {
@@ -85,42 +64,6 @@ function replaceUrlsAndPaths(text: string): string {
     .replace(URL_PATTERN, 'ссылка в панели')
     .replace(POSIX_PATH_PATTERN, (match, path: string) => match.replace(path, 'путь в панели'))
     .replace(WINDOWS_PATH_PATTERN, (match, path: string) => match.replace(path, 'путь в панели'))
-}
-
-/** Picks "один"/"одна" agreement from the noun immediately following the number, default masculine. */
-function genderForFollowingWord(following: string | undefined): 'm' | 'f' {
-  if (!following) {
-    return 'm'
-  }
-  return following.toLowerCase() in FEMININE_UNIT_WORDS ? 'f' : 'm'
-}
-
-// `\b` is ASCII-only in JS (Cyrillic letters are not `\w`), so a trailing `\b` after a
-// Cyrillic month name never matches — use a negative lookahead for a following letter instead.
-const DATE_PATTERN = new RegExp(`\\b(\\d{1,2})\\s+(${MONTH_PATTERN})(?![а-яё])`, 'g')
-const TIME_PATTERN = /\b([01]?\d|2[0-3]):([0-5]\d)\b/g
-const GROUPED_NUMBER_PATTERN = /\b\d{1,3}(?:[ \u00A0]\d{3})*(?:[.,]\d+)?\b/g
-
-/** Expands dates, times, and remaining number groups into spoken Russian words. */
-function expandNumbers(text: string): string {
-  let result = text.replace(
-    DATE_PATTERN,
-    (_match, day: string, month: string) => `${ordinalDayGenitiveRu(Number(day))} ${month}`
-  )
-  result = result.replace(TIME_PATTERN, (_match, hour: string, minute: string) =>
-    timeOfDayRu(Number(hour), Number(minute))
-  )
-  result = result.replace(GROUPED_NUMBER_PATTERN, (match, offset: number, full: string) => {
-    const digits = match.replace(/[ \u00A0]/g, '').replace(',', '.')
-    const value = Number(digits)
-    if (!Number.isFinite(value)) {
-      return match
-    }
-    const after = full.slice(offset + match.length).match(/^\s+(\S+)/)
-    const gender = genderForFollowingWord(after?.[1]?.replace(/[.,!?;:]+$/, ''))
-    return cardinalRu(value, gender)
-  })
-  return result
 }
 
 /** Collapses whitespace left behind by removed markup without touching sentence punctuation. */

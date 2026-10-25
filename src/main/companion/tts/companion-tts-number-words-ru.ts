@@ -7,58 +7,159 @@
 // here must run before text reaches the sidecar.
 
 export type RuGender = 'm' | 'f' | 'n'
+export type RuCase = 'nom' | 'gen' | 'dat' | 'acc' | 'ins' | 'prep'
 
-const ONES: Record<RuGender, readonly string[]> = {
-  m: ['', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'],
-  f: ['', 'одна', 'две', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'],
-  n: ['', 'одно', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять']
+/** Word forms in case order: nominative, genitive, dative, accusative, instrumental, prepositional. */
+export type CaseForms = readonly [string, string, string, string, string, string]
+
+export const CASE_INDEX: Record<RuCase, number> = {
+  nom: 0,
+  gen: 1,
+  dat: 2,
+  acc: 3,
+  ins: 4,
+  prep: 5
 }
-const TEENS = [
-  'десять',
-  'одиннадцать',
-  'двенадцать',
-  'тринадцать',
-  'четырнадцать',
-  'пятнадцать',
-  'шестнадцать',
-  'семнадцать',
-  'восемнадцать',
-  'девятнадцать'
-]
-const TENS = [
-  '',
-  '',
-  'двадцать',
-  'тридцать',
-  'сорок',
-  'пятьдесят',
-  'шестьдесят',
-  'семьдесят',
-  'восемьдесят',
-  'девяносто'
-]
-const HUNDREDS = [
-  '',
-  'сто',
-  'двести',
-  'триста',
-  'четыреста',
-  'пятьсот',
-  'шестьсот',
-  'семьсот',
-  'восемьсот',
-  'девятьсот'
+
+const ONE: Record<RuGender, CaseForms> = {
+  m: ['один', 'одного', 'одному', 'один', 'одним', 'одном'],
+  f: ['одна', 'одной', 'одной', 'одну', 'одной', 'одной'],
+  n: ['одно', 'одного', 'одному', 'одно', 'одним', 'одном']
+}
+
+/** Numerals ending in a soft sign ("пять", "одиннадцать", "двадцать") share one paradigm. */
+function softNumeral(nominative: string): CaseForms {
+  const stem = nominative.slice(0, -1)
+  return [nominative, `${stem}и`, `${stem}и`, nominative, `${stem}ью`, `${stem}и`]
+}
+
+/** 2-19; index 0-1 are handled by `ONE`/zero. */
+const SMALL: readonly CaseForms[] = [
+  ['ноль', 'нуля', 'нулю', 'ноль', 'нулём', 'нуле'],
+  ONE.m,
+  ['два', 'двух', 'двум', 'два', 'двумя', 'двух'],
+  ['три', 'трёх', 'трём', 'три', 'тремя', 'трёх'],
+  ['четыре', 'четырёх', 'четырём', 'четыре', 'четырьмя', 'четырёх'],
+  softNumeral('пять'),
+  softNumeral('шесть'),
+  softNumeral('семь'),
+  ['восемь', 'восьми', 'восьми', 'восемь', 'восемью', 'восьми'],
+  softNumeral('девять'),
+  softNumeral('десять'),
+  softNumeral('одиннадцать'),
+  softNumeral('двенадцать'),
+  softNumeral('тринадцать'),
+  softNumeral('четырнадцать'),
+  softNumeral('пятнадцать'),
+  softNumeral('шестнадцать'),
+  softNumeral('семнадцать'),
+  softNumeral('восемнадцать'),
+  softNumeral('девятнадцать')
 ]
 
-/** (nominative singular, nominative plural "2-4", genitive plural "5+", gender of the group's own ones-word). */
-type Scale = { forms: readonly [string, string, string]; gender: RuGender }
-const SCALES: readonly Scale[] = [
-  { forms: ['', '', ''], gender: 'm' }, // units: no scale word
-  { forms: ['тысяча', 'тысячи', 'тысяч'], gender: 'f' },
-  { forms: ['миллион', 'миллиона', 'миллионов'], gender: 'm' },
-  { forms: ['миллиард', 'миллиарда', 'миллиардов'], gender: 'm' },
-  { forms: ['триллион', 'триллиона', 'триллионов'], gender: 'm' }
+const TENS: readonly (CaseForms | null)[] = [
+  null,
+  null,
+  softNumeral('двадцать'),
+  softNumeral('тридцать'),
+  ['сорок', 'сорока', 'сорока', 'сорок', 'сорока', 'сорока'],
+  ['пятьдесят', 'пятидесяти', 'пятидесяти', 'пятьдесят', 'пятьюдесятью', 'пятидесяти'],
+  ['шестьдесят', 'шестидесяти', 'шестидесяти', 'шестьдесят', 'шестьюдесятью', 'шестидесяти'],
+  ['семьдесят', 'семидесяти', 'семидесяти', 'семьдесят', 'семьюдесятью', 'семидесяти'],
+  ['восемьдесят', 'восьмидесяти', 'восьмидесяти', 'восемьдесят', 'восемьюдесятью', 'восьмидесяти'],
+  ['девяносто', 'девяноста', 'девяноста', 'девяносто', 'девяноста', 'девяноста']
 ]
+
+/** "пятьсот" → "пятисот", "пятистам", "пятьюстами", "пятистах" from the ones-word paradigm. */
+function hundredsFromOnes(ones: CaseForms): CaseForms {
+  const [nom, gen, , , ins] = ones
+  return [`${nom}сот`, `${gen}сот`, `${gen}стам`, `${nom}сот`, `${ins}стами`, `${gen}стах`]
+}
+
+const HUNDREDS: readonly (CaseForms | null)[] = [
+  null,
+  ['сто', 'ста', 'ста', 'сто', 'ста', 'ста'],
+  ['двести', 'двухсот', 'двумстам', 'двести', 'двумястами', 'двухстах'],
+  ['триста', 'трёхсот', 'трёмстам', 'триста', 'тремястами', 'трёхстах'],
+  ['четыреста', 'четырёхсот', 'четырёмстам', 'четыреста', 'четырьмястами', 'четырёхстах'],
+  hundredsFromOnes(SMALL[5]),
+  hundredsFromOnes(SMALL[6]),
+  hundredsFromOnes(SMALL[7]),
+  hundredsFromOnes(SMALL[8]),
+  hundredsFromOnes(SMALL[9])
+]
+
+/** A counted noun: singular and plural paradigms; `paucal` overrides the "2-4" nominative form
+ *  (adjectival nouns: "две целых", not "две целой"). */
+export type RuNoun = {
+  gender: RuGender
+  singular: CaseForms
+  plural: CaseForms
+  paucal?: string
+}
+
+/** Hard-stem masculine noun whose plural follows "-ов/-ам/-ами/-ах" ("миллион", "процент"). */
+export function hardNoun(
+  gender: RuGender,
+  stem: string,
+  singular: CaseForms,
+  pluralNom: string
+): RuNoun {
+  return {
+    gender,
+    singular,
+    plural: [pluralNom, `${stem}ов`, `${stem}ам`, pluralNom, `${stem}ами`, `${stem}ах`]
+  }
+}
+
+function adjectivalFeminineNoun(stem: string): RuNoun {
+  return {
+    gender: 'f',
+    singular: [`${stem}ая`, `${stem}ой`, `${stem}ой`, `${stem}ую`, `${stem}ой`, `${stem}ой`],
+    plural: [`${stem}ые`, `${stem}ых`, `${stem}ым`, `${stem}ые`, `${stem}ыми`, `${stem}ых`],
+    paucal: `${stem}ых`
+  }
+}
+
+export const THOUSAND_NOUN_RU: RuNoun = {
+  gender: 'f',
+  singular: ['тысяча', 'тысячи', 'тысяче', 'тысячу', 'тысячей', 'тысяче'],
+  plural: ['тысячи', 'тысяч', 'тысячам', 'тысячи', 'тысячами', 'тысячах']
+}
+export const MILLION_NOUN_RU = hardNoun(
+  'm',
+  'миллион',
+  ['миллион', 'миллиона', 'миллиону', 'миллион', 'миллионом', 'миллионе'],
+  'миллионы'
+)
+export const BILLION_NOUN_RU = hardNoun(
+  'm',
+  'миллиард',
+  ['миллиард', 'миллиарда', 'миллиарду', 'миллиард', 'миллиардом', 'миллиарде'],
+  'миллиарды'
+)
+const TRILLION_NOUN_RU = hardNoun(
+  'm',
+  'триллион',
+  ['триллион', 'триллиона', 'триллиону', 'триллион', 'триллионом', 'триллионе'],
+  'триллионы'
+)
+const SCALE_NOUNS: readonly RuNoun[] = [
+  THOUSAND_NOUN_RU,
+  MILLION_NOUN_RU,
+  BILLION_NOUN_RU,
+  TRILLION_NOUN_RU
+]
+
+const WHOLE_NOUN = adjectivalFeminineNoun('цел')
+const FRACTION_DENOMINATORS = [
+  'десят',
+  'сот',
+  'тысячн',
+  'десятитысячн',
+  'стотысячн',
+  'миллионн'
+].map(adjectivalFeminineNoun)
 
 /** Russian plural-form index: 0 = "1", 1 = "2-4", 2 = "0,5-20,25-30...". */
 function pluralFormIndex(n: number): 0 | 1 | 2 {
@@ -76,41 +177,86 @@ function pluralFormIndex(n: number): 0 | 1 | 2 {
   return 2
 }
 
-/** Converts 0-999 to words, declining the ones word for the given gender. */
-function convertGroup(n: number, gender: RuGender): string[] {
+/** True when a count takes the singular in oblique cases ("двадцати одной тысячи"). */
+export function endsInOneRu(n: number): boolean {
+  return n % 10 === 1 && n % 100 !== 11
+}
+
+/** Noun form after a count: nominative/accusative pick 1 / 2-4 / 5+ forms; other cases
+ *  follow the whole numeral in singular (ends in 1) or plural. Fractions govern genitive singular. */
+export function agreeNounRu(
+  noun: RuNoun,
+  count: number,
+  grammaticalCase: RuCase = 'nom',
+  fractional = false
+): string {
+  const caseIndex = CASE_INDEX[grammaticalCase]
+  if (fractional) {
+    return noun.singular[CASE_INDEX.gen]
+  }
+  const n = Math.trunc(Math.abs(count))
+  if (grammaticalCase === 'nom' || grammaticalCase === 'acc') {
+    const form = pluralFormIndex(n)
+    if (form === 0) {
+      return noun.singular[caseIndex]
+    }
+    return form === 1 ? (noun.paucal ?? noun.singular[CASE_INDEX.gen]) : noun.plural[CASE_INDEX.gen]
+  }
+  return endsInOneRu(n) ? noun.singular[caseIndex] : noun.plural[caseIndex]
+}
+
+function onesWord(digit: number, gender: RuGender, caseIndex: number): string {
+  if (digit === 1) {
+    return ONE[gender][caseIndex]
+  }
+  if (digit === 2 && gender === 'f' && (caseIndex === 0 || caseIndex === 3)) {
+    return 'две'
+  }
+  return SMALL[digit][caseIndex]
+}
+
+/** Converts 1-999 to words in the given case, declining the ones word for the given gender. */
+function convertGroup(n: number, gender: RuGender, caseIndex: number): string[] {
   const words: string[] = []
-  const hundreds = Math.floor(n / 100)
+  const hundreds = HUNDREDS[Math.floor(n / 100)]
   const rest = n % 100
-  if (hundreds > 0) {
-    words.push(HUNDREDS[hundreds])
+  if (hundreds) {
+    words.push(hundreds[caseIndex])
   }
   if (rest >= 10 && rest <= 19) {
-    words.push(TEENS[rest - 10])
-  } else {
-    const tens = Math.floor(rest / 10)
-    const ones = rest % 10
-    if (tens > 0) {
-      words.push(TENS[tens])
-    }
-    if (ones > 0) {
-      words.push(ONES[gender][ones])
-    }
+    words.push(SMALL[rest][caseIndex])
+    return words
+  }
+  const tens = TENS[Math.floor(rest / 10)]
+  if (tens) {
+    words.push(tens[caseIndex])
+  }
+  if (rest % 10 > 0) {
+    words.push(onesWord(rest % 10, gender, caseIndex))
   }
   return words
 }
 
-/** Cardinal number in words, nominative case. `gender` applies to the trailing ones-word only. */
-export function cardinalRu(value: number, gender: RuGender = 'm'): string {
+export type CardinalOptions = {
+  grammaticalCase?: RuCase
+  /** Speech form "тысяча пятьсот" instead of "одна тысяча пятьсот". */
+  omitLeadingOne?: boolean
+}
+
+/** Cardinal number in words. `gender` applies to the trailing ones-word only. */
+export function cardinalRu(
+  value: number,
+  gender: RuGender = 'm',
+  options: CardinalOptions = {}
+): string {
   if (!Number.isFinite(value)) {
     return String(value)
   }
-  if (value === 0) {
-    return 'ноль'
-  }
+  const caseIndex = CASE_INDEX[options.grammaticalCase ?? 'nom']
   const negative = value < 0
   let n = Math.trunc(Math.abs(value))
   if (n === 0) {
-    return negative ? 'минус ноль' : 'ноль'
+    return (negative ? 'минус ' : '') + SMALL[0][caseIndex]
   }
 
   const groups: number[] = []
@@ -125,82 +271,54 @@ export function cardinalRu(value: number, gender: RuGender = 'm'): string {
     if (groupValue === 0) {
       continue
     }
-    const scale = SCALES[scaleIndex]
+    if (scaleIndex === 0) {
+      words.push(...convertGroup(groupValue, gender, caseIndex))
+      continue
+    }
+    const scale = SCALE_NOUNS[scaleIndex - 1]
     if (!scale) {
       // Beyond trillions: fall back to digits rather than drop the magnitude silently.
       words.push(String(groupValue), 'умножить на 10 в степени', String(scaleIndex * 3))
       continue
     }
-    const groupGender = scaleIndex === 0 ? gender : scale.gender
-    words.push(...convertGroup(groupValue, groupGender))
-    if (scaleIndex > 0) {
-      words.push(scale.forms[pluralFormIndex(groupValue)])
+    const isTopGroup = scaleIndex === groups.length - 1
+    if (!(options.omitLeadingOne && isTopGroup && scaleIndex === 1 && groupValue === 1)) {
+      words.push(...convertGroup(groupValue, scale.gender, caseIndex))
     }
+    words.push(agreeNounRu(scale, groupValue, options.grammaticalCase))
   }
   return (negative ? 'минус ' : '') + words.join(' ')
 }
 
-const ORDINAL_DAY_GENITIVE: Record<number, string> = {
-  1: 'первого',
-  2: 'второго',
-  3: 'третьего',
-  4: 'четвёртого',
-  5: 'пятого',
-  6: 'шестого',
-  7: 'седьмого',
-  8: 'восьмого',
-  9: 'девятого',
-  10: 'десятого',
-  11: 'одиннадцатого',
-  12: 'двенадцатого',
-  13: 'тринадцатого',
-  14: 'четырнадцатого',
-  15: 'пятнадцатого',
-  16: 'шестнадцатого',
-  17: 'семнадцатого',
-  18: 'восемнадцатого',
-  19: 'девятнадцатого',
-  20: 'двадцатого',
-  30: 'тридцатого'
-}
+const MAX_SPOKEN_FRACTION_DIGITS = FRACTION_DENOMINATORS.length
 
-/** Day-of-month (1-31) in genitive ordinal form, as Russian dates are read ("21" → "двадцать первого").
- *  Only the final component of a compound ordinal declines; leading tens stay cardinal. */
-export function ordinalDayGenitiveRu(day: number): string {
-  const exact = ORDINAL_DAY_GENITIVE[day]
-  if (exact) {
-    return exact
+/** Decimal fraction read as Russian does: "2,5" → "две целых пять десятых", declined throughout. */
+export function decimalRu(
+  integer: number,
+  fractionDigits: string,
+  grammaticalCase: RuCase = 'nom'
+): string {
+  const options: CardinalOptions = { grammaticalCase, omitLeadingOne: true }
+  if (fractionDigits.length > MAX_SPOKEN_FRACTION_DIGITS) {
+    const digits = [...fractionDigits].map((digit) => cardinalRu(Number(digit)))
+    return `${cardinalRu(integer, 'm', options)} точка ${digits.join(' ')}`
   }
-  if (day > 20 && day < 30) {
-    return `двадцать ${ORDINAL_DAY_GENITIVE[day - 20]}`
-  }
-  if (day === 31) {
-    return `тридцать ${ORDINAL_DAY_GENITIVE[1]}`
-  }
-  return String(day)
+  const numerator = Number(fractionDigits)
+  const denominator = FRACTION_DENOMINATORS[fractionDigits.length - 1]
+  return [
+    cardinalRu(integer, 'f', options),
+    agreeNounRu(WHOLE_NOUN, integer, grammaticalCase),
+    cardinalRu(numerator, 'f', options),
+    agreeNounRu(denominator, numerator, grammaticalCase)
+  ].join(' ')
 }
-
-export const MONTH_GENITIVE_RU: readonly string[] = [
-  'января',
-  'февраля',
-  'марта',
-  'апреля',
-  'мая',
-  'июня',
-  'июля',
-  'августа',
-  'сентября',
-  'октября',
-  'ноября',
-  'декабря'
-]
 
 /** Hour:minute read as two cardinal groups ("14:30" → "четырнадцать тридцать", "14:05" → "четырнадцать ноль пять"). */
-export function timeOfDayRu(hour: number, minute: number): string {
-  const hourWords = cardinalRu(hour)
+export function timeOfDayRu(hour: number, minute: number, grammaticalCase: RuCase = 'nom'): string {
+  const hourWords = cardinalRu(hour, 'm', { grammaticalCase })
   if (minute === 0) {
     return `${hourWords} ноль ноль`
   }
-  const minuteWords = minute < 10 ? `ноль ${cardinalRu(minute)}` : cardinalRu(minute)
-  return `${hourWords} ${minuteWords}`
+  const minuteWords = cardinalRu(minute, 'f', { grammaticalCase })
+  return minute < 10 ? `${hourWords} ноль ${minuteWords}` : `${hourWords} ${minuteWords}`
 }
