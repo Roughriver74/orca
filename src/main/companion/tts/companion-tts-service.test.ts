@@ -234,6 +234,35 @@ describe('CompanionTtsService', () => {
     expect(sidecar.synthesize).not.toHaveBeenCalled()
   })
 
+  it('reloadSileroModels() waits out the live reply, then respawns the sidecar with v5_6', async () => {
+    const reply = Promise.withResolvers<FakePcmChunk>()
+    const first = fakeSidecar(() => reply.promise)
+    const second = fakeSidecar(async (_id, text) => pcmChunk([text.length]))
+    const factory = vi.fn().mockReturnValueOnce(first).mockReturnValueOnce(second)
+    vi.mocked(provisioning.readProvisionedModelPaths).mockResolvedValueOnce({
+      v5ModelPath: '/fake/v5.pt',
+      v3ModelPath: '/fake/v3.pt',
+      v56ModelPath: null
+    })
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the factory returns FakeSidecars, which mirror only the methods CompanionTtsService calls.
+    const service = new CompanionTtsService('/tmp/userData', factory as never)
+
+    const speaking = service.speak('Одно.', { utteranceId: 'u1', voice: 'eugene', rate: 1 })
+    await flushAsync()
+    await service.reloadSileroModels()
+    expect(first.shutdown).not.toHaveBeenCalled()
+
+    reply.resolve(pcmChunk([1]))
+    await speaking
+    await flushAsync()
+
+    expect(first.shutdown).toHaveBeenCalledTimes(1)
+    expect(factory).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scriptArgs: ['/fake/v5.pt', '/fake/v3.pt', '/fake/v56.pt'] })
+    )
+    expect(second.warmUp).toHaveBeenCalledTimes(1)
+  })
+
   it('prewarm() does nothing when the configured provider is Yandex', async () => {
     const sidecar = fakeSidecar(async (_id, text) => pcmChunk([text.length]))
     const service = new CompanionTtsService(

@@ -11,7 +11,6 @@
 // cap); `resolveEffectiveProvider()` below decides which branch a call takes.
 
 import { randomUUID } from 'node:crypto'
-import sidecarScriptPath from '../../../../resources/companion/tts-sidecar.py?asset&asarUnpack'
 import type {
   CompanionTtsProvider,
   CompanionTtsSettings,
@@ -19,7 +18,7 @@ import type {
 } from '../../../shared/companion-types'
 import { stopAudio } from '../companion-audio-output'
 import { AsyncItemChannel } from './companion-tts-item-channel'
-import { getCompanionTtsPaths, readProvisionedModelPaths } from './companion-tts-provisioning'
+import { CompanionTtsSileroSidecar, type SidecarFactory } from './companion-tts-silero-sidecar'
 import {
   SentenceStreamChunker,
   SpeechCodeFenceFilter,
@@ -32,7 +31,6 @@ import {
 import { sendSentenceResults } from './companion-tts-panel-send'
 import {
   CompanionTtsSidecarProcess,
-  type CompanionTtsSidecarConfig,
   type CompanionTtsSynthesisChunk
 } from './companion-tts-sidecar-process'
 import { normalizeForSpeech } from './companion-tts-text-normalization'
@@ -70,8 +68,6 @@ export type CompanionTtsStreamHandle = {
   finish(): void
 }
 
-type SidecarFactory = (config: CompanionTtsSidecarConfig) => CompanionTtsSidecarProcess
-
 export type CompanionTtsProviderSettings = Pick<
   CompanionTtsSettings,
   'provider' | 'yandexVoice' | 'maxSpokenChars' | 'yandexMonthlyBudgetRub' | 'qwenEmotion'
@@ -98,8 +94,8 @@ export function setCompanionTtsProviderSettingsSource(
 }
 
 export class CompanionTtsService {
-  private sidecar: CompanionTtsSidecarProcess | null = null
-  private sidecarReady: Promise<CompanionTtsSidecarProcess> | null = null
+  private readonly silero: CompanionTtsSileroSidecar
+  private sileroReloadPending = false
   private readonly activeUtterances = new Map<string, UtteranceHandle>()
   private readonly isUtteranceActive = (utteranceId: string): boolean =>
     this.activeUtterances.has(utteranceId)
@@ -108,34 +104,34 @@ export class CompanionTtsService {
   private readonly isQwen3Provisioned: () => boolean
   private readonly yandexBranch: CompanionTtsYandexBranch = createCompanionTtsYandexBranch({
     beginUtterance: (utteranceId) => this.beginUtterance(utteranceId),
-    endUtterance: (utteranceId) => this.activeUtterances.delete(utteranceId),
+    endUtterance: (utteranceId) => this.endUtterance(utteranceId),
     drainAndSend: (channel, utteranceId) =>
       sendSentenceResults(channel, utteranceId, this.isUtteranceActive),
     getYandexSpeaker: () => this.getYandexSpeaker(),
-    ensureSidecar: () => this.ensureSidecar(),
+    ensureSidecar: () => this.silero.ensure(),
     synthesizeSentence: (sidecar, sentence, options, handle) =>
       this.synthesizeSentence(sidecar, sentence, options, handle)
   })
 
   constructor(
     private readonly userDataDir: string,
-    private readonly sidecarFactory: SidecarFactory = (config) =>
-      new CompanionTtsSidecarProcess(config),
+    sidecarFactory: SidecarFactory = (config) => new CompanionTtsSidecarProcess(config),
     private readonly getProviderSettings: () => CompanionTtsProviderSettings = () =>
       companionTtsProviderSettingsSource(),
     private readonly yandexSpeakerFactory: () => CompanionTtsYandexSpeaker = () =>
       new CompanionTtsYandexSpeaker(userDataDir),
     qwen3Options: CompanionTtsQwen3Options = {}
   ) {
+    this.silero = new CompanionTtsSileroSidecar(userDataDir, sidecarFactory)
     this.isQwen3Provisioned =
       qwen3Options.isProvisioned ?? (() => isCompanionTtsQwen3Provisioned(userDataDir))
     this.qwen3 = createCompanionTtsQwen3Branch({
       userDataDir,
       sidecarFactory: qwen3Options.sidecarFactory ?? sidecarFactory,
       beginUtterance: (utteranceId) => this.beginUtterance(utteranceId),
-      endUtterance: (utteranceId) => this.activeUtterances.delete(utteranceId),
+      endUtterance: (utteranceId) => this.endUtterance(utteranceId),
       isUtteranceActive: this.isUtteranceActive,
-      ensureSileroSidecar: () => this.ensureSidecar(),
+      ensureSileroSidecar: () => this.silero.ensure(),
       synthesizeSileroSentence: (sidecar, sentence, options, handle) =>
         this.synthesizeSentence(sidecar, sentence, options, handle)
     })
@@ -168,30 +164,6 @@ export class CompanionTtsService {
     return 'yandex'
   }
 
-  /** Resolves provisioned model paths and the venv interpreter, then builds the sidecar once. */
-  private async ensureSidecar(): Promise<CompanionTtsSidecarProcess> {
-    if (this.sidecar) {
-      return this.sidecar
-    }
-    this.sidecarReady ??= (async () => {
-      const paths = getCompanionTtsPaths(this.userDataDir)
-      const { v5ModelPath, v3ModelPath, v56ModelPath } = await readProvisionedModelPaths(
-        this.userDataDir
-      )
-      if (!v5ModelPath && !v3ModelPath && !v56ModelPath) {
-        throw new Error('companion TTS has not been provisioned yet — enable it in settings first')
-      }
-      const sidecar = this.sidecarFactory({
-        pythonPath: paths.venvPythonPath,
-        scriptPath: sidecarScriptPath,
-        scriptArgs: [v5ModelPath ?? '-', v3ModelPath ?? '-', v56ModelPath ?? '-']
-      })
-      this.sidecar = sidecar
-      return sidecar
-    })()
-    return this.sidecarReady
-  }
-
   /** Starts the Silero (or selected Qwen3) sidecar ahead of the first reply, so the
    *  cold start measured at 1.4-2s doesn't sit in that reply's time-to-first-audio. Called
    *  from companion-assets.ts on app start / settings change / once provisioning finishes.
@@ -210,10 +182,19 @@ export class CompanionTtsService {
         await this.qwen3.prewarm()
         return
       }
-      const sidecar = await this.ensureSidecar()
+      const sidecar = await this.silero.ensure()
       await sidecar.warmUp()
     } catch (error) {
       console.error('[companion] TTS sidecar prewarm failed', error)
+    }
+  }
+
+  /** Restarts the Silero sidecar so it loads model files that arrived after it spawned (the
+   *  optional v5_6). Waits for live utterances to end: they hold the running sidecar. */
+  async reloadSileroModels(): Promise<void> {
+    this.sileroReloadPending = this.activeUtterances.size > 0
+    if (!this.sileroReloadPending && (await this.silero.restart())) {
+      await this.prewarm()
     }
   }
 
@@ -227,19 +208,20 @@ export class CompanionTtsService {
     if (provider === 'qwen3') {
       return this.qwen3.speak(text, options, providerSettings.qwenEmotion)
     }
-    const sidecar = await this.ensureSidecar()
-    const pronunciations = await loadUtterancePronunciations(options.pronunciationsPath)
-    const { sentences } = splitIntoSentences(normalizeForSpeech(text, { pronunciations }))
-    const resultChannel = new AsyncItemChannel<SynthesisHandle>()
+    // Registered before the sidecar is acquired, so reloadSileroModels() never shuts it down mid-reply.
     const handle = this.beginUtterance(options.utteranceId)
-    for (const sentence of sentences) {
-      resultChannel.push(this.synthesizeSentence(sidecar, sentence, options, handle))
-    }
-    resultChannel.finish()
     try {
+      const sidecar = await this.silero.ensure()
+      const pronunciations = await loadUtterancePronunciations(options.pronunciationsPath)
+      const { sentences } = splitIntoSentences(normalizeForSpeech(text, { pronunciations }))
+      const resultChannel = new AsyncItemChannel<SynthesisHandle>()
+      for (const sentence of sentences) {
+        resultChannel.push(this.synthesizeSentence(sidecar, sentence, options, handle))
+      }
+      resultChannel.finish()
       await sendSentenceResults(resultChannel, options.utteranceId, this.isUtteranceActive)
     } finally {
-      this.activeUtterances.delete(options.utteranceId)
+      this.endUtterance(options.utteranceId)
     }
   }
 
@@ -257,11 +239,11 @@ export class CompanionTtsService {
     const fenceFilter = new SpeechCodeFenceFilter()
     const resultChannel = new AsyncItemChannel<SynthesisHandle>()
     const handle = this.beginUtterance(options.utteranceId)
-    const sidecarPromise = this.ensureSidecar()
+    const sidecarPromise = this.silero.ensure()
     const pronunciationsPromise = loadUtterancePronunciations(options.pronunciationsPath)
     const drainComplete = sidecarPromise
       .then(() => sendSentenceResults(resultChannel, options.utteranceId, this.isUtteranceActive))
-      .finally(() => this.activeUtterances.delete(options.utteranceId))
+      .finally(() => this.endUtterance(options.utteranceId))
 
     const enqueue = (sentence: string): void => {
       const prose = fenceFilter.filter(sentence)
@@ -305,23 +287,30 @@ export class CompanionTtsService {
       }
       handle.cancelled = true
       for (const requestId of handle.requestIds) {
-        this.sidecar?.cancel(requestId)
+        this.silero.current?.cancel(requestId)
         this.qwen3.cancel(requestId)
         this.yandexSpeaker?.cancel(requestId)
       }
-      this.activeUtterances.delete(id)
+      this.endUtterance(id)
     }
     stopAudio(utteranceId)
   }
 
   async shutdown(): Promise<void> {
-    await Promise.all([this.sidecar?.shutdown(), this.qwen3.release()])
+    await Promise.all([this.silero.current?.shutdown(), this.qwen3.release()])
   }
 
   private beginUtterance(utteranceId: string): UtteranceHandle {
     const handle: UtteranceHandle = { requestIds: new Set(), cancelled: false }
     this.activeUtterances.set(utteranceId, handle)
     return handle
+  }
+
+  private endUtterance(utteranceId: string): void {
+    this.activeUtterances.delete(utteranceId)
+    if (this.sileroReloadPending && this.activeUtterances.size === 0) {
+      void this.reloadSileroModels()
+    }
   }
 
   private synthesizeSentence(

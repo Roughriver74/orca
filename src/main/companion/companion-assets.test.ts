@@ -4,7 +4,10 @@ import type { GlobalSettings } from '../../shared/global-settings-types'
 import { getDefaultCompanionSettings } from '../../shared/constants'
 
 vi.mock('../speech/speech-runtime-service', () => ({ getSpeechModelManager: vi.fn() }))
-vi.mock('./tts/companion-tts-provisioning', () => ({ provisionCompanionTts: vi.fn() }))
+vi.mock('./tts/companion-tts-provisioning', () => ({
+  provisionCompanionTts: vi.fn(),
+  ensureCompanionTtsSileroV56: vi.fn()
+}))
 vi.mock('./tts/companion-tts-qwen3-provisioning', () => ({ provisionCompanionTtsQwen3: vi.fn() }))
 vi.mock('./companion-tts-status', () => ({ reportTtsProvisioningStatus: vi.fn() }))
 
@@ -35,6 +38,8 @@ function makeDeps(overrides: Partial<CompanionAssetsDeps> = {}) {
     provisionQwen3Tts: vi.fn(async () => undefined),
     reportTtsStatus: vi.fn(),
     prewarmTts: vi.fn(async () => undefined),
+    downloadSileroV56: vi.fn(async () => false),
+    reloadSileroTts: vi.fn(async () => undefined),
     downloadFocusModel: vi.fn(async (_id: string) => undefined),
     ...overrides
   }
@@ -171,6 +176,25 @@ describe('initCompanionAssets', () => {
     initCompanionAssets(makeStore(withQwen3()), deps)
     await vi.waitFor(() => expect(deps.provisionQwen3Tts).toHaveBeenCalledTimes(1))
     expect(deps.prewarmTts).toHaveBeenCalledTimes(1)
+  })
+
+  it('starts the Qwen3 download without waiting for the optional Silero v5_6', async () => {
+    onHost('darwin', 'arm64')
+    const deps = makeDeps({ downloadSileroV56: vi.fn(() => new Promise<boolean>(() => {})) })
+    initCompanionAssets(makeStore(withQwen3()), deps)
+    await vi.waitFor(() => expect(deps.provisionQwen3Tts).toHaveBeenCalledTimes(1))
+    expect(deps.downloadSileroV56).toHaveBeenCalledTimes(1)
+  })
+
+  it('restarts the Silero sidecar only when v5_6 was just downloaded', async () => {
+    const fresh = makeDeps({ downloadSileroV56: vi.fn(async () => true) })
+    initCompanionAssets(makeStore(enabled()), fresh)
+    await vi.waitFor(() => expect(fresh.reloadSileroTts).toHaveBeenCalledTimes(1))
+
+    const present = makeDeps()
+    initCompanionAssets(makeStore(enabled()), present)
+    await vi.waitFor(() => expect(present.downloadSileroV56).toHaveBeenCalledTimes(1))
+    expect(present.reloadSileroTts).not.toHaveBeenCalled()
   })
 
   it.each([

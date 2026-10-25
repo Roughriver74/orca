@@ -8,7 +8,10 @@ import type { VoiceSettings } from '../../shared/speech-types'
 import { getSpeechModelManager } from '../speech/speech-runtime-service'
 import type { FocusModelId } from '../speech/focus-model-catalog'
 import { getFocusModelManager } from '../speech/focus-model-manager'
-import { provisionCompanionTts } from './tts/companion-tts-provisioning'
+import {
+  ensureCompanionTtsSileroV56,
+  provisionCompanionTts
+} from './tts/companion-tts-provisioning'
 import { provisionCompanionTtsQwen3 } from './tts/companion-tts-qwen3-provisioning'
 import { isCompanionQwen3TtsSupported } from '../../shared/companion-tts-support'
 import { reportTtsProvisioningStatus } from './companion-tts-status'
@@ -26,6 +29,10 @@ export type CompanionAssetsDeps = {
     onStatus: (status: CompanionTtsProvisioningStatus) => void
   ) => Promise<unknown>
   reportTtsStatus: (status: CompanionTtsProvisioningStatus) => void
+  /** Optional Silero v5_6 after the required install; true when it was just downloaded. */
+  downloadSileroV56: () => Promise<boolean>
+  /** Restarts a running Silero sidecar so it picks up the v5_6 model. */
+  reloadSileroTts: () => Promise<void>
   // Why its own dep rather than chained inside provisionTts: prewarming is specific to
   // the Silero sidecar (CompanionTtsService.prewarm() itself skips the Yandex provider),
   // while provisionTts covers both the STT model path's sibling concern and tests that
@@ -47,6 +54,7 @@ export function initCompanionAssets(
   deps: CompanionAssetsDeps = createDefaultDeps(store)
 ): () => void {
   let ttsInFlight: Promise<unknown> | null = null
+  let sileroV56InFlight: Promise<void> | null = null
   let qwen3InFlight: Promise<unknown> | null = null
   let sttInFlight: Promise<void> | null = null
   let voiceFocusInFlight: Promise<void> | null = null
@@ -71,13 +79,26 @@ export function initCompanionAssets(
     if (companion.tts.ttsEnabled && companion.tts.provider !== 'yandex' && !ttsInFlight) {
       // Why: provisioning reports its own error status to the settings pane; swallow the rejection here.
       // Prewarming only after a successful provision: an unprovisioned sidecar has no model
-      // paths to spawn with, and CompanionTtsService.ensureSidecar() would just throw.
+      // paths to spawn with, and CompanionTtsSileroSidecar.ensure() would just throw.
       ttsInFlight = deps
         .provisionTts(deps.reportTtsStatus)
         .then(() => deps.prewarmTts())
         .catch(() => undefined)
         .finally(() => {
           ttsInFlight = null
+        })
+    }
+    // Why not inside provisionTts: models.silero.ai has served v5_6 at ~30 KB/s, and the
+    // Qwen3 download chained on ttsInFlight below must not wait the better part of an hour.
+    if (companion.tts.ttsEnabled && companion.tts.provider !== 'yandex' && !sileroV56InFlight) {
+      sileroV56InFlight = (ttsInFlight ?? Promise.resolve())
+        .then(() => deps.downloadSileroV56())
+        .then((downloaded) => (downloaded ? deps.reloadSileroTts() : undefined))
+        .catch((error: unknown) =>
+          console.warn('[companion] Silero v5_6 download failed, staying on v5_4/v3_1', error)
+        )
+        .finally(() => {
+          sileroV56InFlight = null
         })
     }
     // After Silero (its fallback), so the settings row ends on the Qwen3 status; a failed
@@ -155,6 +176,12 @@ function createDefaultDeps(store: CompanionAssetsStore): CompanionAssetsDeps {
     prewarmTts: async () => {
       const { getCompanionTtsService } = await import('./tts/companion-tts-service')
       await getCompanionTtsService(userDataDir).prewarm()
+    },
+    downloadSileroV56: () => ensureCompanionTtsSileroV56(userDataDir),
+    // Dynamic for the same reason as prewarmTts above.
+    reloadSileroTts: async () => {
+      const { getCompanionTtsService } = await import('./tts/companion-tts-service')
+      await getCompanionTtsService(userDataDir).reloadSileroModels()
     },
     downloadFocusModel: (id) => getFocusModelManager().download(id)
   }

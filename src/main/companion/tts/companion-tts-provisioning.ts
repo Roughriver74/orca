@@ -1,6 +1,7 @@
 // Provisions everything the companion TTS sidecar needs on first enable: a pinned
 // standalone `uv` binary, a venv with pinned CPU torch/numpy uv creates from it, and
-// the Silero model files (v5_4 + v3_1 required, v5_6 best-effort on top). Everything lands
+// the required Silero model files (v5_4 + v3_1); the optional v5_6 model downloads
+// separately via ensureCompanionTtsSileroV56. Everything lands
 // under userData so a plain install on a second machine works with no sudo, no Homebrew, and no system Python dependency —
 // matching how STT model downloads already behave (see ../../speech/model-manager.ts).
 // Idempotent: every step checks its artifact before touching the network again, so a
@@ -125,22 +126,24 @@ async function downloadWithProgress(
   await rename(tempPath, destPath)
 }
 
+/** Resolves true when it downloaded the file, false when a matching copy was already there. */
 export async function ensureModel(
   url: string,
   path: string,
   sha256: string,
   totalBytes: number,
   onProgress: (fraction: number) => void
-): Promise<void> {
+): Promise<boolean> {
   if (await fileMatchesHash(path, sha256)) {
     onProgress(1)
-    return
+    return false
   }
   await downloadWithProgress(url, path, (downloaded) => onProgress(downloaded / totalBytes))
   if (!(await fileMatchesHash(path, sha256))) {
     await rm(path, { force: true })
     throw new Error(`downloaded model at ${path} does not match the pinned sha256`)
   }
+  return true
 }
 
 export async function ensureUvBinary(
@@ -233,10 +236,9 @@ async function ensureVenv(paths: CompanionTtsPaths): Promise<void> {
 // to report, and the models are weighted by their actual download size.
 const STAGE_UV_END = 0.05
 const STAGE_VENV_END = 0.4
-const MODEL_BYTES_TOTAL = SILERO_V5_MODEL_BYTES + SILERO_V3_MODEL_BYTES + SILERO_V56_MODEL_BYTES
+const MODEL_BYTES_TOTAL = SILERO_V5_MODEL_BYTES + SILERO_V3_MODEL_BYTES
 const STAGE_V5_END = STAGE_VENV_END + (0.6 * SILERO_V5_MODEL_BYTES) / MODEL_BYTES_TOTAL
-const STAGE_V3_END = STAGE_V5_END + (0.6 * SILERO_V3_MODEL_BYTES) / MODEL_BYTES_TOTAL
-const STAGE_V56_END = 1
+const STAGE_V3_END = 1
 
 export async function provisionCompanionTts(
   userDataDir: string,
@@ -288,24 +290,6 @@ export async function provisionCompanionTts(
         })
     )
 
-    // Why best-effort: v5_4 + v3_1 already cover every voice, so a v5_6 outage (models.silero.ai
-    // answered 502 for hours on 2026-10-25) must not turn a working install into an error.
-    try {
-      await ensureModel(
-        SILERO_V56_MODEL_URL,
-        paths.v56ModelPath,
-        SILERO_V56_MODEL_SHA256,
-        SILERO_V56_MODEL_BYTES,
-        (fraction) =>
-          onStatus({
-            status: 'downloading',
-            progress: Math.round((STAGE_V3_END + fraction * (STAGE_V56_END - STAGE_V3_END)) * 100)
-          })
-      )
-    } catch (error) {
-      console.warn('[companion] Silero v5_6 download failed, staying on v5_4/v3_1', error)
-    }
-
     onStatus({ status: 'ready', progress: 100 })
     return paths
   } catch (error) {
@@ -313,6 +297,23 @@ export async function provisionCompanionTts(
     onStatus({ status: 'error', error: message })
     throw error
   }
+}
+
+/** Fetches the optional Silero v5_6 model after the required install is ready, with no
+ *  settings status: Silero already speaks on v5_4/v3_1, and models.silero.ai can serve this
+ *  file at ~30 KB/s or answer 502 for hours. True only when this call downloaded it, so the
+ *  caller restarts a sidecar that started without it. */
+export async function ensureCompanionTtsSileroV56(userDataDir: string): Promise<boolean> {
+  if (!isCompanionSileroTtsSupported(process.platform, process.arch)) {
+    return false
+  }
+  return ensureModel(
+    SILERO_V56_MODEL_URL,
+    getCompanionTtsPaths(userDataDir).v56ModelPath,
+    SILERO_V56_MODEL_SHA256,
+    SILERO_V56_MODEL_BYTES,
+    () => undefined
+  )
 }
 
 /** Reports readiness without doing any provisioning work, for a settings-pane status row on open. */
