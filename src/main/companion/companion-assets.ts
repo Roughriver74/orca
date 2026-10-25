@@ -9,6 +9,8 @@ import { getSpeechModelManager } from '../speech/speech-runtime-service'
 import type { FocusModelId } from '../speech/focus-model-catalog'
 import { getFocusModelManager } from '../speech/focus-model-manager'
 import { provisionCompanionTts } from './tts/companion-tts-provisioning'
+import { provisionCompanionTtsQwen3 } from './tts/companion-tts-qwen3-provisioning'
+import { isCompanionQwen3TtsSupported } from '../../shared/companion-tts-support'
 import { reportTtsProvisioningStatus } from './companion-tts-status'
 
 export type CompanionAssetsStore = {
@@ -19,6 +21,10 @@ export type CompanionAssetsStore = {
 export type CompanionAssetsDeps = {
   downloadSttModel: (modelId: string) => Promise<void>
   provisionTts: (onStatus: (status: CompanionTtsProvisioningStatus) => void) => Promise<unknown>
+  /** The optional Qwen3-TTS engine (~3 GB), fetched only once it is the selected provider. */
+  provisionQwen3Tts: (
+    onStatus: (status: CompanionTtsProvisioningStatus) => void
+  ) => Promise<unknown>
   reportTtsStatus: (status: CompanionTtsProvisioningStatus) => void
   // Why its own dep rather than chained inside provisionTts: prewarming is specific to
   // the Silero sidecar (CompanionTtsService.prewarm() itself skips the Yandex provider),
@@ -41,6 +47,7 @@ export function initCompanionAssets(
   deps: CompanionAssetsDeps = createDefaultDeps(store)
 ): () => void {
   let ttsInFlight: Promise<unknown> | null = null
+  let qwen3InFlight: Promise<unknown> | null = null
   let sttInFlight: Promise<void> | null = null
   let voiceFocusInFlight: Promise<void> | null = null
   let wakeKeywordInFlight: Promise<void> | null = null
@@ -71,6 +78,23 @@ export function initCompanionAssets(
         .catch(() => undefined)
         .finally(() => {
           ttsInFlight = null
+        })
+    }
+    // After Silero (its fallback), so the settings row ends on the Qwen3 status; a failed
+    // Qwen3 download is reported there and leaves Silero speaking. Never off Apple Silicon:
+    // there `qwen3` just means Silero, with no mlx install attempt.
+    if (
+      companion.tts.ttsEnabled &&
+      companion.tts.provider === 'qwen3' &&
+      isCompanionQwen3TtsSupported(process.platform, process.arch) &&
+      !qwen3InFlight
+    ) {
+      qwen3InFlight = (ttsInFlight ?? Promise.resolve())
+        .then(() => deps.provisionQwen3Tts(deps.reportTtsStatus))
+        .then(() => deps.prewarmTts())
+        .catch(() => undefined)
+        .finally(() => {
+          qwen3InFlight = null
         })
     }
     // Why always silero-vad + the speaker-embedding model once voiceFocus is enabled
@@ -122,6 +146,7 @@ function createDefaultDeps(store: CompanionAssetsStore): CompanionAssetsDeps {
   return {
     downloadSttModel: (modelId) => getSpeechModelManager(store).downloadModel(modelId),
     provisionTts: (onStatus) => provisionCompanionTts(userDataDir, onStatus),
+    provisionQwen3Tts: (onStatus) => provisionCompanionTtsQwen3(userDataDir, onStatus),
     reportTtsStatus: reportTtsProvisioningStatus,
     // Why dynamic: the TTS module pulls in the bundled `.py?asset&asarUnpack` sidecar path
     // at import time (see companion-dialogue.ts for the same pattern), which only resolves

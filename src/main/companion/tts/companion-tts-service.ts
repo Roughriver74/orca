@@ -6,14 +6,18 @@
 // Streamed sentences are normalized one at a time (with the user's pronunciation
 // dictionary), so Latin words, markdown and digits never reach Silero raw.
 //
-// The Yandex-provider branch of each entry point lives in
-// companion-tts-service-yandex.ts (split out to stay under the repo's per-file line
+// The Yandex and Qwen3 branches of each entry point live in companion-tts-service-yandex.ts
+// and companion-tts-service-qwen3.ts (split out to stay under the repo's per-file line
 // cap); `resolveEffectiveProvider()` below decides which branch a call takes.
 
 import { randomUUID } from 'node:crypto'
 import sidecarScriptPath from '../../../../resources/companion/tts-sidecar.py?asset&asarUnpack'
-import type { CompanionTtsSettings, CompanionTtsVoice } from '../../../shared/companion-types'
-import { sendAudioChunk, stopAudio } from '../companion-audio-output'
+import type {
+  CompanionTtsProvider,
+  CompanionTtsSettings,
+  CompanionTtsVoice
+} from '../../../shared/companion-types'
+import { stopAudio } from '../companion-audio-output'
 import { AsyncItemChannel } from './companion-tts-item-channel'
 import { getCompanionTtsPaths, readProvisionedModelPaths } from './companion-tts-provisioning'
 import {
@@ -22,13 +26,11 @@ import {
   splitIntoSentences
 } from './companion-tts-sentence-chunker'
 import {
-  SIDECAR_SAMPLE_RATE,
-  closingSilencePcm,
   loadUtterancePronunciations,
   synthesizeSpeakableText
 } from './companion-tts-speakable-text'
+import { sendSentenceResults } from './companion-tts-panel-send'
 import {
-  CompanionTtsCancelledError,
   CompanionTtsSidecarProcess,
   type CompanionTtsSidecarConfig,
   type CompanionTtsSynthesisChunk
@@ -41,6 +43,11 @@ import {
   createCompanionTtsYandexBranch,
   type CompanionTtsYandexBranch
 } from './companion-tts-service-yandex'
+import {
+  createCompanionTtsQwen3Branch,
+  type CompanionTtsQwen3Branch
+} from './companion-tts-service-qwen3'
+import { isCompanionTtsQwen3Provisioned } from './companion-tts-qwen3-provisioning'
 
 export type CompanionTtsSpeakOptions = {
   utteranceId: string
@@ -67,8 +74,14 @@ type SidecarFactory = (config: CompanionTtsSidecarConfig) => CompanionTtsSidecar
 
 export type CompanionTtsProviderSettings = Pick<
   CompanionTtsSettings,
-  'provider' | 'yandexVoice' | 'maxSpokenChars' | 'yandexMonthlyBudgetRub'
+  'provider' | 'yandexVoice' | 'maxSpokenChars' | 'yandexMonthlyBudgetRub' | 'qwenEmotion'
 >
+
+export type CompanionTtsQwen3Options = {
+  sidecarFactory?: SidecarFactory
+  /** Overridable for tests; the real check reads the provisioning marker file. */
+  isProvisioned?: () => boolean
+}
 
 /** Read by `CompanionTtsService` on every `speak()`/`speakStream()` call so neither needs
  *  a settings param the existing `speak(text, { utteranceId, voice, rate })` callers (the
@@ -88,11 +101,16 @@ export class CompanionTtsService {
   private sidecar: CompanionTtsSidecarProcess | null = null
   private sidecarReady: Promise<CompanionTtsSidecarProcess> | null = null
   private readonly activeUtterances = new Map<string, UtteranceHandle>()
+  private readonly isUtteranceActive = (utteranceId: string): boolean =>
+    this.activeUtterances.has(utteranceId)
   private yandexSpeaker: CompanionTtsYandexSpeaker | null = null
+  private readonly qwen3: CompanionTtsQwen3Branch
+  private readonly isQwen3Provisioned: () => boolean
   private readonly yandexBranch: CompanionTtsYandexBranch = createCompanionTtsYandexBranch({
     beginUtterance: (utteranceId) => this.beginUtterance(utteranceId),
     endUtterance: (utteranceId) => this.activeUtterances.delete(utteranceId),
-    drainAndSend: (channel, utteranceId) => this.drainAndSend(channel, utteranceId),
+    drainAndSend: (channel, utteranceId) =>
+      sendSentenceResults(channel, utteranceId, this.isUtteranceActive),
     getYandexSpeaker: () => this.getYandexSpeaker(),
     ensureSidecar: () => this.ensureSidecar(),
     synthesizeSentence: (sidecar, sentence, options, handle) =>
@@ -106,8 +124,22 @@ export class CompanionTtsService {
     private readonly getProviderSettings: () => CompanionTtsProviderSettings = () =>
       companionTtsProviderSettingsSource(),
     private readonly yandexSpeakerFactory: () => CompanionTtsYandexSpeaker = () =>
-      new CompanionTtsYandexSpeaker(userDataDir)
-  ) {}
+      new CompanionTtsYandexSpeaker(userDataDir),
+    qwen3Options: CompanionTtsQwen3Options = {}
+  ) {
+    this.isQwen3Provisioned =
+      qwen3Options.isProvisioned ?? (() => isCompanionTtsQwen3Provisioned(userDataDir))
+    this.qwen3 = createCompanionTtsQwen3Branch({
+      userDataDir,
+      sidecarFactory: qwen3Options.sidecarFactory ?? sidecarFactory,
+      beginUtterance: (utteranceId) => this.beginUtterance(utteranceId),
+      endUtterance: (utteranceId) => this.activeUtterances.delete(utteranceId),
+      isUtteranceActive: this.isUtteranceActive,
+      ensureSileroSidecar: () => this.ensureSidecar(),
+      synthesizeSileroSentence: (sidecar, sentence, options, handle) =>
+        this.synthesizeSentence(sidecar, sentence, options, handle)
+    })
+  }
 
   private getYandexSpeaker(): CompanionTtsYandexSpeaker {
     this.yandexSpeaker ??= this.yandexSpeakerFactory()
@@ -115,8 +147,15 @@ export class CompanionTtsService {
   }
 
   /** Yandex only when selected, a key is configured, and the 30-day spend estimate has
-   *  not reached the budget — any other case keeps using the local Silero sidecar. */
-  private resolveEffectiveProvider(settings: CompanionTtsProviderSettings): 'silero' | 'yandex' {
+   *  not reached the budget; Qwen3 only when selected, provisioned and its sidecar is not
+   *  cooling down after a failed start — any other case keeps using the local Silero
+   *  sidecar. A Qwen3 sidecar left over from an earlier selection is stopped. */
+  private resolveEffectiveProvider(settings: CompanionTtsProviderSettings): CompanionTtsProvider {
+    if (settings.provider !== 'qwen3') {
+      void this.qwen3.release()
+    } else if (this.isQwen3Provisioned() && this.qwen3.isHealthy()) {
+      return 'qwen3'
+    }
     if (settings.provider !== 'yandex') {
       return 'silero'
     }
@@ -145,9 +184,7 @@ export class CompanionTtsService {
       const sidecar = this.sidecarFactory({
         pythonPath: paths.venvPythonPath,
         scriptPath: sidecarScriptPath,
-        v5ModelPath,
-        v3ModelPath,
-        v56ModelPath
+        scriptArgs: [v5ModelPath ?? '-', v3ModelPath ?? '-', v56ModelPath ?? '-']
       })
       this.sidecar = sidecar
       return sidecar
@@ -155,7 +192,7 @@ export class CompanionTtsService {
     return this.sidecarReady
   }
 
-  /** Starts the Silero sidecar (spawn + model warm-up) ahead of the first reply, so the
+  /** Starts the Silero (or selected Qwen3) sidecar ahead of the first reply, so the
    *  cold start measured at 1.4-2s doesn't sit in that reply's time-to-first-audio. Called
    *  from companion-assets.ts on app start / settings change / once provisioning finishes.
    *  Skipped for the Yandex provider: Yandex replies don't need the Silero sidecar, and a
@@ -164,10 +201,15 @@ export class CompanionTtsService {
    *  errors — provisioning may not have finished yet, in which case the real speak() call
    *  that follows will retry and surface them. */
   async prewarm(): Promise<void> {
-    if (this.getProviderSettings().provider === 'yandex') {
+    const settings = this.getProviderSettings()
+    if (settings.provider === 'yandex') {
       return
     }
     try {
+      if (this.resolveEffectiveProvider(settings) === 'qwen3') {
+        await this.qwen3.prewarm()
+        return
+      }
       const sidecar = await this.ensureSidecar()
       await sidecar.warmUp()
     } catch (error) {
@@ -178,8 +220,12 @@ export class CompanionTtsService {
   /** Synthesizes and streams a complete reply, resolving once every sentence has been sent. */
   async speak(text: string, options: CompanionTtsSpeakOptions): Promise<void> {
     const providerSettings = this.getProviderSettings()
-    if (this.resolveEffectiveProvider(providerSettings) === 'yandex') {
+    const provider = this.resolveEffectiveProvider(providerSettings)
+    if (provider === 'yandex') {
       return this.yandexBranch.speakYandex(text, options, providerSettings)
+    }
+    if (provider === 'qwen3') {
+      return this.qwen3.speak(text, options, providerSettings.qwenEmotion)
     }
     const sidecar = await this.ensureSidecar()
     const pronunciations = await loadUtterancePronunciations(options.pronunciationsPath)
@@ -191,7 +237,7 @@ export class CompanionTtsService {
     }
     resultChannel.finish()
     try {
-      await this.drainAndSend(resultChannel, options.utteranceId)
+      await sendSentenceResults(resultChannel, options.utteranceId, this.isUtteranceActive)
     } finally {
       this.activeUtterances.delete(options.utteranceId)
     }
@@ -200,8 +246,12 @@ export class CompanionTtsService {
   /** Opens a streaming handle: call `pushDelta` as brain text arrives, `finish()` once the turn ends. */
   speakStream(options: CompanionTtsSpeakOptions): CompanionTtsStreamHandle {
     const providerSettings = this.getProviderSettings()
-    if (this.resolveEffectiveProvider(providerSettings) === 'yandex') {
+    const provider = this.resolveEffectiveProvider(providerSettings)
+    if (provider === 'yandex') {
       return this.yandexBranch.speakStreamYandex(options, providerSettings)
+    }
+    if (provider === 'qwen3') {
+      return this.qwen3.speakStream(options, providerSettings.qwenEmotion)
     }
     const chunker = new SentenceStreamChunker({ earlyClauseSplit: true })
     const fenceFilter = new SpeechCodeFenceFilter()
@@ -210,7 +260,7 @@ export class CompanionTtsService {
     const sidecarPromise = this.ensureSidecar()
     const pronunciationsPromise = loadUtterancePronunciations(options.pronunciationsPath)
     const drainComplete = sidecarPromise
-      .then(() => this.drainAndSend(resultChannel, options.utteranceId))
+      .then(() => sendSentenceResults(resultChannel, options.utteranceId, this.isUtteranceActive))
       .finally(() => this.activeUtterances.delete(options.utteranceId))
 
     const enqueue = (sentence: string): void => {
@@ -256,6 +306,7 @@ export class CompanionTtsService {
       handle.cancelled = true
       for (const requestId of handle.requestIds) {
         this.sidecar?.cancel(requestId)
+        this.qwen3.cancel(requestId)
         this.yandexSpeaker?.cancel(requestId)
       }
       this.activeUtterances.delete(id)
@@ -264,7 +315,7 @@ export class CompanionTtsService {
   }
 
   async shutdown(): Promise<void> {
-    await this.sidecar?.shutdown()
+    await Promise.all([this.sidecar?.shutdown(), this.qwen3.release()])
   }
 
   private beginUtterance(utteranceId: string): UtteranceHandle {
@@ -296,50 +347,6 @@ export class CompanionTtsService {
         }
         return captured
       })
-  }
-
-  private async drainAndSend(
-    channel: AsyncItemChannel<SynthesisHandle>,
-    utteranceId: string
-  ): Promise<void> {
-    let seq = 0
-    let sentFinal = false
-    let lastSampleRate = SIDECAR_SAMPLE_RATE
-    let box = await channel.next()
-    while (box !== null) {
-      let result: CompanionTtsSynthesisChunk | null = null
-      try {
-        result = await box.value
-      } catch (error) {
-        if (!(error instanceof CompanionTtsCancelledError)) {
-          throw error
-        }
-      }
-      const nextBox = await channel.next()
-      if (result) {
-        sentFinal = nextBox === null
-        lastSampleRate = result.sampleRate
-        sendAudioChunk({
-          utteranceId,
-          seq: seq++,
-          sampleRate: result.sampleRate,
-          pcm: result.pcm,
-          final: sentFinal
-        })
-      }
-      box = nextBox
-    }
-    // Close an utterance whose last sentence was skipped. Not when nothing played at all
-    // (that stays silent), nor after `stop()` dropped it (it must not start playing again).
-    if (seq > 0 && !sentFinal && this.activeUtterances.has(utteranceId)) {
-      sendAudioChunk({
-        utteranceId,
-        seq,
-        sampleRate: lastSampleRate,
-        pcm: closingSilencePcm(),
-        final: true
-      })
-    }
   }
 }
 

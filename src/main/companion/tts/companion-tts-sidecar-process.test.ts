@@ -63,9 +63,7 @@ describe('CompanionTtsSidecarProcess', () => {
   const config = {
     pythonPath: '/fake/python',
     scriptPath: '/fake/sidecar.py',
-    v5ModelPath: '/fake/v5.pt',
-    v3ModelPath: '/fake/v3.pt',
-    v56ModelPath: null
+    scriptArgs: ['/fake/v5.pt', '/fake/v3.pt', '-']
   }
 
   beforeEach(() => {

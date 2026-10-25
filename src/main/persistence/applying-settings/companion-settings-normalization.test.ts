@@ -27,7 +27,8 @@ describe('normalizeCompanionSettings', () => {
         provider: 'yandex',
         yandexVoice: 'alexander',
         maxSpokenChars: 180,
-        yandexMonthlyBudgetRub: 150
+        yandexMonthlyBudgetRub: 150,
+        qwenEmotion: 'mentor'
       },
       notify: { enabled: false, quietFrom: '23:00', quietTo: '07:30', speakAloud: false },
       wake: {
@@ -156,8 +157,18 @@ describe('normalizeCompanionSettings', () => {
 
   it('accepts a known provider and rejects an unknown one', () => {
     expect(normalizeCompanionSettings({ tts: { provider: 'yandex' } }).tts.provider).toBe('yandex')
+    expect(normalizeCompanionSettings({ tts: { provider: 'qwen3' } }).tts.provider).toBe('qwen3')
     expect(normalizeCompanionSettings({ tts: { provider: 'eleven-labs' } }).tts.provider).toBe(
       getDefaultCompanionSettings().tts.provider
+    )
+  })
+
+  it('keeps a known Qwen3 emotion and resets an unknown one to the default', () => {
+    expect(normalizeCompanionSettings({ tts: { qwenEmotion: 'warm' } }).tts.qwenEmotion).toBe(
+      'warm'
+    )
+    expect(normalizeCompanionSettings({ tts: { qwenEmotion: 'angry' } }).tts.qwenEmotion).toBe(
+      'neutral'
     )
   })
 

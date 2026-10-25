@@ -90,7 +90,9 @@ async function fetchFollowingRedirects(url: string, redirectsLeft = 5): Promise<
       const status = response.statusCode ?? 0
       if (status >= 300 && status < 400 && response.headers.location && redirectsLeft > 0) {
         response.resume()
-        fetchFollowingRedirects(response.headers.location, redirectsLeft - 1).then(resolve, reject)
+        // Hugging Face answers small files with a host-relative Location.
+        const next = new URL(response.headers.location, url).toString()
+        fetchFollowingRedirects(next, redirectsLeft - 1).then(resolve, reject)
         return
       }
       if (status !== 200) {
@@ -119,12 +121,11 @@ async function downloadWithProgress(
     downloaded += chunk.length
     onBytes(downloaded, total)
   })
-  const fileStream = createWriteStream(tempPath)
-  await pipeline(response, fileStream)
+  await pipeline(response, createWriteStream(tempPath))
   await rename(tempPath, destPath)
 }
 
-async function ensureModel(
+export async function ensureModel(
   url: string,
   path: string,
   sha256: string,
@@ -142,7 +143,7 @@ async function ensureModel(
   }
 }
 
-async function ensureUvBinary(
+export async function ensureUvBinary(
   paths: CompanionTtsPaths,
   onProgress: (fraction: number) => void
 ): Promise<void> {
