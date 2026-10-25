@@ -9,10 +9,15 @@
 
 import { BUILTIN_PRONUNCIATIONS, LETTER_NAMES } from './companion-tts-latin-lexicon'
 
-/** Lowercased Latin word or phrase → how to say it in Cyrillic. */
+/** Lowercased word or phrase (a Latin term or a Russian word) → how to say it in Cyrillic. */
 export type CompanionPronunciationDictionary = ReadonlyMap<string, string>
 
 export const EMPTY_PRONUNCIATION_DICTIONARY: CompanionPronunciationDictionary = new Map()
+
+/** Keys with any Latin letter belong to this pass; the rest to companion-tts-russian-pronunciations.ts. */
+export function isLatinPronunciationKey(key: string): boolean {
+  return /[a-z]/i.test(key)
+}
 
 const SINGLE_LETTER_SOUNDS: Record<string, string> = {
   a: 'а',
@@ -196,7 +201,7 @@ function escapeRegExp(text: string): string {
 
 function phrasePattern(user: CompanionPronunciationDictionary): RegExp | null {
   const phrases = [...Object.keys(BUILTIN_PRONUNCIATIONS), ...user.keys()]
-    .filter((key) => key.includes(' '))
+    .filter((key) => key.includes(' ') && isLatinPronunciationKey(key))
     .sort((a, b) => b.length - a.length)
   if (phrases.length === 0) {
     return null

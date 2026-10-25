@@ -6,22 +6,26 @@ import {
 } from './companion-tts-pronunciation-dictionary'
 
 describe('parsePronunciationDictionary', () => {
-  it('reads `english = как читать` lines, skipping comments, blanks and junk', () => {
+  it('reads Latin and Russian `слово = как читать` lines, skipping comments, blanks and junk', () => {
     const dictionary = parsePronunciationDictionary(
       [
         '# Словарь произношения',
         'Worktree = вёрктри',
         '  Pull   Request =  пул реквест  # частое',
+        'Замок = зам+ок',
+        'замок  на воротах = зам+ок на вор+отах',
         '',
         'без равенства',
         'пусто =',
-        'кириллица = не ключ',
+        '42 = без букв',
         '= нет ключа'
       ].join('\n')
     )
     expect([...dictionary]).toEqual([
       ['worktree', 'вёрктри'],
-      ['pull request', 'пул реквест']
+      ['pull request', 'пул реквест'],
+      ['замок', 'зам+ок'],
+      ['замок на воротах', 'зам+ок на вор+отах']
     ])
   })
 })

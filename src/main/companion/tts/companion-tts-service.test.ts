@@ -422,4 +422,41 @@ describe('CompanionTtsService — Yandex provider', () => {
     expect(sendAudioChunk).toHaveBeenCalledTimes(1)
     expect(sendAudioChunk.mock.calls[0][0].final).toBe(true)
   })
+
+  it('re-stresses Russian dictionary words before both speak() and speakStream() reach Yandex', async () => {
+    const restressed = new Map([['замок', 'зам+ок']])
+    loadPronunciations.mockResolvedValueOnce(restressed).mockResolvedValueOnce(restressed)
+    const yandex = fakeYandexSpeaker(async (_id, text) => pcmChunk([text.length]))
+    const sidecar = fakeSidecar(async () => pcmChunk([1]))
+    const service = new CompanionTtsService(
+      '/tmp/userData',
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+      () => sidecar as never,
+      () => YANDEX_PROVIDER_SETTINGS,
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: see above.
+      () => yandex as never
+    )
+    const pronunciationsPath = '/home/tts-pronunciations.txt'
+
+    await service.speak('Открой замок.', {
+      utteranceId: 'y7',
+      voice: 'eugene',
+      rate: 1,
+      pronunciationsPath
+    })
+    const stream = service.speakStream({
+      utteranceId: 'y8',
+      voice: 'eugene',
+      rate: 1,
+      pronunciationsPath
+    })
+    stream.pushDelta('Замок открыт.')
+    stream.finish()
+    await flushAsync()
+
+    expect(yandex.synthesize.mock.calls.map((call) => call[1])).toEqual([
+      'Открой зам+ок.',
+      'зам+ок открыт.'
+    ])
+  })
 })

@@ -13,6 +13,8 @@ import {
   type CompanionTtsSynthesisChunk
 } from './companion-tts-sidecar-process'
 import { normalizeForSpeech } from './companion-tts-text-normalization'
+import { applyRussianPronunciations } from './companion-tts-russian-pronunciations'
+import { loadUtterancePronunciations } from './companion-tts-speakable-text'
 import { packSentencesForYandex } from './companion-tts-yandex-chunking'
 import { describeYandexErrorRu } from './companion-tts-yandex-errors'
 import { YANDEX_V3_UNIT_MAX_CHARS } from './companion-tts-yandex-pricing'
@@ -97,7 +99,8 @@ export function createCompanionTtsYandexBranch(
     options: CompanionTtsSpeakOptions,
     providerSettings: CompanionTtsProviderSettings
   ): Promise<void> {
-    const { sentences } = splitIntoSentences(normalizeForSpeech(text))
+    const pronunciations = await loadUtterancePronunciations(options.pronunciationsPath)
+    const { sentences } = splitIntoSentences(normalizeForSpeech(text, { pronunciations }))
     const { requestChunks } = packSentencesForYandex(sentences, providerSettings.maxSpokenChars)
     const resultChannel = new AsyncItemChannel<SynthesisHandle>()
     const handle = deps.beginUtterance(options.utteranceId)
@@ -125,6 +128,7 @@ export function createCompanionTtsYandexBranch(
     const drainComplete = deps
       .drainAndSend(resultChannel, options.utteranceId)
       .finally(() => deps.endUtterance(options.utteranceId))
+    const pronunciationsPromise = loadUtterancePronunciations(options.pronunciationsPath)
 
     let spokenChars = 0
     let capped = false
@@ -161,19 +165,27 @@ export function createCompanionTtsYandexBranch(
         packBuffer.length === 1 ? sentence.length : packBufferChars + 1 + sentence.length
     }
 
+    // Re-stressed before packing so the added `+` count toward the request cap. Callbacks
+    // on one promise run in registration order, so sentences keep their order.
+    const acceptSentences = (sentences: string[], afterwards?: () => void): void => {
+      void pronunciationsPromise.then((pronunciations) => {
+        for (const sentence of sentences) {
+          acceptSentence(applyRussianPronunciations(sentence, pronunciations))
+        }
+        afterwards?.()
+      })
+    }
+
     return {
       pushDelta: (text: string) => {
-        for (const sentence of chunker.push(text)) {
-          acceptSentence(sentence)
-        }
+        acceptSentences(chunker.push(text))
       },
       finish: () => {
-        for (const sentence of chunker.flush()) {
-          acceptSentence(sentence)
-        }
-        flushPack()
-        resultChannel.finish()
-        void drainComplete
+        acceptSentences(chunker.flush(), () => {
+          flushPack()
+          resultChannel.finish()
+          void drainComplete
+        })
       }
     }
   }

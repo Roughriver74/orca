@@ -1,5 +1,6 @@
-// The user-extendable half of Latin-word pronunciation: a plain-text file in the
-// companion's home directory, one `english = как читать` pair per line, so adding a
+// The user-extendable half of pronunciation: a plain-text file in the companion's home
+// directory, one `слово = как читать` pair per line — an English term to transliterate
+// (`worktree = вёрктри`) or a Russian word to re-stress (`замок = зам+ок`) — so adding a
 // word needs no settings UI and Jarvis's own brain (which runs in that directory) can
 // append to it when asked. Re-read only when its mtime/size changes.
 
@@ -11,7 +12,7 @@ import {
 
 export const COMPANION_TTS_PRONUNCIATIONS_FILE_NAME = 'tts-pronunciations.txt'
 
-/** `#` starts a comment; lines without `=`, without a Latin key, or with an empty value are skipped. */
+/** `#` starts a comment; lines without `=`, without a letter in the key, or with an empty value are skipped. */
 export function parsePronunciationDictionary(text: string): CompanionPronunciationDictionary {
   const dictionary = new Map<string, string>()
   for (const rawLine of text.split(/\r?\n/)) {
@@ -22,7 +23,7 @@ export function parsePronunciationDictionary(text: string): CompanionPronunciati
     }
     const key = line.slice(0, separator).trim().toLowerCase().replace(/\s+/g, ' ')
     const value = line.slice(separator + 1).trim()
-    if (!/[a-z]/.test(key) || value === '') {
+    if (!/[a-zа-яё]/.test(key) || value === '') {
       continue
     }
     dictionary.set(key, value)

@@ -19,6 +19,7 @@ import {
   transliterateLatinForSpeech,
   type CompanionPronunciationDictionary
 } from './companion-tts-latin-transliteration'
+import { applyRussianPronunciations } from './companion-tts-russian-pronunciations'
 
 const INLINE_CODE_DROP_THRESHOLD = 20
 const FEMININE_UNIT_WORDS: Record<string, true> = {
@@ -142,11 +143,12 @@ export function normalizeForSpeech(text: string, options: NormalizeForSpeechOpti
   const withoutStructure = dropCodeBlocksAndTables(text)
   const plain = stripMarkdownSyntax(withoutStructure)
   const withPlaceholders = replaceUrlsAndPaths(plain)
+  const pronunciations = options.pronunciations ?? EMPTY_PRONUNCIATION_DICTIONARY
   // Before number expansion: splitting `v5`/`GPT-4` exposes digits `expandNumbers` can read.
-  const cyrillicOnly = transliterateLatinForSpeech(
-    withPlaceholders,
-    options.pronunciations ?? EMPTY_PRONUNCIATION_DICTIONARY
-  )
+  const cyrillicOnly = transliterateLatinForSpeech(withPlaceholders, pronunciations)
   const withNumbersExpanded = expandNumbers(cyrillicOnly)
-  return collapseWhitespace(withNumbersExpanded)
+  // Last: number agreement must see the plain noun (`минуты`, not `мин+уты`), and Russian
+  // entries then also re-stress words the Latin and number passes produced.
+  const withUserStress = applyRussianPronunciations(withNumbersExpanded, pronunciations)
+  return collapseWhitespace(withUserStress)
 }

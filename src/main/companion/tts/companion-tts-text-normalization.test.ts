@@ -59,6 +59,22 @@ describe('normalizeForSpeech', () => {
     expect(normalizeForSpeech('Осталось 5 яблок.')).toBe('Осталось пять яблок.')
   })
 
+  it('re-stresses Russian dictionary words without breaking number agreement or Latin phrases', () => {
+    const pronunciations = new Map([
+      ['минуты', 'мин+уты'],
+      ['замок на воротах', 'зам+ок на вор+отах'],
+      ['worktree', 'вёрктри']
+    ])
+    expect(
+      normalizeForSpeech(
+        'Через 2 минуты worktree откроет замок на воротах, не незамок на воротах.',
+        {
+          pronunciations
+        }
+      )
+    ).toBe('Через две мин+уты вёрктри откроет зам+ок на вор+отах, не незамок на воротах.')
+  })
+
   it('collapses whitespace left behind by stripped markup', () => {
     expect(normalizeForSpeech('# Заголовок\n\n\nТекст   с   пробелами.')).toBe(
       'Заголовок Текст с пробелами.'
