@@ -304,7 +304,7 @@ describe('CompanionAgentWatch speaking aloud', () => {
     h.setConversationState('listening')
     h.statusListener(doneEvent())
     vi.advanceTimersByTime(20_000)
-    expect(h.watch.takeBrainBriefing()).toContain('- zveno: готово — Есть вопросы — обсудим?')
+    expect(h.watch.takeBrainBriefing()).toContain('- zveno: готово — "Есть вопросы — обсудим?"')
     expect(h.watch.takeBrainBriefing()).toBeNull()
     h.setConversationState('idle')
     h.conversationListener('idle')
