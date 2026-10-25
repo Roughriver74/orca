@@ -25,11 +25,13 @@ vi.mock('./companion-tts-provisioning', () => ({
     venvDir: `${userDataDir}/companion-tts/venv`,
     venvPythonPath: `${userDataDir}/companion-tts/venv/bin/python`,
     v5ModelPath: `${userDataDir}/companion-tts/models/v5_4_ru.pt`,
-    v3ModelPath: `${userDataDir}/companion-tts/models/v3_1_ru.pt`
+    v3ModelPath: `${userDataDir}/companion-tts/models/v3_1_ru.pt`,
+    v56ModelPath: `${userDataDir}/companion-tts/models/v5_6_ru.pt`
   }),
   readProvisionedModelPaths: vi.fn().mockResolvedValue({
     v5ModelPath: '/fake/v5.pt',
-    v3ModelPath: '/fake/v3.pt'
+    v3ModelPath: '/fake/v3.pt',
+    v56ModelPath: '/fake/v56.pt'
   })
 }))
 
@@ -156,7 +158,8 @@ describe('CompanionTtsService', () => {
   it('ensureSidecar rejects speak() before TTS has been provisioned', async () => {
     vi.mocked(provisioning.readProvisionedModelPaths).mockResolvedValueOnce({
       v5ModelPath: null,
-      v3ModelPath: null
+      v3ModelPath: null,
+      v56ModelPath: null
     })
     const sidecar = fakeSidecar(async () => pcmChunk([1]))
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: FakeSidecar mirrors only the methods CompanionTtsService calls on the sidecar.
@@ -329,7 +332,8 @@ describe('CompanionTtsService — Yandex provider', () => {
   it('skips the chunk and tells the panel in Russian when Yandex fails and Silero is not provisioned', async () => {
     vi.mocked(provisioning.readProvisionedModelPaths).mockResolvedValueOnce({
       v5ModelPath: null,
-      v3ModelPath: null
+      v3ModelPath: null,
+      v56ModelPath: null
     })
     const yandex = fakeYandexSpeaker(async () => {
       throw new Error('yandex down')

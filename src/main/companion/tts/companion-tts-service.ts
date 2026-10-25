@@ -136,15 +136,18 @@ export class CompanionTtsService {
     }
     this.sidecarReady ??= (async () => {
       const paths = getCompanionTtsPaths(this.userDataDir)
-      const { v5ModelPath, v3ModelPath } = await readProvisionedModelPaths(this.userDataDir)
-      if (!v5ModelPath && !v3ModelPath) {
+      const { v5ModelPath, v3ModelPath, v56ModelPath } = await readProvisionedModelPaths(
+        this.userDataDir
+      )
+      if (!v5ModelPath && !v3ModelPath && !v56ModelPath) {
         throw new Error('companion TTS has not been provisioned yet — enable it in settings first')
       }
       const sidecar = this.sidecarFactory({
         pythonPath: paths.venvPythonPath,
         scriptPath: sidecarScriptPath,
         v5ModelPath,
-        v3ModelPath
+        v3ModelPath,
+        v56ModelPath
       })
       this.sidecar = sidecar
       return sidecar

@@ -64,7 +64,8 @@ describe('CompanionTtsSidecarProcess', () => {
     pythonPath: '/fake/python',
     scriptPath: '/fake/sidecar.py',
     v5ModelPath: '/fake/v5.pt',
-    v3ModelPath: '/fake/v3.pt'
+    v3ModelPath: '/fake/v3.pt',
+    v56ModelPath: null
   }
 
   beforeEach(() => {
@@ -86,7 +87,7 @@ describe('CompanionTtsSidecarProcess', () => {
     expect(spawn).toHaveBeenCalledTimes(1)
     expect(spawn).toHaveBeenCalledWith({
       program: '/fake/python',
-      args: ['/fake/sidecar.py', '/fake/v5.pt', '/fake/v3.pt']
+      args: ['/fake/sidecar.py', '/fake/v5.pt', '/fake/v3.pt', '-']
     })
 
     emitReady(child)

@@ -1,7 +1,7 @@
 // Provisions everything the companion TTS sidecar needs on first enable: a pinned
 // standalone `uv` binary, a venv with pinned CPU torch/numpy uv creates from it, and
-// the two Silero model files. Everything lands under userData so a plain install on a
-// second machine works with no sudo, no Homebrew, and no system Python dependency —
+// the Silero model files (v5_4 + v3_1 required, v5_6 best-effort on top). Everything lands
+// under userData so a plain install on a second machine works with no sudo, no Homebrew, and no system Python dependency —
 // matching how STT model downloads already behave (see ../../speech/model-manager.ts).
 // Idempotent: every step checks its artifact before touching the network again, so a
 // second call after a successful provision does no I/O beyond a few stat/hash checks.
@@ -33,6 +33,9 @@ const SILERO_V5_MODEL_BYTES = 145_412_956
 const SILERO_V3_MODEL_URL = 'https://models.silero.ai/models/tts/ru/v3_1_ru.pt'
 const SILERO_V3_MODEL_SHA256 = 'cf60b47ec8a9c31046021d2d14b962ea56b8a5bf7061c98accaaaca428522f85'
 const SILERO_V3_MODEL_BYTES = 61_896_251
+const SILERO_V56_MODEL_URL = 'https://models.silero.ai/models/tts/ru/v5_6_ru.pt'
+const SILERO_V56_MODEL_SHA256 = '04cc9b1d08ce38bcaa9d02c488d80d3e6806d17f7eaa7c95982f36a3cbf50b2e'
+const SILERO_V56_MODEL_BYTES = 147_664_410
 
 const INSTALL_TIMEOUT_MS = 10 * 60_000
 
@@ -43,6 +46,7 @@ export type CompanionTtsPaths = {
   venvPythonPath: string
   v5ModelPath: string
   v3ModelPath: string
+  v56ModelPath: string
 }
 
 export function getCompanionTtsPaths(userDataDir: string): CompanionTtsPaths {
@@ -54,7 +58,8 @@ export function getCompanionTtsPaths(userDataDir: string): CompanionTtsPaths {
     venvDir,
     venvPythonPath: join(venvDir, 'bin', 'python'),
     v5ModelPath: join(rootDir, 'models', 'v5_4_ru.pt'),
-    v3ModelPath: join(rootDir, 'models', 'v3_1_ru.pt')
+    v3ModelPath: join(rootDir, 'models', 'v3_1_ru.pt'),
+    v56ModelPath: join(rootDir, 'models', 'v5_6_ru.pt')
   }
 }
 
@@ -224,12 +229,13 @@ async function ensureVenv(paths: CompanionTtsPaths): Promise<void> {
 
 // Weighted stage split for the combined 0-100 progress reported to settings: uv binary is
 // small and fast, the venv+pip install dominates wall time but has no byte-level progress
-// to report, and the two models are weighted by their actual download size.
+// to report, and the models are weighted by their actual download size.
 const STAGE_UV_END = 0.05
 const STAGE_VENV_END = 0.4
-const STAGE_V5_END =
-  STAGE_VENV_END + (0.6 * SILERO_V5_MODEL_BYTES) / (SILERO_V5_MODEL_BYTES + SILERO_V3_MODEL_BYTES)
-const STAGE_V3_END = 1
+const MODEL_BYTES_TOTAL = SILERO_V5_MODEL_BYTES + SILERO_V3_MODEL_BYTES + SILERO_V56_MODEL_BYTES
+const STAGE_V5_END = STAGE_VENV_END + (0.6 * SILERO_V5_MODEL_BYTES) / MODEL_BYTES_TOTAL
+const STAGE_V3_END = STAGE_V5_END + (0.6 * SILERO_V3_MODEL_BYTES) / MODEL_BYTES_TOTAL
+const STAGE_V56_END = 1
 
 export async function provisionCompanionTts(
   userDataDir: string,
@@ -281,6 +287,24 @@ export async function provisionCompanionTts(
         })
     )
 
+    // Why best-effort: v5_4 + v3_1 already cover every voice, so a v5_6 outage (models.silero.ai
+    // answered 502 for hours on 2026-10-25) must not turn a working install into an error.
+    try {
+      await ensureModel(
+        SILERO_V56_MODEL_URL,
+        paths.v56ModelPath,
+        SILERO_V56_MODEL_SHA256,
+        SILERO_V56_MODEL_BYTES,
+        (fraction) =>
+          onStatus({
+            status: 'downloading',
+            progress: Math.round((STAGE_V3_END + fraction * (STAGE_V56_END - STAGE_V3_END)) * 100)
+          })
+      )
+    } catch (error) {
+      console.warn('[companion] Silero v5_6 download failed, staying on v5_4/v3_1', error)
+    }
+
     onStatus({ status: 'ready', progress: 100 })
     return paths
   } catch (error) {
@@ -311,16 +335,20 @@ export async function getCompanionTtsProvisioningStatus(
 }
 
 /** Reads back the pinned model paths without provisioning, for the sidecar config once ready. */
-export async function readProvisionedModelPaths(
-  userDataDir: string
-): Promise<{ v5ModelPath: string | null; v3ModelPath: string | null }> {
+export async function readProvisionedModelPaths(userDataDir: string): Promise<{
+  v5ModelPath: string | null
+  v3ModelPath: string | null
+  v56ModelPath: string | null
+}> {
   const paths = getCompanionTtsPaths(userDataDir)
-  const [v5Ready, v3Ready] = await Promise.all([
+  const [v5Ready, v3Ready, v56Ready] = await Promise.all([
     fileMatchesHash(paths.v5ModelPath, SILERO_V5_MODEL_SHA256),
-    fileMatchesHash(paths.v3ModelPath, SILERO_V3_MODEL_SHA256)
+    fileMatchesHash(paths.v3ModelPath, SILERO_V3_MODEL_SHA256),
+    fileMatchesHash(paths.v56ModelPath, SILERO_V56_MODEL_SHA256)
   ])
   return {
     v5ModelPath: v5Ready ? paths.v5ModelPath : null,
-    v3ModelPath: v3Ready ? paths.v3ModelPath : null
+    v3ModelPath: v3Ready ? paths.v3ModelPath : null,
+    v56ModelPath: v56Ready ? paths.v56ModelPath : null
   }
 }
