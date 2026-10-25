@@ -37,6 +37,8 @@ function formatRub(value: number): string {
 type CompanionYandexTtsSettingsSectionProps = {
   companionSettings: CompanionSettings
   updateTtsSettings: (updates: Partial<CompanionSettings['tts']>) => void
+  /** Qwen3 runs on MLX (Apple Silicon only); elsewhere the option is not offered. */
+  qwen3Supported: boolean
 }
 
 /** Provider toggle plus every Yandex-specific knob (voice, spoken-text cap, monthly
@@ -44,7 +46,8 @@ type CompanionYandexTtsSettingsSectionProps = {
  *  rows there stay a one-line insertion away from this file's churn. */
 export function CompanionYandexTtsSettingsSection({
   companionSettings,
-  updateTtsSettings
+  updateTtsSettings,
+  qwen3Supported
 }: CompanionYandexTtsSettingsSectionProps): React.JSX.Element {
   const [keyStatus, setKeyStatus] = useState<{
     configured: boolean
@@ -68,6 +71,11 @@ export function CompanionYandexTtsSettingsSection({
   }, [refreshKeyStatus, refreshUsage])
 
   const isYandex = companionSettings.tts.provider === 'yandex'
+  // A `qwen3` value where Qwen3 cannot run (e.g. settings from a Mac) speaks with Silero.
+  const shownProvider =
+    companionSettings.tts.provider === 'qwen3' && !qwen3Supported
+      ? 'silero'
+      : companionSettings.tts.provider
 
   const saveKey = async (): Promise<void> => {
     setKeyPending(true)
@@ -130,9 +138,9 @@ export function CompanionYandexTtsSettingsSection({
           {translate('auto.components.settings.CompanionYandexTts.provider', 'Озвучка')}
         </Label>
         <Select
-          value={companionSettings.tts.provider}
+          value={shownProvider}
           onValueChange={(value) => {
-            if (value === 'silero' || value === 'yandex') {
+            if (value === 'silero' || value === 'yandex' || value === 'qwen3') {
               updateTtsSettings({ provider: value })
             }
           }}
@@ -147,6 +155,14 @@ export function CompanionYandexTtsSettingsSection({
                 'Silero (локально, бесплатно)'
               )}
             </SelectItem>
+            {qwen3Supported ? (
+              <SelectItem value="qwen3">
+                {translate(
+                  'auto.components.settings.CompanionYandexTts.providerQwen3',
+                  'Qwen3-TTS (локально, с эмоциями, ~3 ГБ)'
+                )}
+              </SelectItem>
+            ) : null}
             <SelectItem value="yandex">
               {translate(
                 'auto.components.settings.CompanionYandexTts.providerYandex',

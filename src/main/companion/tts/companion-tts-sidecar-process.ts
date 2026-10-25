@@ -1,7 +1,7 @@
-// Owns the one companion TTS sidecar child process: starts it on first use, restarts
-// it with backoff if it crashes, and routes synthesis requests/responses by id so
-// multiple sentences can be in flight (the brain streams sentence N+1's text while
-// N is still synthesizing/playing).
+// Owns one companion TTS sidecar child process (Silero or Qwen3 — both speak the same
+// framed protocol): starts it on first use, restarts it with backoff if it crashes, and
+// routes synthesis requests/responses by id so multiple sentences can be in flight (the
+// brain streams sentence N+1's text while N is still synthesizing/playing).
 
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { spawnProcess } from '@orca/process-host'
@@ -22,12 +22,8 @@ export type CompanionTtsSynthesisChunk = {
 export type CompanionTtsSidecarConfig = {
   pythonPath: string
   scriptPath: string
-  /** Absolute path to v5_4_ru.pt, or null if the v5 voice family was not provisioned. */
-  v5ModelPath: string | null
-  /** Absolute path to v3_1_ru.pt, or null if the v3 voice family (eugene) was not provisioned. */
-  v3ModelPath: string | null
-  /** Absolute path to v5_6_ru.pt; when set it serves every voice and v5/v3 become the fallback. */
-  v56ModelPath: string | null
+  /** Engine-specific argv after the script (Silero: model paths with '-' for missing ones). */
+  scriptArgs: readonly string[]
 }
 
 export class CompanionTtsCancelledError extends Error {
@@ -97,10 +93,10 @@ export class CompanionTtsSidecarProcess {
   }
 
   private spawnChild(): Promise<void> {
-    const { pythonPath, scriptPath, v5ModelPath, v3ModelPath, v56ModelPath } = this.config
+    const { pythonPath, scriptPath, scriptArgs } = this.config
     const child = this.spawn({
       program: pythonPath,
-      args: [scriptPath, v5ModelPath ?? '-', v3ModelPath ?? '-', v56ModelPath ?? '-']
+      args: [scriptPath, ...scriptArgs]
     })
     this.child = child
     this.stderrTail = ''
@@ -190,13 +186,15 @@ export class CompanionTtsSidecarProcess {
     }
   }
 
-  /** Synthesizes one utterance; `onChunk` fires for each PCM frame the sidecar streams back. */
+  /** Synthesizes one utterance; `onChunk` fires for each PCM frame the sidecar streams back.
+   *  `instruct` is Qwen3's style prompt; the Silero sidecar ignores it. */
   async synthesize(
     requestId: string,
     text: string,
     speaker: string,
     rate: number,
-    onChunk: (chunk: CompanionTtsSynthesisChunk) => void
+    onChunk: (chunk: CompanionTtsSynthesisChunk) => void,
+    instruct?: string
   ): Promise<void> {
     await this.ensureStarted()
     const child = this.child
@@ -205,7 +203,7 @@ export class CompanionTtsSidecarProcess {
     }
     const { promise, resolve, reject } = Promise.withResolvers<void>()
     this.pending.set(requestId, { onChunk, resolve, reject })
-    child.stdin.write(`${JSON.stringify({ id: requestId, text, speaker, rate })}\n`)
+    child.stdin.write(`${JSON.stringify({ id: requestId, text, speaker, rate, instruct })}\n`)
     return promise
   }
 

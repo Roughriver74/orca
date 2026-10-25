@@ -1,4 +1,5 @@
 import type {
+  CompanionQwenEmotion,
   CompanionBrainModel,
   CompanionNotifySettings,
   CompanionSettings,
@@ -42,10 +43,24 @@ const COMPANION_TTS_VOICES: Record<CompanionTtsVoice, true> = {
   aidar: true
 }
 
-const COMPANION_TTS_PROVIDERS: Record<CompanionTtsProvider, true> = { silero: true, yandex: true }
+const COMPANION_TTS_PROVIDERS: Record<CompanionTtsProvider, true> = {
+  silero: true,
+  yandex: true,
+  qwen3: true
+}
 
 function isCompanionTtsProvider(value: unknown): value is CompanionTtsProvider {
   return typeof value === 'string' && value in COMPANION_TTS_PROVIDERS
+}
+
+const COMPANION_QWEN_EMOTIONS: Record<CompanionQwenEmotion, true> = {
+  neutral: true,
+  warm: true,
+  mentor: true
+}
+
+function isCompanionQwenEmotion(value: unknown): value is CompanionQwenEmotion {
+  return typeof value === 'string' && value in COMPANION_QWEN_EMOTIONS
 }
 
 const COMPANION_YANDEX_VOICES: Record<CompanionYandexVoice, true> = {
@@ -118,6 +133,7 @@ function normalizeCompanionTtsSettings(
   const ttsVoiceRaw = source && 'ttsVoice' in source ? source.ttsVoice : undefined
   const providerRaw = source && 'provider' in source ? source.provider : undefined
   const yandexVoiceRaw = source && 'yandexVoice' in source ? source.yandexVoice : undefined
+  const qwenEmotionRaw = source && 'qwenEmotion' in source ? source.qwenEmotion : undefined
   const maxSpokenCharsRaw = source && 'maxSpokenChars' in source ? source.maxSpokenChars : undefined
   const maxSpokenChars =
     typeof maxSpokenCharsRaw === 'number' && Number.isFinite(maxSpokenCharsRaw)
@@ -139,7 +155,8 @@ function normalizeCompanionTtsSettings(
     provider: isCompanionTtsProvider(providerRaw) ? providerRaw : defaults.provider,
     yandexVoice: isCompanionYandexVoice(yandexVoiceRaw) ? yandexVoiceRaw : defaults.yandexVoice,
     maxSpokenChars,
-    yandexMonthlyBudgetRub
+    yandexMonthlyBudgetRub,
+    qwenEmotion: isCompanionQwenEmotion(qwenEmotionRaw) ? qwenEmotionRaw : defaults.qwenEmotion
   }
 }
 

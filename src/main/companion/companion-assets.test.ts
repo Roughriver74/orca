@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CompanionSettings } from '../../shared/companion-types'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import { getDefaultCompanionSettings } from '../../shared/constants'
 
 vi.mock('../speech/speech-runtime-service', () => ({ getSpeechModelManager: vi.fn() }))
 vi.mock('./tts/companion-tts-provisioning', () => ({ provisionCompanionTts: vi.fn() }))
+vi.mock('./tts/companion-tts-qwen3-provisioning', () => ({ provisionCompanionTtsQwen3: vi.fn() }))
 vi.mock('./companion-tts-status', () => ({ reportTtsProvisioningStatus: vi.fn() }))
 
 import { initCompanionAssets, type CompanionAssetsDeps } from './companion-assets'
@@ -31,6 +32,7 @@ function makeDeps(overrides: Partial<CompanionAssetsDeps> = {}) {
   return {
     downloadSttModel: vi.fn(async (_modelId: string) => undefined),
     provisionTts: vi.fn(async () => undefined),
+    provisionQwen3Tts: vi.fn(async () => undefined),
     reportTtsStatus: vi.fn(),
     prewarmTts: vi.fn(async () => undefined),
     downloadFocusModel: vi.fn(async (_id: string) => undefined),
@@ -40,7 +42,22 @@ function makeDeps(overrides: Partial<CompanionAssetsDeps> = {}) {
 
 const enabled = (): CompanionSettings => ({ ...getDefaultCompanionSettings(), enabled: true })
 
+const realPlatform = process.platform
+const realArch = process.arch
+
+function onHost(platform: string, arch: string): void {
+  Object.defineProperty(process, 'platform', { value: platform, configurable: true })
+  Object.defineProperty(process, 'arch', { value: arch, configurable: true })
+}
+
+const withQwen3 = (): CompanionSettings => {
+  const settings = enabled()
+  return { ...settings, tts: { ...settings.tts, provider: 'qwen3' } }
+}
+
 describe('initCompanionAssets', () => {
+  afterEach(() => onHost(realPlatform, realArch))
+
   it('fetches nothing while the companion is disabled', () => {
     const deps = makeDeps()
     initCompanionAssets(makeStore(getDefaultCompanionSettings()), deps)
@@ -123,6 +140,49 @@ describe('initCompanionAssets', () => {
       expect(provisionTts).toHaveBeenCalledTimes(1)
     })
     expect(deps.prewarmTts).not.toHaveBeenCalled()
+  })
+
+  it('never fetches Qwen3 for the default Silero provider', async () => {
+    const deps = makeDeps()
+    initCompanionAssets(makeStore(enabled()), deps)
+    await vi.waitFor(() => expect(deps.prewarmTts).toHaveBeenCalledTimes(1))
+    expect(deps.provisionQwen3Tts).not.toHaveBeenCalled()
+  })
+
+  it('provisions Qwen3 after Silero once it is selected, then prewarms again', async () => {
+    onHost('darwin', 'arm64')
+    const order: string[] = []
+    const deps = makeDeps({
+      provisionTts: vi.fn(async () => order.push('silero')),
+      provisionQwen3Tts: vi.fn(async () => order.push('qwen3'))
+    })
+    initCompanionAssets(makeStore(withQwen3()), deps)
+    await vi.waitFor(() => expect(deps.prewarmTts).toHaveBeenCalledTimes(2))
+    expect(order).toEqual(['silero', 'qwen3'])
+  })
+
+  it('keeps Silero prewarmed when the Qwen3 download fails', async () => {
+    onHost('darwin', 'arm64')
+    const deps = makeDeps({
+      provisionQwen3Tts: vi.fn(async () => {
+        throw new Error('huggingface down')
+      })
+    })
+    initCompanionAssets(makeStore(withQwen3()), deps)
+    await vi.waitFor(() => expect(deps.provisionQwen3Tts).toHaveBeenCalledTimes(1))
+    expect(deps.prewarmTts).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['linux', 'x64'],
+    ['darwin', 'x64']
+  ])('on %s/%s a qwen3 selection provisions only Silero', async (platform, arch) => {
+    onHost(platform, arch)
+    const deps = makeDeps()
+    initCompanionAssets(makeStore(withQwen3()), deps)
+    await vi.waitFor(() => expect(deps.prewarmTts).toHaveBeenCalledTimes(1))
+    expect(deps.provisionTts).toHaveBeenCalledTimes(1)
+    expect(deps.provisionQwen3Tts).not.toHaveBeenCalled()
   })
 })
 

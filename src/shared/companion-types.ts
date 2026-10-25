@@ -102,7 +102,12 @@ export type CompanionNotifySettings = {
 
 export type CompanionTtsVoice = 'eugene' | 'xenia' | 'baya' | 'kseniya' | 'aidar'
 
-export type CompanionTtsProvider = 'silero' | 'yandex'
+/** `qwen3` is the optional local Qwen3-TTS engine (Apple Silicon only); it falls back to
+ *  Silero whenever its model is not provisioned or its sidecar fails. */
+export type CompanionTtsProvider = 'silero' | 'yandex' | 'qwen3'
+
+/** Speaking style passed to Qwen3-TTS CustomVoice as its `instruct` prompt. */
+export type CompanionQwenEmotion = 'neutral' | 'warm' | 'mentor'
 
 /** Male Yandex SpeechKit voices verified to work for the companion: filipp/ermil/zahar
  *  synthesize on both v1 and v3; alexander/kirill/anton/madirus require v3. */
@@ -149,6 +154,8 @@ export type CompanionTtsSettings = {
   /** Once the trailing-30-day estimated Yandex spend reaches this many ₽, the service
    *  falls back to Silero automatically for the rest of the period. */
   yandexMonthlyBudgetRub: number
+  /** Only read while the provider is `qwen3`. */
+  qwenEmotion: CompanionQwenEmotion
 }
 
 export type CompanionTtsUsagePeriod = {
@@ -174,6 +181,8 @@ export type CompanionTtsProvisioningStatus = {
   status: 'idle' | 'downloading' | 'ready' | 'error'
   progress?: number
   error?: string
+  /** Which local engine this report is about; absent means Silero. */
+  engine?: 'silero' | 'qwen3'
 }
 
 export type CompanionConversationState = 'idle' | 'listening' | 'thinking' | 'speaking'

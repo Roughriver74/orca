@@ -22,7 +22,8 @@ export function getDefaultCompanionSettings(): CompanionSettings {
       provider: 'silero',
       yandexVoice: 'kirill',
       maxSpokenChars: 250,
-      yandexMonthlyBudgetRub: 300
+      yandexMonthlyBudgetRub: 300,
+      qwenEmotion: 'neutral'
     },
     notify: {
       enabled: true,

@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../../../../resources/companion/tts-sidecar.py?asset&asarUnpack', () => ({
   default: '/fake/tts-sidecar.py'
 }))
+vi.mock('../../../../resources/companion/tts-qwen3-sidecar.py?asset&asarUnpack', () => ({
+  default: '/fake/tts-qwen3-sidecar.py'
+}))
 
 const sendAudioChunk = vi.fn()
 const stopAudio = vi.fn()
@@ -241,7 +244,8 @@ describe('CompanionTtsService', () => {
         provider: 'yandex',
         yandexVoice: 'kirill',
         maxSpokenChars: 250,
-        yandexMonthlyBudgetRub: 300
+        yandexMonthlyBudgetRub: 300,
+        qwenEmotion: 'neutral'
       })
     )
 
@@ -271,7 +275,8 @@ const YANDEX_PROVIDER_SETTINGS = {
   provider: 'yandex' as const,
   yandexVoice: 'kirill' as const,
   maxSpokenChars: 250,
-  yandexMonthlyBudgetRub: 300
+  yandexMonthlyBudgetRub: 300,
+  qwenEmotion: 'neutral' as const
 }
 
 describe('CompanionTtsService — Yandex provider', () => {
