@@ -10,6 +10,7 @@ import type {
   CompanionYandexVoice
 } from '../../../shared/companion-types'
 import { getDefaultCompanionSettings } from '../../../shared/constants'
+import { normalizeCompanionVoiceBargeInConfirmSettings } from './companion-voice-barge-in-confirm-normalization'
 
 const MIN_END_OF_UTTERANCE_SECONDS = 1
 const MAX_END_OF_UTTERANCE_SECONDS = 5
@@ -310,6 +311,10 @@ export function normalizeCompanionSettings(value: unknown): CompanionSettings {
         : defaults.sttModel,
     endOfUtteranceSeconds,
     voiceBargeIn: typeof voiceBargeInRaw === 'boolean' ? voiceBargeInRaw : defaults.voiceBargeIn,
+    voiceBargeInConfirm: normalizeCompanionVoiceBargeInConfirmSettings(
+      source && 'voiceBargeInConfirm' in source ? source.voiceBargeInConfirm : undefined,
+      defaults.voiceBargeInConfirm
+    ),
     brainModel: isCompanionBrainModel(brainModelRaw) ? brainModelRaw : defaults.brainModel,
     launchAtLogin:
       typeof launchAtLoginRaw === 'boolean' ? launchAtLoginRaw : defaults.launchAtLogin,

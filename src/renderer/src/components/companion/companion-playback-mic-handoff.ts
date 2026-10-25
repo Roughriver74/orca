@@ -38,9 +38,11 @@ export function useCompanionPlaybackMicHandoff({
 } {
   const listeningThroughPlaybackRef = useRef(false)
   const playbackLevelRef = useRef<() => number>(() => 0)
+  const setDuckedRef = useRef<(ducked: boolean) => void>(() => undefined)
 
   const { start: startVoiceMonitor, stop: stopVoiceMonitor } = useCompanionVoiceBargeInMonitor({
-    getPlaybackLevel: useCallback(() => playbackLevelRef.current(), [])
+    getPlaybackLevel: useCallback(() => playbackLevelRef.current(), []),
+    onDuckChange: useCallback((ducked: boolean) => setDuckedRef.current(ducked), [])
   })
 
   // Why re-read here: the panel hydrates settings once, but the barge-in/wake toggles
@@ -85,7 +87,7 @@ export function useCompanionPlaybackMicHandoff({
     stopVoiceMonitor
   ])
 
-  const { getOutputLevel } = useCompanionAudioPlayback({
+  const { getOutputLevel, setDucked } = useCompanionAudioPlayback({
     onPlaybackChange: useCallback(
       (playing: boolean) => {
         isPlayingAudioRef.current = playing
@@ -110,7 +112,8 @@ export function useCompanionPlaybackMicHandoff({
 
   useEffect(() => {
     playbackLevelRef.current = getOutputLevel
-  }, [getOutputLevel])
+    setDuckedRef.current = setDucked
+  }, [getOutputLevel, setDucked])
 
   return { listeningThroughPlaybackRef, refreshSettings }
 }

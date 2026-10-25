@@ -8,7 +8,8 @@ import type {
   CompanionListeningStatus,
   CompanionSettings,
   CompanionTtsProvisioningStatus,
-  CompanionVoiceActivityFrame
+  CompanionVoiceActivityFrame,
+  CompanionVoiceActivityResult
 } from '../../shared/companion-types'
 import type { PreloadApi } from '../api-types'
 
@@ -43,8 +44,25 @@ export const companionApi = {
   resetConversation: (): Promise<void> => ipcRenderer.invoke('companion:resetConversation'),
   reportAudioState: (state: CompanionAudioState): Promise<void> =>
     ipcRenderer.invoke('companion:audio-state', state),
-  reportVoiceActivity: (frame: CompanionVoiceActivityFrame): Promise<{ bargedIn: boolean }> =>
-    ipcRenderer.invoke('companion:voiceActivity', frame),
+  reportVoiceActivity: ({
+    audio,
+    ...levels
+  }: CompanionVoiceActivityFrame): Promise<CompanionVoiceActivityResult> =>
+    ipcRenderer.invoke(
+      'companion:voiceActivity',
+      // Why a Buffer: Float32Array is zeroed crossing the contextBridge/IPC boundary.
+      audio
+        ? {
+            ...levels,
+            samples: Buffer.from(
+              audio.samples.buffer,
+              audio.samples.byteOffset,
+              audio.samples.byteLength
+            ),
+            sampleRate: audio.sampleRate
+          }
+        : levels
+    ),
   respondToNotice: (payload: { id: string; action: 'discuss' | 'later' }): Promise<void> =>
     ipcRenderer.invoke('companion:noticeAction', payload),
   reportSpeakingState: (speaking: boolean): Promise<void> =>

@@ -5,6 +5,8 @@ export type VadSegmentationOptions = {
   vadModelPath: string
   endOfUtteranceSeconds: number
   maxUtteranceSeconds: number
+  /** Omitted = sherpa-onnx's default minimum speech duration. */
+  minSpeechDurationSeconds?: number
   /** Omitted = no speaker verification for this session. */
   speakerEmbeddingModelPath?: string
   /** Omitted = no denoising ahead of VAD. */
@@ -21,6 +23,7 @@ type WorkerOutMessage =
   | { type: 'ready' }
   | { type: 'error'; error: string }
   | { type: 'segmentEnd'; durationMs: number; embedding: number[] | null }
+  | { type: 'activity'; speech: boolean }
 
 /**
  * Owns the vad-worker.ts Worker for one dictation session: feeds it the same raw mic
@@ -41,7 +44,9 @@ export class VadSegmentationService {
   constructor(
     options: VadSegmentationOptions,
     onSegment: (segment: VadSegmentResult) => void,
-    onError?: (error: Error) => void
+    onError?: (error: Error) => void,
+    /** Given = the worker reports, after every feed, whether speech is in progress. */
+    onActivity?: (speech: boolean) => void
   ) {
     this.worker = new Worker(getVadWorkerPath(), {
       workerData: { sherpaModulePath: getSherpaModulePath() }
@@ -62,6 +67,9 @@ export class VadSegmentationService {
         case 'segmentEnd':
           onSegment({ durationMs: msg.durationMs, embedding: msg.embedding })
           break
+        case 'activity':
+          onActivity?.(msg.speech)
+          break
       }
     })
     this.worker.on('error', (error: unknown) =>
@@ -73,6 +81,8 @@ export class VadSegmentationService {
       vadModelPath: options.vadModelPath,
       endOfUtteranceSeconds: options.endOfUtteranceSeconds,
       maxUtteranceSeconds: options.maxUtteranceSeconds,
+      minSpeechDurationSeconds: options.minSpeechDurationSeconds,
+      reportActivity: onActivity !== undefined,
       speakerEmbeddingModelPath: options.speakerEmbeddingModelPath,
       denoiserModelPath: options.denoiserModelPath
     })

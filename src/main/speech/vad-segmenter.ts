@@ -12,6 +12,7 @@
  *   voiceActivityDetectorPop(handle): void
  *   voiceActivityDetectorFlush(handle): void  // force the in-progress segment into the queue
  *   voiceActivityDetectorReset(handle): void
+ *   voiceActivityDetectorIsDetected(handle): boolean  // speech in progress right now
  */
 export type VadBinding = {
   createVoiceActivityDetector: (config: unknown, bufferSizeInSeconds: number) => unknown
@@ -24,6 +25,7 @@ export type VadBinding = {
   voiceActivityDetectorPop: (handle: unknown) => void
   voiceActivityDetectorFlush: (handle: unknown) => void
   voiceActivityDetectorReset: (handle: unknown) => void
+  voiceActivityDetectorIsDetected: (handle: unknown) => boolean
 }
 
 export type VadSegment = {
@@ -104,6 +106,11 @@ export class VadSegmenter {
   finalizeNow(): VadSegment[] {
     this.binding.voiceActivityDetectorFlush(this.handle)
     return this.drainQueue()
+  }
+
+  /** Whether the audio fed so far ends inside speech (past minSpeechDuration, before minSilenceDuration). */
+  isSpeechDetected(): boolean {
+    return this.binding.voiceActivityDetectorIsDetected(this.handle)
   }
 
   reset(): void {

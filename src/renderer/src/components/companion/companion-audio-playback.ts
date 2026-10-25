@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef } from 'react'
 import type { CompanionAudioChunk } from '../../../../shared/companion-types'
 import { rmsLevel } from './companion-voice-barge-in-monitor'
 
+// ≈ −10 dB: clearly quieter so the user hears they were noticed, still intelligible if it
+// was a false alarm; the time constant keeps the change from clicking.
+const DUCKED_GAIN = 0.3
+const DUCK_TIME_CONSTANT_SECONDS = 0.05
+
 type CompanionAudioPlaybackCallbacks = {
   /** Fired when an utterance starts playing (first chunk scheduled) or finishes/stops —
    *  drives pausing/resuming the mic feed so the companion never transcribes its own voice. */
@@ -15,14 +20,19 @@ type CompanionAudioPlaybackCallbacks = {
  * whatever is currently queued/playing. Reports playback progress back to main
  * via `companion:audio-state` so the Brain/TTS slice can track delivery.
  * `getOutputLevel` exposes what is being played right now — the echo reference voice
- * barge-in compares the mic against.
+ * barge-in compares the mic against (measured after ducking: what the speakers emit).
+ * `setDucked` softens the reply while main confirms a possible barge-in; every new
+ * utterance starts at full volume.
  */
 export function useCompanionAudioPlayback({ onPlaybackChange }: CompanionAudioPlaybackCallbacks): {
   getOutputLevel: () => number
+  setDucked: (ducked: boolean) => void
 } {
   const contextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const analyserBufferRef = useRef<Float32Array<ArrayBuffer> | null>(null)
+  const duckGainRef = useRef<GainNode | null>(null)
+  const duckedRef = useRef(false)
   const activeUtteranceIdRef = useRef<string | null>(null)
   const nextExpectedSeqRef = useRef(0)
   const pendingChunksRef = useRef(new Map<number, CompanionAudioChunk>())
@@ -40,6 +50,9 @@ export function useCompanionAudioPlayback({ onPlaybackChange }: CompanionAudioPl
       contextRef.current = context
       analyserRef.current = analyser
       analyserBufferRef.current = new Float32Array(analyser.fftSize)
+      const duckGain = context.createGain()
+      duckGain.connect(analyser)
+      duckGainRef.current = duckGain
     }
     return contextRef.current
   }, [])
@@ -52,6 +65,20 @@ export function useCompanionAudioPlayback({ onPlaybackChange }: CompanionAudioPl
     }
     analyser.getFloatTimeDomainData(buffer)
     return rmsLevel(buffer)
+  }, [])
+
+  const setDucked = useCallback((ducked: boolean): void => {
+    const duckGain = duckGainRef.current
+    const context = contextRef.current
+    if (!duckGain || !context || duckedRef.current === ducked) {
+      return
+    }
+    duckedRef.current = ducked
+    duckGain.gain.setTargetAtTime(
+      ducked ? DUCKED_GAIN : 1,
+      context.currentTime,
+      DUCK_TIME_CONSTANT_SECONDS
+    )
   }, [])
 
   const finishUtterance = useCallback(
@@ -74,7 +101,7 @@ export function useCompanionAudioPlayback({ onPlaybackChange }: CompanionAudioPl
       buffer.getChannelData(0).set(chunk.pcm)
       const source = context.createBufferSource()
       source.buffer = buffer
-      source.connect(analyserRef.current ?? context.destination)
+      source.connect(duckGainRef.current ?? context.destination)
 
       const startAt = Math.max(cursorTimeRef.current, context.currentTime)
       cursorTimeRef.current = startAt + buffer.duration
@@ -142,7 +169,11 @@ export function useCompanionAudioPlayback({ onPlaybackChange }: CompanionAudioPl
         activeUtteranceIdRef.current = chunk.utteranceId
         nextExpectedSeqRef.current = 0
         sawFinalRef.current = false
-        cursorTimeRef.current = getContext().currentTime
+        const context = getContext()
+        cursorTimeRef.current = context.currentTime
+        duckedRef.current = false
+        duckGainRef.current?.gain.cancelScheduledValues(0)
+        duckGainRef.current?.gain.setValueAtTime(1, context.currentTime)
         onPlaybackChange?.(true)
         void window.api.companion.reportAudioState({
           utteranceId: chunk.utteranceId,
@@ -175,8 +206,10 @@ export function useCompanionAudioPlayback({ onPlaybackChange }: CompanionAudioPl
       contextRef.current = null
       analyserRef.current = null
       analyserBufferRef.current = null
+      duckGainRef.current = null
+      duckedRef.current = false
     }
   }, [handleAudioChunk, handleAudioStop, stopAll])
 
-  return { getOutputLevel }
+  return { getOutputLevel, setDucked }
 }

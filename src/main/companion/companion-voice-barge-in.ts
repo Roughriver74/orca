@@ -9,6 +9,7 @@
 //      the recent playback peak (the window absorbs output latency and room reverb), and
 //      an absolute floor so silence-level noise never counts;
 //   3. sustain — speech must hold for `sustainMs`, so a cough or a click does not cut in.
+// Still loudness only: companion-voice-barge-in-gate.ts decides whether a trigger is speech.
 
 import type { CompanionVoiceActivityFrame } from '../../shared/companion-types'
 
@@ -45,11 +46,21 @@ export const DEFAULT_COMPANION_VOICE_BARGE_IN_TUNING: CompanionVoiceBargeInTunin
 // Playback quieter than this carries no usable echo reference for calibration.
 const MIN_REFERENCE_LEVEL = 0.005
 
+export type CompanionVoiceBargeInVerdict = {
+  /** This frame beat the echo-relative threshold (never during calibration). */
+  aboveEcho: boolean
+  /** The sustain was reached on this frame — true once until `reset` or `rearm`. */
+  triggered: boolean
+}
+
+const CALIBRATING: CompanionVoiceBargeInVerdict = { aboveEcho: false, triggered: false }
+
 export type CompanionVoiceBargeInDetector = {
-  /** Feeds one frame; true exactly once, when user speech is confirmed (until `reset`). */
-  feed(frame: CompanionVoiceActivityFrame): boolean
+  feed(frame: CompanionVoiceActivityFrame): CompanionVoiceBargeInVerdict
   /** Starts a fresh calibration — call when a new reply starts playing. */
   reset(): void
+  /** Forgets a rejected trigger but keeps the calibration, so the next burst can trigger. */
+  rearm(): void
 }
 
 export function createCompanionVoiceBargeInDetector(
@@ -77,10 +88,7 @@ export function createCompanionVoiceBargeInDetector(
     return Math.max(...playbackHistory.map((entry) => entry.level))
   }
 
-  function feed(frame: CompanionVoiceActivityFrame): boolean {
-    if (triggered) {
-      return false
-    }
+  function feed(frame: CompanionVoiceActivityFrame): CompanionVoiceBargeInVerdict {
     const reference = trackPlaybackPeak(frame)
     elapsedMs += frame.durationMs
 
@@ -89,12 +97,16 @@ export function createCompanionVoiceBargeInDetector(
         const coupling = Math.min(tuning.maxEchoCoupling, frame.micLevel / reference)
         learnedCoupling = Math.max(learnedCoupling ?? 0, coupling)
       }
-      return false
+      return CALIBRATING
     }
 
     const coupling = learnedCoupling ?? tuning.fallbackEchoCoupling
     const threshold = Math.max(tuning.minMicLevel, tuning.echoMargin * coupling * reference)
-    if (frame.micLevel > threshold) {
+    const aboveEcho = frame.micLevel > threshold
+    if (triggered) {
+      return { aboveEcho, triggered: false }
+    }
+    if (aboveEcho) {
       speechMs += frame.durationMs
       gapMs = 0
     } else {
@@ -106,22 +118,26 @@ export function createCompanionVoiceBargeInDetector(
     }
     if (speechMs >= tuning.sustainMs) {
       triggered = true
-      return true
+      return { aboveEcho, triggered: true }
     }
-    return false
+    return { aboveEcho, triggered: false }
   }
 
-  function reset(): void {
-    elapsedMs = 0
-    learnedCoupling = null
+  function rearm(): void {
     speechMs = 0
     gapMs = 0
     triggered = false
+  }
+
+  function reset(): void {
+    rearm()
+    elapsedMs = 0
+    learnedCoupling = null
     playbackHistory = []
     playbackHistoryMs = 0
   }
 
-  return { feed, reset }
+  return { feed, reset, rearm }
 }
 
 /** Guards the IPC boundary: a frame the panel could not have produced is dropped, not trusted. */
@@ -146,9 +162,29 @@ export function parseCompanionVoiceActivityFrame(
   ) {
     return null
   }
-  return {
+  const frame: CompanionVoiceActivityFrame = {
     micLevel: Math.min(1, Math.max(0, micLevel)),
     playbackLevel: Math.min(1, Math.max(0, playbackLevel)),
     durationMs
   }
+  // Why bytes, not a Float32Array: the preload sends `samples` as a Buffer (typed arrays can
+  // be zeroed crossing contextBridge — see speech-bridge.ts). Bad audio only starves the VAD.
+  const bytes = 'samples' in value ? value.samples : undefined
+  const sampleRate = 'sampleRate' in value ? value.sampleRate : undefined
+  if (
+    bytes instanceof Uint8Array &&
+    bytes.byteLength > 0 &&
+    bytes.byteLength % 4 === 0 &&
+    bytes.byteOffset % 4 === 0 &&
+    typeof sampleRate === 'number' &&
+    Number.isFinite(sampleRate) &&
+    sampleRate >= 8000 &&
+    sampleRate <= 192_000
+  ) {
+    frame.audio = {
+      samples: new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4),
+      sampleRate
+    }
+  }
+  return frame
 }

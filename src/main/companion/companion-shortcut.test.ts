@@ -269,7 +269,7 @@ describe('companion hotkey', () => {
     companionConversation.reportSpeaking()
     companionDialogueHandle.current = {
       bargeIn,
-      reportVoiceActivity: vi.fn(() => false),
+      reportVoiceActivity: vi.fn(() => ({ bargedIn: false, ducked: false })),
       hasConfirmedRealSpeech: vi.fn(() => false),
       resetConversation: vi.fn(),
       speakAnnouncement: vi.fn(),

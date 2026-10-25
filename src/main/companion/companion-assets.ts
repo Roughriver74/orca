@@ -51,6 +51,7 @@ export function initCompanionAssets(
   let sttInFlight: Promise<void> | null = null
   let voiceFocusInFlight: Promise<void> | null = null
   let wakeKeywordInFlight: Promise<void> | null = null
+  let bargeInVadInFlight: Promise<void> | null = null
 
   const ensure = (): void => {
     const companion = store.getSettings().companion
@@ -129,6 +130,18 @@ export function initCompanionAssets(
         )
         .finally(() => {
           wakeKeywordInFlight = null
+        })
+    }
+    // Voice barge-in's speech confirmation runs on the same Silero VAD as voice focus;
+    // until it lands, confirmation falls back to the sound outlasting the trigger.
+    if (companion.voiceBargeIn && companion.voiceBargeInConfirm.enabled && !bargeInVadInFlight) {
+      bargeInVadInFlight = deps
+        .downloadFocusModel('silero-vad')
+        .catch((error: unknown) =>
+          console.error('[companion] barge-in VAD model download failed', error)
+        )
+        .finally(() => {
+          bargeInVadInFlight = null
         })
     }
   }

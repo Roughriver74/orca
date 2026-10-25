@@ -20,7 +20,7 @@ function feedFor(
 ): number {
   let triggers = 0
   for (let elapsed = 0; elapsed < durationMs; elapsed += FRAME_MS) {
-    if (detector.feed(frame(micLevel, playbackLevel))) {
+    if (detector.feed(frame(micLevel, playbackLevel)).triggered) {
       triggers += 1
     }
   }
@@ -43,7 +43,7 @@ describe('createCompanionVoiceBargeInDetector', () => {
   it('triggers once the user talks over the reply for the sustain window', () => {
     const detector = calibrated()
     expect(feedFor(detector, 250, 0.3, 0.2)).toBe(0)
-    expect(detector.feed(frame(0.3, 0.2))).toBe(true)
+    expect(detector.feed(frame(0.3, 0.2))).toEqual({ aboveEcho: true, triggered: true })
   })
 
   it('fires exactly once until reset, then recalibrates', () => {
@@ -51,6 +51,15 @@ describe('createCompanionVoiceBargeInDetector', () => {
     expect(feedFor(detector, 1000, 0.3, 0.2)).toBe(1)
     detector.reset()
     expect(feedFor(detector, 600, 0.3, 0.2)).toBe(0)
+  })
+
+  it('rearm forgets a rejected trigger but keeps the calibration', () => {
+    const detector = calibrated()
+    expect(feedFor(detector, 300, 0.3, 0.2)).toBe(1)
+    detector.rearm()
+    // Still calibrated: its own echo stays below threshold, real speech triggers again at once.
+    expect(feedFor(detector, 1000, 0.12, 0.4)).toBe(0)
+    expect(feedFor(detector, 300, 0.5, 0.2)).toBe(1)
   })
 
   it('ignores its own echo even when the reply gets louder', () => {

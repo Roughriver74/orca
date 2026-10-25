@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import type {
-  CompanionListeningStatus,
-  CompanionSettings
+import {
+  COMPANION_VOICE_BARGE_IN_CONFIRM_LIMITS,
+  type CompanionListeningStatus,
+  type CompanionSettings
 } from '../../../../shared/companion-types'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -30,7 +31,13 @@ export function CompanionVoiceInteractionSettingsSection({
   updateCompanionSettings,
   listeningStatus
 }: CompanionVoiceInteractionSettingsSectionProps): React.JSX.Element {
-  const { wake } = companionSettings
+  const { wake, voiceBargeInConfirm } = companionSettings
+  const confirmEditable = companionSettings.voiceBargeIn && companionSettings.tts.ttsEnabled
+  const updateBargeInConfirm = (
+    updates: Partial<CompanionSettings['voiceBargeInConfirm']>
+  ): void => {
+    updateCompanionSettings({ voiceBargeInConfirm: { ...voiceBargeInConfirm, ...updates } })
+  }
   const updateWakeSettings = (updates: Partial<CompanionSettings['wake']>): void => {
     updateCompanionSettings({ wake: { ...wake, ...updates } })
   }
@@ -72,6 +79,90 @@ export function CompanionVoiceInteractionSettingsSection({
             'auto.components.settings.CompanionPane.voiceBargeIn',
             'Перебивать голосом'
           )}
+        />
+      </div>
+
+      <Separator />
+
+      <div className="flex items-center justify-between gap-4 py-2">
+        <div className="space-y-0.5">
+          <Label>
+            {translate(
+              'auto.components.settings.CompanionPane.voiceBargeInConfirm',
+              'Перебивать только живым голосом'
+            )}
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            {translate(
+              'auto.components.settings.CompanionPane.voiceBargeInConfirmDescription',
+              'Уведомления, щелчки и шум не обрывают ответ: Джарвис сначала говорит тише и замолкает, только если распознал речь человека (локальная модель Silero VAD, ~2 МБ, скачивается сама). Иначе громкость сразу возвращается. «Стоп» и горячая клавиша прерывают как раньше.'
+            )}
+          </p>
+        </div>
+        <Switch
+          checked={voiceBargeInConfirm.enabled}
+          disabled={!confirmEditable}
+          onCheckedChange={(checked) => updateBargeInConfirm({ enabled: checked })}
+          aria-label={translate(
+            'auto.components.settings.CompanionPane.voiceBargeInConfirm',
+            'Перебивать только живым голосом'
+          )}
+        />
+      </div>
+
+      <div className="space-y-1.5 py-2">
+        <div className="flex items-center justify-between gap-4">
+          <Label>
+            {translate(
+              'auto.components.settings.CompanionPane.voiceBargeInConfirmWindow',
+              'Сколько ждать подтверждения'
+            )}
+          </Label>
+          <span className="text-xs text-muted-foreground">
+            {translate('auto.components.settings.CompanionPane.milliseconds', '{{ms}} мс', {
+              ms: voiceBargeInConfirm.windowMs
+            })}
+          </span>
+        </div>
+        <Slider
+          min={COMPANION_VOICE_BARGE_IN_CONFIRM_LIMITS.windowMs.min}
+          max={COMPANION_VOICE_BARGE_IN_CONFIRM_LIMITS.windowMs.max}
+          step={50}
+          disabled={!confirmEditable || !voiceBargeInConfirm.enabled}
+          value={[voiceBargeInConfirm.windowMs]}
+          onValueChange={([value]) => updateBargeInConfirm({ windowMs: value })}
+        />
+      </div>
+
+      <div className="space-y-1.5 py-2">
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <Label>
+              {translate(
+                'auto.components.settings.CompanionPane.voiceBargeInConfirmMinVoiced',
+                'Минимум речи'
+              )}
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              {translate(
+                'auto.components.settings.CompanionPane.voiceBargeInConfirmMinVoicedDescription',
+                'Больше — реже ложные обрывы, но короткое слово может не прервать.'
+              )}
+            </p>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {translate('auto.components.settings.CompanionPane.milliseconds', '{{ms}} мс', {
+              ms: voiceBargeInConfirm.minVoicedMs
+            })}
+          </span>
+        </div>
+        <Slider
+          min={COMPANION_VOICE_BARGE_IN_CONFIRM_LIMITS.minVoicedMs.min}
+          max={COMPANION_VOICE_BARGE_IN_CONFIRM_LIMITS.minVoicedMs.max}
+          step={25}
+          disabled={!confirmEditable || !voiceBargeInConfirm.enabled}
+          value={[voiceBargeInConfirm.minVoicedMs]}
+          onValueChange={([value]) => updateBargeInConfirm({ minVoicedMs: value })}
         />
       </div>
 

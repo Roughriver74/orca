@@ -7,7 +7,8 @@ import type {
   CompanionListeningStatus,
   CompanionSettings,
   CompanionTtsProvisioningStatus,
-  CompanionVoiceActivityFrame
+  CompanionVoiceActivityFrame,
+  CompanionVoiceActivityResult
 } from '../../shared/companion-types'
 
 export type CompanionApi = {
@@ -35,8 +36,9 @@ export type CompanionApi = {
   /** Drops the brain session + any in-flight audio; keeps the conversation open if it is. */
   resetConversation: () => Promise<void>
   reportAudioState: (state: CompanionAudioState) => Promise<void>
-  /** One mic frame while a reply plays; `bargedIn` when it was the frame that interrupted. */
-  reportVoiceActivity: (frame: CompanionVoiceActivityFrame) => Promise<{ bargedIn: boolean }>
+  /** One mic frame while a reply plays; `bargedIn` when it was the frame that interrupted,
+   *  `ducked` while a possible barge-in awaits VAD confirmation. */
+  reportVoiceActivity: (frame: CompanionVoiceActivityFrame) => Promise<CompanionVoiceActivityResult>
   respondToNotice: (payload: { id: string; action: 'discuss' | 'later' }) => Promise<void>
   /** Mic-meter isSpeaking transitions, so the main-process hotkey handler can tell
    *  "press while mid-utterance" (finalize now) from "press while idle" (toggle). */

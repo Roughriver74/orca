@@ -11,8 +11,10 @@ import { randomUUID } from 'node:crypto'
 import type {
   CompanionConversationState,
   CompanionSettings,
-  CompanionVoiceActivityFrame
+  CompanionVoiceActivityFrame,
+  CompanionVoiceActivityResult
 } from '../../shared/companion-types'
+import { getDefaultCompanionSettings } from '../../shared/companion-defaults'
 import {
   companionConversation,
   onCompanionStateChange,
@@ -24,7 +26,9 @@ import { sendToCompanionWindow } from '../window/companion-window'
 import type { CompanionTtsService } from './tts/companion-tts-service'
 import { resolveCompanionDialogueTts } from './companion-dialogue-tts-resolution'
 import { takeCompanionAgentBriefing, takePendingDiscussionContext } from './companion-agent-watch'
-import { createCompanionVoiceBargeInDetector } from './companion-voice-barge-in'
+import { createCompanionVoiceBargeInGate } from './companion-voice-barge-in-gate'
+import { createCompanionBargeInVad } from '../speech/companion-barge-in-vad'
+import { getFocusModelManager } from '../speech/focus-model-manager'
 import type {
   CompanionDialogue,
   CompanionDialogueActiveTts,
@@ -53,8 +57,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
   let announcementUtteranceId: string | null = null
   let previousState: CompanionConversationState = deps.conversation.getState()
   let firstTurnPending = false
-  let realSpeechConfirmed = false
-  const voiceBargeIn = createCompanionVoiceBargeInDetector()
+  const voiceBargeIn = createCompanionVoiceBargeInGate(deps.bargeInSpeech)
 
   function ttsOptions(
     tts: CompanionDialogueActiveTts,
@@ -115,7 +118,6 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
       // WebAudio playback — reported back here — is the only true signal that the user
       // is now hearing Jarvis and should stop being transcribed.
       voiceBargeIn.reset()
-      realSpeechConfirmed = false
       deps.conversation.reportSpeaking()
       return
     }
@@ -216,25 +218,19 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
     deps.conversation.reportListening()
   }
 
-  function reportVoiceActivity(frame: CompanionVoiceActivityFrame): boolean {
+  function reportVoiceActivity(frame: CompanionVoiceActivityFrame): CompanionVoiceActivityResult {
     if (!deps.isVoiceBargeInEnabled() || deps.conversation.getState() !== 'speaking') {
-      return false
+      return { bargedIn: false, ducked: false }
     }
-    if (!voiceBargeIn.feed(frame)) {
-      return false
-    }
-    realSpeechConfirmed = true
-    if (deps.isWakeModeActive()) {
-      // Loudness alone must not interrupt in wake mode (a TV could trigger it) — only
-      // marks confirmation; companion-wake-listening.ts's wake-phrase path barges in.
-      return false
+    const verdict = voiceBargeIn.feed(frame, {
+      wakeMode: deps.isWakeModeActive(),
+      confirm: deps.getVoiceBargeInConfirm()
+    })
+    if (verdict !== 'barge-in') {
+      return { bargedIn: false, ducked: verdict === 'ducked' }
     }
     bargeIn()
-    return true
-  }
-
-  function hasConfirmedRealSpeech(): boolean {
-    return realSpeechConfirmed
+    return { bargedIn: true, ducked: false }
   }
 
   function resetConversation(): void {
@@ -293,7 +289,7 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
   return {
     bargeIn,
     reportVoiceActivity,
-    hasConfirmedRealSpeech,
+    hasConfirmedRealSpeech: voiceBargeIn.hasConfirmedRealSpeech,
     resetConversation,
     speakAnnouncement,
     dispose
@@ -324,6 +320,11 @@ export function initCompanionDialogue(
   getTtsService?: (userDataDir: string) => CompanionTtsService | null
 ): () => void {
   const brain = getCompanionBrain(store)
+  const bargeInSpeech = createCompanionBargeInVad(() => {
+    const models = getFocusModelManager()
+    return models.isReady('silero-vad') ? models.getModelPath('silero-vad') : null
+  })
+  const defaultBargeInConfirm = getDefaultCompanionSettings().voiceBargeInConfirm
 
   const dialogue = createCompanionDialogue({
     conversation: companionConversation,
@@ -345,6 +346,9 @@ export function initCompanionDialogue(
     // what a confirmed frame then does differs by mode (see isWakeModeActive/reportVoiceActivity).
     isVoiceBargeInEnabled: () => store.getSettings().companion?.voiceBargeIn === true,
     isWakeModeActive: () => store.getSettings().companion?.wake.enabled === true,
+    getVoiceBargeInConfirm: () =>
+      store.getSettings().companion?.voiceBargeInConfirm ?? defaultBargeInConfirm,
+    bargeInSpeech,
     pickThinkingAckPhrase: pickCompanionThinkingAckPhrase,
     randomUUID
   })
@@ -352,6 +356,7 @@ export function initCompanionDialogue(
   companionDialogueHandle.current = dialogue
   return () => {
     dialogue.dispose()
+    bargeInSpeech.dispose()
     companionDialogueHandle.current = null
   }
 }

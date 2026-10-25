@@ -21,7 +21,7 @@ vi.mock('./companion-audio-playback', () => ({
     onPlaybackChange?: (playing: boolean) => void
   }) => {
     capturedOnPlaybackChange = onPlaybackChange ?? null
-    return { getOutputLevel: () => 0 }
+    return { getOutputLevel: () => 0, setDucked: () => undefined }
   }
 }))
 

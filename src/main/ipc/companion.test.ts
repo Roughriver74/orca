@@ -119,7 +119,7 @@ describe('registerCompanionHandlers', () => {
     const resetConversation = vi.fn()
     companionDialogueHandle.current = {
       bargeIn: vi.fn(),
-      reportVoiceActivity: vi.fn(() => false),
+      reportVoiceActivity: vi.fn(() => ({ bargedIn: false, ducked: false })),
       hasConfirmedRealSpeech: vi.fn(() => false),
       resetConversation,
       speakAnnouncement: vi.fn(),
@@ -136,9 +136,9 @@ describe('registerCompanionHandlers', () => {
     expect(sendToCompanionWindowMock).toHaveBeenCalledWith('companion:conversationReset')
   })
 
-  it('voiceActivity forwards a valid frame to the dialogue and reports whether it barged in', () => {
+  it('voiceActivity decodes the frame and its mic samples, and returns the dialogue verdict', () => {
     registerCompanionHandlers(makeStore())
-    const reportVoiceActivity = vi.fn(() => true)
+    const reportVoiceActivity = vi.fn(() => ({ bargedIn: false, ducked: true }))
     companionDialogueHandle.current = {
       bargeIn: vi.fn(),
       reportVoiceActivity,
@@ -147,14 +147,29 @@ describe('registerCompanionHandlers', () => {
       speakAnnouncement: vi.fn(),
       dispose: vi.fn()
     }
-    const frame = { micLevel: 0.3, playbackLevel: 0.1, durationMs: 43 }
-    expect(getHandler('companion:voiceActivity')({}, frame)).toEqual({ bargedIn: true })
-    expect(reportVoiceActivity).toHaveBeenCalledWith(frame)
+    const samples = new Float32Array([0.25, -0.5, 0.125])
+    const frame = {
+      micLevel: 0.3,
+      playbackLevel: 0.1,
+      durationMs: 43,
+      samples: Buffer.from(samples.buffer),
+      sampleRate: 48_000
+    }
+    expect(getHandler('companion:voiceActivity')({}, frame)).toEqual({
+      bargedIn: false,
+      ducked: true
+    })
+    expect(reportVoiceActivity).toHaveBeenCalledWith({
+      micLevel: 0.3,
+      playbackLevel: 0.1,
+      durationMs: 43,
+      audio: { samples, sampleRate: 48_000 }
+    })
   })
 
   it('voiceActivity drops a malformed frame without reaching the dialogue', () => {
     registerCompanionHandlers(makeStore())
-    const reportVoiceActivity = vi.fn(() => true)
+    const reportVoiceActivity = vi.fn(() => ({ bargedIn: true, ducked: false }))
     companionDialogueHandle.current = {
       bargeIn: vi.fn(),
       reportVoiceActivity,
@@ -164,7 +179,8 @@ describe('registerCompanionHandlers', () => {
       dispose: vi.fn()
     }
     expect(getHandler('companion:voiceActivity')({}, { micLevel: 'loud' })).toEqual({
-      bargedIn: false
+      bargedIn: false,
+      ducked: false
     })
     expect(reportVoiceActivity).not.toHaveBeenCalled()
   })

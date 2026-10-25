@@ -15,7 +15,8 @@ function makeFakeBinding(): {
       queue.shift()
     }),
     voiceActivityDetectorFlush: vi.fn(),
-    voiceActivityDetectorReset: vi.fn()
+    voiceActivityDetectorReset: vi.fn(),
+    voiceActivityDetectorIsDetected: vi.fn(() => false)
   }
   return { binding, queue }
 }

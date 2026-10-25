@@ -13,6 +13,9 @@ export function getDefaultCompanionSettings(): CompanionSettings {
     // to flush its buffer — 1.6s was cutting people off before they finished a thought.
     endOfUtteranceSeconds: 2.5,
     voiceBargeIn: false,
+    // Why 500/200ms: a chime or a click rarely carries 200ms of VAD-voiced audio, while even a
+    // short "стоп" does; half a second of ducking is barely noticeable when it was a false alarm.
+    voiceBargeInConfirm: { enabled: true, windowMs: 500, minVoicedMs: 200 },
     brainModel: 'sonnet',
     launchAtLogin: false,
     tts: {

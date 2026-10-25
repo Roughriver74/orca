@@ -10,8 +10,11 @@ vi.mock('./companion-agent-watch', () => ({
   takePendingDiscussionContext: vi.fn(() => null),
   takeCompanionAgentBriefing: vi.fn(() => null)
 }))
+vi.mock('../speech/focus-model-manager', () => ({ getFocusModelManager: vi.fn() }))
+vi.mock('../speech/companion-barge-in-vad', () => ({ createCompanionBargeInVad: vi.fn() }))
 import { createCompanionDialogue } from './companion-dialogue'
 import type {
+  CompanionDialogue,
   CompanionDialogueBrain,
   CompanionDialogueDeps,
   CompanionDialogueTts
@@ -19,7 +22,8 @@ import type {
 import type {
   CompanionAudioState,
   CompanionConversationState,
-  CompanionVoiceActivityFrame
+  CompanionVoiceActivityFrame,
+  CompanionVoiceActivityResult
 } from '../../shared/companion-types'
 
 type BrainEvent = Parameters<Parameters<CompanionDialogueBrain['send']>[1]>[0]
@@ -183,6 +187,9 @@ function buildHarness(overrides: Partial<CompanionDialogueDeps> = {}) {
     takeAgentBriefing: () => null,
     isVoiceBargeInEnabled: () => false,
     isWakeModeActive: () => false,
+    // Loudness-only by default, the pre-confirmation behavior the suites below pin down.
+    getVoiceBargeInConfirm: () => ({ enabled: false, windowMs: 500, minVoicedMs: 200 }),
+    bargeInSpeech: { feed: vi.fn(), isSpeech: () => null, reset: vi.fn() },
     pickThinkingAckPhrase: () => 'Секунду, смотрю…',
     randomUUID: () => `uuid-${(uuidCounter += 1)}`,
     ...overrides
@@ -447,7 +454,7 @@ function reportVoiceFor(
 ): boolean {
   let bargedIn = false
   for (let elapsed = 0; elapsed < durationMs; elapsed += VOICE_FRAME_MS) {
-    bargedIn = dialogue.reportVoiceActivity(voiceFrame(micLevel, playbackLevel)) || bargedIn
+    bargedIn = dialogue.reportVoiceActivity(voiceFrame(micLevel, playbackLevel)).bargedIn || bargedIn
   }
   return bargedIn
 }
@@ -533,6 +540,54 @@ describe('createCompanionDialogue voice barge-in', () => {
     h.dialogue.bargeIn()
     expect(h.conversation.getState()).toBe('listening')
     expect(reportVoiceFor(h.dialogue, 1000, 0.9, 0.2)).toBe(false)
+  })
+})
+
+describe('createCompanionDialogue voice barge-in with speech confirmation', () => {
+  function confirmingHarness(isSpeech: () => boolean | null) {
+    return speakingHarness({
+      isVoiceBargeInEnabled: () => true,
+      getVoiceBargeInConfirm: () => ({ enabled: true, windowMs: 500, minVoicedMs: 200 }),
+      bargeInSpeech: { feed: vi.fn(), isSpeech, reset: vi.fn() }
+    })
+  }
+
+  /** Calibration on the echo, then a pause between phrases (threshold at its floor). */
+  function reachPause(dialogue: CompanionDialogue): void {
+    reportVoiceFor(dialogue, 600, 0.06, 0.2)
+    reportVoiceFor(dialogue, 500, 0.005, 0)
+  }
+
+  it('a notification chime ducks the reply, then restores it and keeps speaking', async () => {
+    const h = await confirmingHarness(() => false)
+    reachPause(h.dialogue)
+    const results: CompanionVoiceActivityResult[] = []
+    for (let elapsed = 0; elapsed < 1000; elapsed += VOICE_FRAME_MS) {
+      results.push(h.dialogue.reportVoiceActivity(voiceFrame(elapsed < 400 ? 0.05 : 0.005, 0)))
+    }
+    expect(results.some((result) => result.ducked)).toBe(true)
+    expect(results.some((result) => result.bargedIn)).toBe(false)
+    expect(results.at(-1)).toEqual({ bargedIn: false, ducked: false })
+    expect(h.conversation.getState()).toBe('speaking')
+    expect(h.tts.stop).not.toHaveBeenCalled()
+  })
+
+  it('speech the VAD confirms stops the reply', async () => {
+    const h = await confirmingHarness(() => true)
+    reachPause(h.dialogue)
+    expect(reportVoiceFor(h.dialogue, 400, 0.3, 0.2)).toBe(true)
+    expect(h.conversation.getState()).toBe('listening')
+    expect(h.tts.stop).toHaveBeenCalledWith('uuid-1')
+  })
+
+  it('the hotkey or a stop command still cuts a ducked reply at once', async () => {
+    const h = await confirmingHarness(() => false)
+    reachPause(h.dialogue)
+    reportVoiceFor(h.dialogue, 300, 0.05, 0)
+    expect(h.dialogue.reportVoiceActivity(voiceFrame(0.05, 0)).ducked).toBe(true)
+    h.dialogue.bargeIn()
+    expect(h.conversation.getState()).toBe('listening')
+    expect(h.tts.stop).toHaveBeenCalledWith('uuid-1')
   })
 })
 

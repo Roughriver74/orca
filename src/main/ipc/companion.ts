@@ -15,6 +15,7 @@ import { hideCompanionPanel, sendToCompanionWindow } from '../window/companion-w
 import { setCompanionIndicatorInteractive } from '../window/companion-indicator-window'
 import { reportAudioState, type CompanionAudioState } from '../companion/companion-audio-output'
 import { parseCompanionVoiceActivityFrame } from '../companion/companion-voice-barge-in'
+import type { CompanionVoiceActivityResult } from '../../shared/companion-types'
 import { handleCompanionNoticeAction } from '../companion/companion-agent-watch'
 import {
   getCompanionListeningStatus,
@@ -146,14 +147,18 @@ export function registerCompanionHandlers(store: CompanionHotkeySettingsStore): 
   })
 
   // Why a reply value: the panel hands its pre-roll mic audio to STT only when its own
-  // frame was the one that barged in, so the start of the user's phrase is not lost.
-  ipcMain.handle('companion:voiceActivity', (_event, frame: unknown): { bargedIn: boolean } => {
-    const parsed = parseCompanionVoiceActivityFrame(frame)
-    if (!parsed) {
-      return { bargedIn: false }
+  // frame was the one that barged in, so the start of the user's phrase is not lost; and it
+  // plays the reply quieter while `ducked` (a possible barge-in awaiting VAD confirmation).
+  ipcMain.handle(
+    'companion:voiceActivity',
+    (_event, frame: unknown): CompanionVoiceActivityResult => {
+      const parsed = parseCompanionVoiceActivityFrame(frame)
+      const dialogue = companionDialogueHandle.current
+      return parsed && dialogue
+        ? dialogue.reportVoiceActivity(parsed)
+        : { bargedIn: false, ducked: false }
     }
-    return { bargedIn: companionDialogueHandle.current?.reportVoiceActivity(parsed) ?? false }
-  })
+  )
 
   // Why: closing the panel keeps the brain session for continuity; this is the explicit
   // "Новый разговор" action (panel menu / settings) that drops it.

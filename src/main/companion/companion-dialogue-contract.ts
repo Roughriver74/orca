@@ -5,9 +5,12 @@ import type {
   CompanionAudioState,
   CompanionConversationState,
   CompanionTtsVoice,
-  CompanionVoiceActivityFrame
+  CompanionVoiceActivityFrame,
+  CompanionVoiceActivityResult,
+  CompanionVoiceBargeInConfirmSettings
 } from '../../shared/companion-types'
 import type { CompanionBrainEvent } from './companion-brain'
+import type { CompanionBargeInSpeechSource } from './companion-voice-barge-in-gate'
 
 export type CompanionDialogueConversation = {
   getState(): CompanionConversationState
@@ -77,24 +80,27 @@ export type CompanionDialogueDeps = {
   isVoiceBargeInEnabled: () => boolean
   /** In wake mode, loudness alone must never interrupt a reply (a TV could trigger it) —
    *  only an utterance naming Jarvis does, via companion-wake-listening.ts. So confirmed
-   *  frames there only mark `hasConfirmedRealSpeech()`; outside wake mode they barge in
-   *  immediately, as before. */
+   *  frames there only mark `hasConfirmedRealSpeech()`; outside wake mode they barge in. */
   isWakeModeActive: () => boolean
+  /** Read per frame, like `isVoiceBargeInEnabled`; outside wake mode only. */
+  getVoiceBargeInConfirm: () => CompanionVoiceBargeInConfirmSettings
+  /** The VAD confirming that a barge-in is speech; fed the monitor's mic audio. */
+  bargeInSpeech: CompanionBargeInSpeechSource
   /** One of a small fixed set so companion-tts-yandex-cache.ts caches it after first use. */
   pickThinkingAckPhrase: () => string
   randomUUID: () => string
 }
 
 export type CompanionDialogue = {
-  /** Hotkey pressed (or user speech detected) mid-reply: stop audio immediately and return
-   *  to listening without closing the conversation or touching the brain session. No-op
-   *  outside 'speaking'. */
+  /** Hotkey pressed, a stop command heard, or user speech confirmed mid-reply: stop audio
+   *  immediately and return to listening without closing the conversation or touching the
+   *  brain session. No-op outside 'speaking'. */
   bargeIn(): void
   /** One mic frame from the panel while a reply plays. Outside wake mode, barges in once
-   *  user speech is confirmed over the companion's own echo and returns whether this frame
-   *  did. In wake mode it never barges in by itself (see `isWakeModeActive`) — it only
-   *  updates what `hasConfirmedRealSpeech()` reports, and always returns `false`. */
-  reportVoiceActivity(frame: CompanionVoiceActivityFrame): boolean
+   *  user speech is confirmed over the companion's own echo (and, with confirmation on,
+   *  by the VAD — `ducked` while that is pending). In wake mode it never barges in by
+   *  itself (see `isWakeModeActive`) — it only updates `hasConfirmedRealSpeech()`. */
+  reportVoiceActivity(frame: CompanionVoiceActivityFrame): CompanionVoiceActivityResult
   /** Whether this reply's playback has had mic speech confirmed as real (echo-margin +
    *  sustain), not Jarvis's own voice coming back through the mic. Consulted by
    *  companion-wake-listening.ts before honoring a wake-phrase interrupt while speaking —

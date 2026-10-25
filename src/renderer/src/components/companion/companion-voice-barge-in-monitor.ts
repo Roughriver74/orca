@@ -32,15 +32,18 @@ type MonitorResources = {
 
 /**
  * Listens to the mic only while a reply plays (the STT capture is paused then, so the
- * companion never transcribes itself) and streams per-frame mic + playback levels to
- * main, which decides whether the user is talking over Jarvis. The stream asks for the
- * browser's echo cancellation, same as the STT capture. `stop()` returns the last
- * ~1.5s of mic audio when this monitor's frame was the one that barged in.
+ * companion never transcribes itself) and streams per-frame mic + playback levels, plus
+ * the mic samples for main's VAD, to main, which decides whether the user is talking over
+ * Jarvis. `onDuckChange` follows main's "possible barge-in, confirming" verdict. The stream
+ * asks for the browser's echo cancellation, same as the STT capture. `stop()` returns the
+ * last ~1.5s of mic audio when this monitor's frame was the one that barged in.
  */
 export function useCompanionVoiceBargeInMonitor({
-  getPlaybackLevel
+  getPlaybackLevel,
+  onDuckChange
 }: {
   getPlaybackLevel: () => number
+  onDuckChange: (ducked: boolean) => void
 }): {
   start: () => Promise<void>
   stop: () => Promise<CompanionVoicePreRoll | null>
@@ -118,16 +121,19 @@ export function useCompanionVoiceBargeInMonitor({
         return
       }
       const samples = new Float32Array(event.inputBuffer.getChannelData(0))
-      rememberPreRoll(samples)
       lastReportRef.current = window.api.companion
         .reportVoiceActivity({
           micLevel: rmsLevel(samples),
           playbackLevel: getPlaybackLevel(),
-          durationMs: (samples.length / context.sampleRate) * 1000
+          durationMs: (samples.length / context.sampleRate) * 1000,
+          audio: { samples, sampleRate: context.sampleRate }
         })
         .then((result) => {
           if (result.bargedIn) {
             bargedInSessionRef.current = session
+          }
+          if (session === sessionRef.current) {
+            onDuckChange(result.ducked)
           }
         })
         .catch(() => undefined)
@@ -135,7 +141,7 @@ export function useCompanionVoiceBargeInMonitor({
     source.connect(processor)
     // Why: a ScriptProcessorNode only runs while connected to a destination; it outputs silence.
     processor.connect(context.destination)
-  }, [getPlaybackLevel, release, rememberPreRoll])
+  }, [getPlaybackLevel, onDuckChange, release, rememberPreRoll])
 
   const stop = useCallback(async (): Promise<CompanionVoicePreRoll | null> => {
     const endedSession = sessionRef.current

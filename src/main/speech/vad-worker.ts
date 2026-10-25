@@ -19,6 +19,9 @@ type WorkerMessage =
       vadModelPath: string
       endOfUtteranceSeconds: number
       maxUtteranceSeconds: number
+      minSpeechDurationSeconds?: number
+      /** Post `{ type: 'activity', speech }` after every feed (voice barge-in confirmation). */
+      reportActivity?: boolean
       speakerEmbeddingModelPath?: string
       denoiserModelPath?: string
     }
@@ -30,6 +33,7 @@ let sherpa: any = null
 let segmenter: VadSegmenter | null = null
 let speakerExtractor: SpeakerEmbeddingExtractor | null = null
 let denoiser: OfflineSpeechDenoiser | null = null
+let reportActivity = false
 
 function loadSherpa(): any {
   const modulePath = workerData?.sherpaModulePath
@@ -46,8 +50,10 @@ function handleInit(msg: Extract<WorkerMessage, { type: 'init' }>): void {
       modelPath: msg.vadModelPath,
       sampleRate: VAD_SAMPLE_RATE,
       endOfUtteranceSeconds: msg.endOfUtteranceSeconds,
-      maxUtteranceSeconds: msg.maxUtteranceSeconds
+      maxUtteranceSeconds: msg.maxUtteranceSeconds,
+      minSpeechDurationSeconds: msg.minSpeechDurationSeconds
     })
+    reportActivity = msg.reportActivity === true
     speakerExtractor = msg.speakerEmbeddingModelPath
       ? new SpeakerEmbeddingExtractor(sherpa, { modelPath: msg.speakerEmbeddingModelPath })
       : null
@@ -101,6 +107,9 @@ function handleFeed(msg: Extract<WorkerMessage, { type: 'feed' }>): void {
   }
   for (const segment of segmenter.feed(samples)) {
     emitSegment(segment)
+  }
+  if (reportActivity) {
+    parentPort?.postMessage({ type: 'activity', speech: segmenter.isSpeechDetected() })
   }
 }
 

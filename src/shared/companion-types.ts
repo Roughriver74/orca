@@ -12,6 +12,8 @@ export type CompanionSettings = {
   endOfUtteranceSeconds: number
   /** Interrupt a spoken reply by talking over it (the hotkey barge-in always works). */
   voiceBargeIn: boolean
+  /** Voice barge-in only for confirmed human speech, not any loud sound. */
+  voiceBargeInConfirm: CompanionVoiceBargeInConfirmSettings
   /** Claude model the brain conversation runs on. */
   brainModel: CompanionBrainModel
   /** macOS only: `app.setLoginItemSettings({ openAtLogin })` so Orca (and the companion) is ready at login. */
@@ -31,6 +33,20 @@ export type CompanionSettings = {
    *  it in settings since both only matter once the big panel can appear. */
   autoHidePanelAfterReply: boolean
 }
+
+/** A loud sound over a reply first ducks it; it is interrupted only once Silero VAD hears
+ *  `minVoicedMs` of speech above Jarvis's echo within `windowMs`, otherwise the volume comes
+ *  back. Off = the loudness-only barge-in a notification chime could trigger. */
+export type CompanionVoiceBargeInConfirmSettings = {
+  enabled: boolean
+  windowMs: number
+  minVoicedMs: number
+}
+
+export const COMPANION_VOICE_BARGE_IN_CONFIRM_LIMITS = {
+  windowMs: { min: 300, max: 1500 },
+  minVoicedMs: { min: 100, max: 600 }
+} as const
 
 /** Always-on listening that answers only when addressed by name. */
 export type CompanionWakeSettings = {
@@ -235,6 +251,16 @@ export type CompanionVoiceActivityFrame = {
   /** RMS of the companion's own TTS output at the same moment, 0..1. */
   playbackLevel: number
   durationMs: number
+  /** The frame's mic samples, for the VAD that confirms a barge-in is speech. */
+  audio?: { samples: Float32Array; sampleRate: number }
+}
+
+/** Main's answer to one voice-activity frame. */
+export type CompanionVoiceActivityResult = {
+  /** This frame interrupted the reply (the monitor hands its pre-roll to STT). */
+  bargedIn: boolean
+  /** A possible barge-in is being confirmed: play the reply quieter until it resolves. */
+  ducked: boolean
 }
 
 /** Utterances that end a companion conversation, matched exact/case/punctuation-insensitive. */

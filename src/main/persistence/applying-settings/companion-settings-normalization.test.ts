@@ -16,6 +16,7 @@ describe('normalizeCompanionSettings', () => {
       sttModel: 'gigaam-v3-e2e-rnnt-ru',
       endOfUtteranceSeconds: 2,
       voiceBargeIn: true,
+      voiceBargeInConfirm: { enabled: false, windowMs: 800, minVoicedMs: 300 },
       showPanelOnAddress: true,
       autoHidePanelAfterReply: false,
       brainModel: 'opus',
@@ -61,6 +62,7 @@ describe('normalizeCompanionSettings', () => {
       launchAtLogin: 'yes',
       tts: { ttsEnabled: 'yes', ttsVoice: 'robot', ttsRate: 'fast' },
       voiceBargeIn: 'on',
+      voiceBargeInConfirm: { enabled: 'yes', windowMs: 'short', minVoicedMs: null },
       notify: { enabled: 'yes', quietFrom: '25:99', quietTo: 42, speakAloud: 'no' },
       wake: { enabled: 1, phrases: 'джарвис', followUpMs: 'long', keywordSpotter: 'on' }
     })
@@ -79,6 +81,17 @@ describe('normalizeCompanionSettings', () => {
     expect(
       normalizeCompanionSettings({ endOfUtteranceSeconds: Number.NaN }).endOfUtteranceSeconds
     ).toBe(getDefaultCompanionSettings().endOfUtteranceSeconds)
+  })
+
+  it('clamps the barge-in confirmation window and minimum speech into their slider ranges', () => {
+    const tooSmall = normalizeCompanionSettings({
+      voiceBargeInConfirm: { enabled: true, windowMs: 10, minVoicedMs: 1 }
+    }).voiceBargeInConfirm
+    expect(tooSmall).toEqual({ enabled: true, windowMs: 300, minVoicedMs: 100 })
+    const tooLarge = normalizeCompanionSettings({
+      voiceBargeInConfirm: { enabled: true, windowMs: 99_999, minVoicedMs: 99_999 }
+    }).voiceBargeInConfirm
+    expect(tooLarge).toEqual({ enabled: true, windowMs: 1500, minVoicedMs: 600 })
   })
 
   it('migrates a legacy endOfUtteranceMs value to seconds, clamped', () => {
