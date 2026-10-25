@@ -7,7 +7,10 @@ import { getSpeechSttServiceIfInitialized } from '../speech/speech-runtime-servi
 import {
   addressCompanion,
   dismissCompanionAddress,
-  isCompanionWakeListeningEnabled
+  isCompanionRequestHeld,
+  isCompanionWakeListeningEnabled,
+  sendHeldCompanionRequest,
+  sendNextCompanionSegmentAsIs
 } from './companion-wake-listening'
 import {
   destroyCompanionWindow,
@@ -59,7 +62,11 @@ export function toggleCompanionConversation(): void {
     addressCompanion()
     return
   }
-  const action = decideHotkeyPressAction({ userSpeaking, jarvisSpeaking: state === 'speaking' })
+  const action = decideHotkeyPressAction({
+    userSpeaking,
+    jarvisSpeaking: state === 'speaking',
+    requestHeld: isCompanionRequestHeld()
+  })
   if (action === 'barge-in') {
     companionDialogueHandle.current?.bargeIn()
     return
@@ -69,7 +76,12 @@ export function toggleCompanionConversation(): void {
     // listener takes it from there (flushes STT, submits, same path as a natural
     // trailing-silence end-of-utterance). No-op if VAD segmentation is not active for
     // this session (model not downloaded, or voice focus off) — nothing to finalize early.
+    sendNextCompanionSegmentAsIs()
     getSpeechSttServiceIfInitialized()?.finalizeNow()
+    return
+  }
+  if (action === 'send-held') {
+    sendHeldCompanionRequest()
     return
   }
   if (isCompanionWakeListeningEnabled()) {

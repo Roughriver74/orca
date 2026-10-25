@@ -1,8 +1,8 @@
 // What a hotkey press should do depends on what's happening right now (assignment point
 // 4): pressing it while Jarvis is speaking is always barge-in (interrupt and listen);
 // pressing it while the user is mid-utterance finalizes and sends that utterance
-// immediately instead of waiting out the VAD/energy silence timer; otherwise it is the
-// ordinary open/close toggle. Pure decision, no I/O — the caller (hotkey handler) wires
+// immediately instead of waiting out the VAD/energy silence timer; pressing it while an
+// end-keyword request is held sends it now; otherwise it is the ordinary open/close toggle. Pure decision, no I/O — the caller (hotkey handler) wires
 // the resulting action to VadSegmentationService.finalizeNow() / barge-in / toggle.
 
 export type HotkeyFinalizeState = {
@@ -10,9 +10,11 @@ export type HotkeyFinalizeState = {
   userSpeaking: boolean
   /** Jarvis is currently speaking a reply (TTS playback in progress). */
   jarvisSpeaking: boolean
+  /** End-keyword mode is holding a dictated request that has not been sent yet. */
+  requestHeld: boolean
 }
 
-export type HotkeyFinalizeAction = 'finalize' | 'barge-in' | 'toggle'
+export type HotkeyFinalizeAction = 'finalize' | 'barge-in' | 'send-held' | 'toggle'
 
 export function decideHotkeyPressAction(state: HotkeyFinalizeState): HotkeyFinalizeAction {
   if (state.jarvisSpeaking) {
@@ -20,6 +22,9 @@ export function decideHotkeyPressAction(state: HotkeyFinalizeState): HotkeyFinal
   }
   if (state.userSpeaking) {
     return 'finalize'
+  }
+  if (state.requestHeld) {
+    return 'send-held'
   }
   return 'toggle'
 }

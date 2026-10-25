@@ -166,6 +166,27 @@ export const getCompanionPaneSearchEntries = createLocalizedCatalog((): Settings
   },
   {
     title: translate(
+      'auto.components.settings.companion.pane.search.endKeywordTitle',
+      'Слово-сигнал'
+    ),
+    description: translate(
+      'auto.components.settings.companion.pane.search.endKeywordTitleDescription',
+      'Не отправлять реплику на паузе — только после слова «думай», «всё» и т. п.'
+    ),
+    keywords: [
+      ...translateSearchKeyword(
+        'auto.components.settings.companion.pane.search.companion',
+        'companion'
+      ),
+      ...translateSearchKeyword(
+        'auto.components.settings.companion.pane.search.endKeyword',
+        'end keyword'
+      ),
+      ...translateSearchKeyword('auto.components.settings.companion.pane.search.pause', 'pause')
+    ]
+  },
+  {
+    title: translate(
       'auto.components.settings.companion.pane.search.notifyTitle',
       'Уведомлять о других агентах'
     ),

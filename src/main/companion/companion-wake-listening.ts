@@ -2,6 +2,8 @@
 // background while wake mode is on (no hotkey needed), routes every finalized utterance
 // through the gate, and turns "стоп" into "stop answering" instead of "stop listening".
 // Bare `companionConversation.reportUtterance` is still what runs with wake mode off.
+// Either way, gated text goes through the end-keyword buffer (off by default) last, so
+// barge-in and "стоп" never wait for a keyword.
 
 import { app, powerSaveBlocker } from 'electron'
 import type { GlobalSettings } from '../../shared/global-settings-types'
@@ -19,6 +21,7 @@ import {
 } from '../window/companion-window'
 import { companionConversation, onCompanionStateChange } from './companion-conversation'
 import { createCompanionWakeGate } from './companion-wake-gate'
+import { createCompanionEndKeywordBuffer } from './companion-end-keyword'
 import { loadVoiceEnrollmentProfile, meanEmbedding } from './companion-voice-enrollment'
 import {
   cosineSimilarity,
@@ -57,6 +60,49 @@ function readCompanionSettings(): CompanionSettings {
 
 const wakeGate = createCompanionWakeGate({ getSettings: readWakeSettings, now: () => Date.now() })
 
+const endKeywordBuffer = createCompanionEndKeywordBuffer({
+  getSettings: () => readCompanionSettings().endKeyword,
+  onFallback: (text) => {
+    companionConversation.reportUtterance(text)
+  }
+})
+
+function reportGatedUtterance(text: string): { stopped: boolean } {
+  if (isCompanionStopPhrase(text)) {
+    endKeywordBuffer.clear()
+    return companionConversation.reportUtterance(text)
+  }
+  const request = endKeywordBuffer.push(text)
+  return request === null ? { stopped: false } : companionConversation.reportUtterance(request)
+}
+
+/** End-keyword mode is holding a request that has not been sent yet. */
+export function isCompanionRequestHeld(): boolean {
+  return endKeywordBuffer.isPending()
+}
+
+/** Hotkey "send now" for a held end-keyword request. */
+export function sendHeldCompanionRequest(): void {
+  const text = endKeywordBuffer.take()
+  if (text !== null) {
+    companionConversation.reportUtterance(text)
+  }
+}
+
+/** The hotkey is finalizing the current segment early: send it without the keyword. */
+export function sendNextCompanionSegmentAsIs(): void {
+  endKeywordBuffer.sendNextSegment()
+}
+
+export function reportCompanionUserSpeakingForEndKeyword(speaking: boolean): void {
+  endKeywordBuffer.reportUserSpeaking(speaking)
+}
+
+/** "Новый разговор": a half-dictated request must not leak into the fresh session. */
+export function clearHeldCompanionRequest(): void {
+  endKeywordBuffer.clear()
+}
+
 export function isCompanionWakeListeningEnabled(): boolean {
   return readWakeSettings().enabled
 }
@@ -85,7 +131,10 @@ let lastOwnerVoiceAt: number | null = null
  * timer flushed it instead) — decideVoiceFocus already fails open in that case, so no
  * extra guard is needed here.
  */
-function evaluateIncomingVoiceFocus(embedding: number[] | null | undefined): {
+function evaluateIncomingVoiceFocus(
+  embedding: number[] | null | undefined,
+  continuing: boolean
+): {
   kind: 'pass' | 'drop'
 } {
   const companion = normalizeCompanionSettings(activeStore?.getSettings().companion)
@@ -97,7 +146,7 @@ function evaluateIncomingVoiceFocus(embedding: number[] | null | undefined): {
   const similarity =
     enrolled && profile && embedding ? cosineSimilarity(embedding, meanEmbedding(profile)) : null
   const mode: VoiceFocusMode =
-    !isCompanionWakeListeningEnabled() || wakeGate.isAddressed() ? 'hotkey' : 'wake'
+    !isCompanionWakeListeningEnabled() || wakeGate.isAddressed() || continuing ? 'hotkey' : 'wake'
   const ownerRecentlyActive =
     lastOwnerVoiceAt !== null && Date.now() - lastOwnerVoiceAt < OWNER_RECENTLY_ACTIVE_MS
   const decision = decideVoiceFocus({
@@ -133,16 +182,17 @@ export function routeCompanionUtterance(
   actions: { bargeIn: () => void; isRealSpeechConfirmed: () => boolean },
   embedding?: number[] | null
 ): CompanionUtteranceResult {
-  if (evaluateIncomingVoiceFocus(embedding).kind === 'drop') {
+  const continuing = endKeywordBuffer.isPending()
+  if (evaluateIncomingVoiceFocus(embedding, continuing).kind === 'drop') {
     return { stopped: false, ignored: true, droppedVoice: true }
   }
   const state = companionConversation.getState()
-  const decision = wakeGate.decide(text, { state, level })
+  const decision = wakeGate.decide(text, { state, level, continuing })
   if (decision.kind === 'ignore') {
     return { stopped: false, ignored: true }
   }
   if (!isCompanionWakeListeningEnabled()) {
-    const result = companionConversation.reportUtterance(text)
+    const result = reportGatedUtterance(text)
     if (result.stopped) {
       hideCompanionPanel()
     }
@@ -171,7 +221,7 @@ export function routeCompanionUtterance(
   if (decision.addressed && readCompanionSettings().showPanelOnAddress) {
     showCompanionPanelForNotice()
   }
-  companionConversation.reportUtterance(decision.text)
+  reportGatedUtterance(decision.text)
   return { stopped: false }
 }
 
@@ -255,7 +305,12 @@ export function initCompanionWakeListening(store: CompanionWakeListeningStore): 
     }
     wasEnabled = enabled
   })
-  const offState = onCompanionStateChange((state) => wakeGate.onStateChange(state))
+  const offState = onCompanionStateChange((state) => {
+    wakeGate.onStateChange(state)
+    if (state === 'idle') {
+      endKeywordBuffer.clear()
+    }
+  })
   return () => {
     offSettings()
     offState()

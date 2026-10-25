@@ -26,23 +26,27 @@ export type CompanionWakeUtteranceContext = {
   state: CompanionConversationState
   /** Peak mic meter level over the utterance (0..1), when the panel measured it. */
   level?: number
+  /** An end-keyword request (companion-end-keyword.ts) is still being dictated: this
+   *  utterance continues an address that already passed, so it needs no wake phrase. */
+  continuing?: boolean
 }
 
 /** After an explicit address (hotkey or bare wake phrase) the request may follow a pause. */
 const ADDRESSED_WINDOW_MS = 8000
 const FOLLOW_UP_LEVEL_RATIO = 0.5
 
-type WordSpan = { word: string; end: number }
+export type UtteranceWordSpan = { word: string; start: number; end: number }
 
 function normalizeWord(word: string): string {
   return word.toLowerCase().replace(/ё/g, 'е')
 }
 
-function wordSpans(text: string): WordSpan[] {
-  return Array.from(text.matchAll(/[\p{L}\p{N}]+/gu), (match) => ({
-    word: normalizeWord(match[0]),
-    end: (match.index ?? 0) + match[0].length
-  }))
+/** Lowercased, ё-folded words of `text` with their character offsets; punctuation skipped. */
+export function utteranceWordSpans(text: string): UtteranceWordSpan[] {
+  return Array.from(text.matchAll(/[\p{L}\p{N}]+/gu), (match) => {
+    const start = match.index ?? 0
+    return { word: normalizeWord(match[0]), start, end: start + match[0].length }
+  })
 }
 
 function editDistance(a: string, b: string): number {
@@ -70,15 +74,16 @@ function wordMatches(heard: string, expected: string): boolean {
   return allowedEdits > 0 && editDistance(heard, expected) <= allowedEdits
 }
 
-/** Finds the first wake phrase in `utterance`; `remainder` is the request after it. */
+/** Finds the first wake phrase in `utterance`; `remainder` is the request after it,
+ *  `start` the phrase's character offset (0 = the utterance opens with it). */
 export function findWakePhrase(
   utterance: string,
   phrases: readonly string[]
-): { remainder: string } | null {
-  const spans = wordSpans(utterance)
+): { remainder: string; start: number } | null {
+  const spans = utteranceWordSpans(utterance)
   let earliest: { start: number; end: number } | null = null
   for (const phrase of phrases) {
-    const expected = wordSpans(phrase).map((span) => span.word)
+    const expected = utteranceWordSpans(phrase).map((span) => span.word)
     if (expected.length === 0) {
       continue
     }
@@ -99,7 +104,8 @@ export function findWakePhrase(
     remainder: utterance
       .slice(earliest.end)
       .replace(/^[\s\p{P}]+/u, '')
-      .trim()
+      .trim(),
+    start: spans[earliest.start].start
   }
 }
 
@@ -143,7 +149,11 @@ export function createCompanionWakeGate(deps: {
       return { kind: 'pass', text, addressed: false }
     }
     const match = findWakePhrase(text, settings.phrases)
-    if (match) {
+    const continuing =
+      context.continuing === true && context.state === 'listening' && loudEnough(context.level)
+    // Mid-request, a name inside the sentence ("сделай, чтобы Джарвис…") is just a word —
+    // only one that opens the utterance re-addresses (and can still say "стоп").
+    if (match && !(continuing && match.start > 0)) {
       if (context.level !== undefined) {
         addresserLevel = context.level
       }
@@ -156,7 +166,7 @@ export function createCompanionWakeGate(deps: {
     }
     const inFollowUp =
       context.state === 'listening' && followUpUntil !== null && deps.now() <= followUpUntil
-    if (inFollowUp && loudEnough(context.level)) {
+    if (continuing || (inFollowUp && loudEnough(context.level))) {
       followUpUntil = null
       return { kind: 'pass', text, addressed: false }
     }

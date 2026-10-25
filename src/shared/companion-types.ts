@@ -19,6 +19,7 @@ export type CompanionSettings = {
   tts: CompanionTtsSettings
   notify: CompanionNotifySettings
   wake: CompanionWakeSettings
+  endKeyword: CompanionEndKeywordSettings
   voiceFocus: CompanionVoiceFocusSettings
   /** Opens the big panel when wake mode addresses Jarvis (bare wake phrase otherwise only
    *  changes the pill indicator's state). Off by default: backlog #28 — the big panel must
@@ -38,6 +39,17 @@ export type CompanionWakeSettings = {
   phrases: string[]
   /** After a reply, follow-ups without the name are accepted this long; 0 = always say the name. */
   followUpMs: number
+}
+
+/** "Слово-сигнал": finalized segments accumulate instead of each going to the brain, so
+ *  thinking pauses never cut a request short. Sent once a segment ends on one of `words`
+ *  (stripped from the request), or after `fallbackPauseSeconds` of silence. */
+export type CompanionEndKeywordSettings = {
+  enabled: boolean
+  /** Final words/phrases that send the request, matched case-, ё- and punctuation-insensitively. */
+  words: string[]
+  /** Silence after the last finalized segment that sends the request without a keyword. */
+  fallbackPauseSeconds: number
 }
 
 /** How aggressively "Голос владельца" verification drops audio that is not the

@@ -39,7 +39,10 @@ vi.mock('electron', () => ({
 import { companionConversation, onCompanionUtterance } from './companion-conversation'
 import {
   addressCompanion,
+  clearHeldCompanionRequest,
   initCompanionWakeListening,
+  isCompanionRequestHeld,
+  reportCompanionUserSpeakingForEndKeyword,
   routeCompanionUtterance
 } from './companion-wake-listening'
 
@@ -251,5 +254,91 @@ describe('companion wake listening', () => {
     })
     expect(companionConversation.getState()).toBe('idle')
     expect(hideCompanionPanel).toHaveBeenCalled()
+  })
+
+  describe('with the end keyword ("слово-сигнал") on', () => {
+    const actions = { bargeIn: vi.fn(), isRealSpeechConfirmed: () => true }
+
+    function endKeywordSettings(wakeEnabled: boolean): CompanionSettings {
+      const defaults = getDefaultCompanionSettings()
+      return wakeSettings(wakeEnabled, { endKeyword: { ...defaults.endKeyword, enabled: true } })
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers()
+      actions.bargeIn.mockClear()
+    })
+
+    afterEach(() => {
+      clearHeldCompanionRequest()
+      vi.useRealTimers()
+    })
+
+    it('holds every segment and sends them as one request once the keyword ends it', () => {
+      dispose = initCompanionWakeListening(storeWith(endKeywordSettings(false)))
+      companionConversation.start()
+
+      expect(routeCompanionUtterance('Хочу, чтобы ты', 0.4, actions)).toEqual({ stopped: false })
+      vi.advanceTimersByTime(2000)
+      routeCompanionUtterance('посмотрел логи сборки', 0.4, actions)
+      expect(utterances).toEqual([])
+      expect(isCompanionRequestHeld()).toBe(true)
+
+      routeCompanionUtterance('и нашёл ошибку. Думай.', 0.4, actions)
+      expect(utterances).toEqual(['Хочу, чтобы ты посмотрел логи сборки и нашёл ошибку.'])
+      expect(isCompanionRequestHeld()).toBe(false)
+    })
+
+    it('sends a held request on the fallback pause, but not while the user is still talking', () => {
+      dispose = initCompanionWakeListening(storeWith(endKeywordSettings(false)))
+      companionConversation.start()
+      routeCompanionUtterance('Почини тест', 0.4, actions)
+
+      reportCompanionUserSpeakingForEndKeyword(true)
+      vi.advanceTimersByTime(10_000)
+      expect(utterances).toEqual([])
+
+      reportCompanionUserSpeakingForEndKeyword(false)
+      vi.advanceTimersByTime(2500)
+      expect(utterances).toEqual(['Почини тест'])
+    })
+
+    it('"стоп" still ends the conversation at once and drops what was held', () => {
+      dispose = initCompanionWakeListening(storeWith(endKeywordSettings(false)))
+      companionConversation.start()
+      routeCompanionUtterance('Почини тест', 0.4, actions)
+
+      expect(routeCompanionUtterance('Стоп.', 0.4, actions)).toEqual({ stopped: true })
+      expect(companionConversation.getState()).toBe('idle')
+      expect(isCompanionRequestHeld()).toBe(false)
+      vi.advanceTimersByTime(10_000)
+      expect(utterances).toEqual([])
+    })
+
+    it('wake mode: continuation segments need no name, even past the follow-up window', () => {
+      dispose = initCompanionWakeListening(storeWith(endKeywordSettings(true)))
+      routeCompanionUtterance('Джарвис, хочу чтобы ты', 0.4, actions)
+      reportCompanionUserSpeakingForEndKeyword(true)
+      vi.advanceTimersByTime(20_000)
+      reportCompanionUserSpeakingForEndKeyword(false)
+
+      expect(routeCompanionUtterance('новости спорта', 0.05, actions)).toEqual({
+        stopped: false,
+        ignored: true
+      })
+      routeCompanionUtterance('проверил почту, давай', 0.4, actions)
+      expect(utterances).toEqual(['хочу чтобы ты проверил почту'])
+    })
+
+    it('wake mode: the name still interrupts a reply immediately, without a keyword', () => {
+      dispose = initCompanionWakeListening(storeWith(endKeywordSettings(true)))
+      companionConversation.reportThinking()
+      companionConversation.reportSpeaking()
+
+      routeCompanionUtterance('Джарвис, подожди', 0.4, actions)
+      expect(actions.bargeIn).toHaveBeenCalledTimes(1)
+      expect(utterances).toEqual([])
+      expect(isCompanionRequestHeld()).toBe(true)
+    })
   })
 })

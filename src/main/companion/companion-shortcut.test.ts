@@ -51,7 +51,10 @@ vi.mock('../window/companion-indicator-window', () => ({
 vi.mock('./companion-wake-listening', () => ({
   isCompanionWakeListeningEnabled: () => wakeMode.enabled,
   addressCompanion: wakeMode.addressCompanion,
-  dismissCompanionAddress: wakeMode.dismissCompanionAddress
+  dismissCompanionAddress: wakeMode.dismissCompanionAddress,
+  isCompanionRequestHeld: () => false,
+  sendHeldCompanionRequest: vi.fn(),
+  sendNextCompanionSegmentAsIs: vi.fn()
 }))
 
 // Why mocked: this test drives the hotkey callback directly, not a real dialogue

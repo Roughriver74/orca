@@ -6,26 +6,28 @@ const PHRASES = ['джарвис', 'эй компьютер']
 
 describe('findWakePhrase', () => {
   it('finds the name and returns the request after it', () => {
-    expect(findWakePhrase('Джарвис, какая погода?', PHRASES)).toEqual({
+    expect(findWakePhrase('Джарвис, какая погода?', PHRASES)).toMatchObject({
       remainder: 'какая погода?'
     })
   })
 
   it('drops background speech merged in front of the address', () => {
-    expect(findWakePhrase('и в эфире новости спорта Джарвис включи свет', PHRASES)).toEqual({
+    expect(findWakePhrase('и в эфире новости спорта Джарвис включи свет', PHRASES)).toMatchObject({
       remainder: 'включи свет'
     })
   })
 
   it('tolerates STT slips and case endings in the name', () => {
-    expect(findWakePhrase('Жарвис, привет', PHRASES)).toEqual({ remainder: 'привет' })
-    expect(findWakePhrase('Джарвису скажи привет', PHRASES)).toEqual({ remainder: 'скажи привет' })
-    expect(findWakePhrase('ДЖАРВИС!', PHRASES)).toEqual({ remainder: '' })
+    expect(findWakePhrase('Жарвис, привет', PHRASES)).toMatchObject({ remainder: 'привет' })
+    expect(findWakePhrase('Джарвису скажи привет', PHRASES)).toMatchObject({
+      remainder: 'скажи привет'
+    })
+    expect(findWakePhrase('ДЖАРВИС!', PHRASES)).toMatchObject({ remainder: '' })
   })
 
   it('matches multi-word phrases and ё/е variants', () => {
-    expect(findWakePhrase('Эй, компьютер: время?', PHRASES)).toEqual({ remainder: 'время?' })
-    expect(findWakePhrase('Алёша, свет', ['алеша'])).toEqual({ remainder: 'свет' })
+    expect(findWakePhrase('Эй, компьютер: время?', PHRASES)).toMatchObject({ remainder: 'время?' })
+    expect(findWakePhrase('Алёша, свет', ['алеша'])).toMatchObject({ remainder: 'свет' })
   })
 
   it('does not fire on unrelated words', () => {
@@ -152,5 +154,42 @@ describe('createCompanionWakeGate', () => {
     gate.address()
     gate.onStateChange('idle')
     expect(gate.decide('что нового', { state: 'listening' })).toEqual({ kind: 'ignore' })
+  })
+
+  describe('while an end-keyword request is being dictated', () => {
+    it('passes continuation segments without the name, however long the pause', () => {
+      const { gate, advance } = gateHarness({ followUpMs: 0 })
+      gate.decide('Джарвис, хочу чтобы ты', { state: 'listening', level: 0.4 })
+      advance(60_000)
+      expect(
+        gate.decide('посмотрел логи', { state: 'listening', level: 0.4, continuing: true })
+      ).toEqual({ kind: 'pass', text: 'посмотрел логи', addressed: false })
+    })
+
+    it('keeps a name mentioned mid-sentence as part of the request', () => {
+      const { gate } = gateHarness()
+      expect(
+        gate.decide('сделай, чтобы Джарвис отвечал быстрее', {
+          state: 'listening',
+          continuing: true
+        })
+      ).toEqual({ kind: 'pass', text: 'сделай, чтобы Джарвис отвечал быстрее', addressed: false })
+      expect(gate.decide('Джарвис, стоп', { state: 'listening', continuing: true })).toEqual({
+        kind: 'pass',
+        text: 'стоп',
+        addressed: true
+      })
+    })
+
+    it('still drops quiet background speech and anything heard while Jarvis talks', () => {
+      const { gate } = gateHarness()
+      gate.decide('Джарвис, хочу чтобы ты', { state: 'listening', level: 0.4 })
+      expect(
+        gate.decide('новости спорта', { state: 'listening', level: 0.1, continuing: true })
+      ).toEqual({ kind: 'ignore' })
+      expect(gate.decide('эхо ответа', { state: 'speaking', continuing: true })).toEqual({
+        kind: 'ignore'
+      })
+    })
   })
 })
