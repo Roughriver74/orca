@@ -57,6 +57,7 @@ export class SpeakerEmbeddingExtractor {
     if (!this.binding.speakerEmbeddingExtractorIsReady(this.handle, stream)) {
       throw new Error('Speaker embedding extractor stream not ready after inputFinished')
     }
-    return this.binding.speakerEmbeddingExtractorComputeEmbedding(this.handle, stream)
+    // Electron's V8 sandbox rejects external ArrayBuffers; false makes the addon copy.
+    return this.binding.speakerEmbeddingExtractorComputeEmbedding(this.handle, stream, false)
   }
 }

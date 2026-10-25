@@ -34,7 +34,11 @@ export class OfflineSpeechDenoiser {
   }
 
   run(samples: Float32Array, sampleRate: number): Float32Array {
-    return this.binding.offlineSpeechDenoiserRunWrapper(this.handle, { samples, sampleRate })
-      .samples
+    // Electron's V8 sandbox rejects external ArrayBuffers; false makes the addon copy.
+    return this.binding.offlineSpeechDenoiserRunWrapper(this.handle, {
+      samples,
+      sampleRate,
+      enableExternalBuffer: false
+    }).samples
   }
 }

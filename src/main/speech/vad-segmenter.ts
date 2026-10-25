@@ -86,7 +86,8 @@ export class VadSegmenter {
   private drainQueue(): VadSegment[] {
     const segments: VadSegment[] = []
     while (!this.binding.voiceActivityDetectorIsEmpty(this.handle)) {
-      const front = this.binding.voiceActivityDetectorFront(this.handle)
+      // Electron's V8 sandbox rejects external ArrayBuffers; false makes the addon copy.
+      const front = this.binding.voiceActivityDetectorFront(this.handle, false)
       segments.push({ startSample: front.start, samples: front.samples })
       this.binding.voiceActivityDetectorPop(this.handle)
     }
