@@ -21,8 +21,10 @@ import {
   reportCompanionListeningHealth
 } from '../companion/companion-listening-health'
 import {
+  clearHeldCompanionRequest,
   dismissCompanionAddress,
   isCompanionWakeListeningEnabled,
+  reportCompanionUserSpeakingForEndKeyword,
   routeCompanionUtterance,
   type CompanionUtteranceResult
 } from '../companion/companion-wake-listening'
@@ -112,6 +114,7 @@ export function registerCompanionHandlers(store: CompanionHotkeySettingsStore): 
   ipcMain.handle('companion:reportSpeakingState', (_event, speaking: unknown) => {
     if (typeof speaking === 'boolean') {
       reportCompanionUserSpeaking(speaking)
+      reportCompanionUserSpeakingForEndKeyword(speaking)
     }
   })
 
@@ -155,6 +158,7 @@ export function registerCompanionHandlers(store: CompanionHotkeySettingsStore): 
   // Why: closing the panel keeps the brain session for continuity; this is the explicit
   // "Новый разговор" action (panel menu / settings) that drops it.
   ipcMain.handle('companion:resetConversation', () => {
+    clearHeldCompanionRequest()
     companionDialogueHandle.current?.resetConversation()
     sendToCompanionWindow('companion:conversationReset')
   })

@@ -35,6 +35,11 @@ export function getDefaultCompanionSettings(): CompanionSettings {
       phrases: ['джарвис'],
       followUpMs: 8000
     },
+    endKeyword: {
+      enabled: false,
+      words: ['думай', 'всё', 'давай', 'делай', 'отправляй'],
+      fallbackPauseSeconds: 2.5
+    },
     showPanelOnAddress: false,
     autoHidePanelAfterReply: true,
     // VAD is more accurate about real trailing silence than the energy timer above, so

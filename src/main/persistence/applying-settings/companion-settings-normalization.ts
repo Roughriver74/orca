@@ -17,6 +17,8 @@ const MAX_TTS_RATE = 1.6
 const MAX_WAKE_FOLLOW_UP_MS = 30_000
 const MAX_WAKE_PHRASES = 10
 const MAX_WAKE_PHRASE_LENGTH = 40
+const MIN_END_KEYWORD_FALLBACK_PAUSE_SECONDS = 1
+const MAX_END_KEYWORD_FALLBACK_PAUSE_SECONDS = 30
 const MIN_VOICE_FOCUS_END_OF_UTTERANCE_SECONDS = 0.3
 const MAX_VOICE_FOCUS_END_OF_UTTERANCE_SECONDS = 5
 const MIN_VOICE_FOCUS_MAX_UTTERANCE_SECONDS = 10
@@ -141,6 +143,16 @@ function normalizeCompanionTtsSettings(
   }
 }
 
+function normalizeCompanionPhraseList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value
+        .filter((phrase): phrase is string => typeof phrase === 'string')
+        .map((phrase) => phrase.trim().slice(0, MAX_WAKE_PHRASE_LENGTH))
+        .filter((phrase) => /[\p{L}\p{N}]/u.test(phrase))
+        .slice(0, MAX_WAKE_PHRASES)
+    : []
+}
+
 function normalizeCompanionWakeSettings(
   value: unknown,
   defaults: CompanionSettings['wake']
@@ -149,13 +161,7 @@ function normalizeCompanionWakeSettings(
   const enabledRaw = source && 'enabled' in source ? source.enabled : undefined
   const phrasesRaw = source && 'phrases' in source ? source.phrases : undefined
   const followUpMsRaw = source && 'followUpMs' in source ? source.followUpMs : undefined
-  const phrases = Array.isArray(phrasesRaw)
-    ? phrasesRaw
-        .filter((phrase): phrase is string => typeof phrase === 'string')
-        .map((phrase) => phrase.trim().slice(0, MAX_WAKE_PHRASE_LENGTH))
-        .filter((phrase) => /[\p{L}\p{N}]/u.test(phrase))
-        .slice(0, MAX_WAKE_PHRASES)
-    : []
+  const phrases = normalizeCompanionPhraseList(phrasesRaw)
   return {
     enabled: typeof enabledRaw === 'boolean' ? enabledRaw : defaults.enabled,
     // Why fall back on empty: wake mode with no phrase would ignore every utterance.
@@ -164,6 +170,29 @@ function normalizeCompanionWakeSettings(
       typeof followUpMsRaw === 'number' && Number.isFinite(followUpMsRaw)
         ? Math.min(MAX_WAKE_FOLLOW_UP_MS, Math.max(0, followUpMsRaw))
         : defaults.followUpMs
+  }
+}
+
+function normalizeCompanionEndKeywordSettings(
+  value: unknown,
+  defaults: CompanionSettings['endKeyword']
+): CompanionSettings['endKeyword'] {
+  const source = typeof value === 'object' && value !== null ? value : undefined
+  const enabledRaw = source && 'enabled' in source ? source.enabled : undefined
+  const words = normalizeCompanionPhraseList(source && 'words' in source ? source.words : undefined)
+  const pauseRaw =
+    source && 'fallbackPauseSeconds' in source ? source.fallbackPauseSeconds : undefined
+  return {
+    enabled: typeof enabledRaw === 'boolean' ? enabledRaw : defaults.enabled,
+    // Why fall back on empty: the mode would otherwise only ever send on the fallback pause.
+    words: words.length > 0 ? words : defaults.words,
+    fallbackPauseSeconds:
+      typeof pauseRaw === 'number' && Number.isFinite(pauseRaw)
+        ? Math.min(
+            MAX_END_KEYWORD_FALLBACK_PAUSE_SECONDS,
+            Math.max(MIN_END_KEYWORD_FALLBACK_PAUSE_SECONDS, pauseRaw)
+          )
+        : defaults.fallbackPauseSeconds
   }
 }
 
@@ -243,6 +272,7 @@ export function normalizeCompanionSettings(value: unknown): CompanionSettings {
   const ttsRaw = source && 'tts' in source ? source.tts : undefined
   const notifyRaw = source && 'notify' in source ? source.notify : undefined
   const wakeRaw = source && 'wake' in source ? source.wake : undefined
+  const endKeywordRaw = source && 'endKeyword' in source ? source.endKeyword : undefined
   const voiceFocusRaw = source && 'voiceFocus' in source ? source.voiceFocus : undefined
   const voiceBargeInRaw = source && 'voiceBargeIn' in source ? source.voiceBargeIn : undefined
   const showPanelOnAddressRaw =
@@ -266,6 +296,7 @@ export function normalizeCompanionSettings(value: unknown): CompanionSettings {
     tts: normalizeCompanionTtsSettings(ttsRaw, defaults.tts),
     notify: normalizeCompanionNotifySettings(notifyRaw, defaults.notify),
     wake: normalizeCompanionWakeSettings(wakeRaw, defaults.wake),
+    endKeyword: normalizeCompanionEndKeywordSettings(endKeywordRaw, defaults.endKeyword),
     voiceFocus: normalizeCompanionVoiceFocusSettings(voiceFocusRaw, defaults.voiceFocus),
     showPanelOnAddress:
       typeof showPanelOnAddressRaw === 'boolean'

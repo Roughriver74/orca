@@ -31,6 +31,7 @@ describe('normalizeCompanionSettings', () => {
       },
       notify: { enabled: false, quietFrom: '23:00', quietTo: '07:30', speak: true },
       wake: { enabled: true, phrases: ['джарвис', 'эй компьютер'], followUpMs: 5000 },
+      endKeyword: { enabled: true, words: ['думай', 'на этом всё'], fallbackPauseSeconds: 6 },
       voiceFocus: {
         enabled: true,
         endOfUtteranceSeconds: 1.5,
@@ -192,6 +193,20 @@ describe('normalizeCompanionSettings', () => {
     expect(wake).toEqual({ enabled: true, phrases: ['Пятница'], followUpMs: 30_000 })
     expect(normalizeCompanionSettings({ wake: { phrases: [] } }).wake.phrases).toEqual(['джарвис'])
     expect(normalizeCompanionSettings({ wake: { followUpMs: -5 } }).wake.followUpMs).toBe(0)
+  })
+
+  it('keeps only usable end keywords and clamps the fallback pause', () => {
+    const endKeyword = normalizeCompanionSettings({
+      endKeyword: { enabled: true, words: [' Думай ', '', '...', 3], fallbackPauseSeconds: 90 }
+    }).endKeyword
+    expect(endKeyword).toEqual({ enabled: true, words: ['Думай'], fallbackPauseSeconds: 30 })
+    const repaired = normalizeCompanionSettings({
+      endKeyword: { enabled: 'yes', words: [], fallbackPauseSeconds: 0 }
+    }).endKeyword
+    expect(repaired).toEqual({
+      ...getDefaultCompanionSettings().endKeyword,
+      fallbackPauseSeconds: 1
+    })
   })
 
   it('clamps voiceFocus numeric fields and validates strictness', () => {

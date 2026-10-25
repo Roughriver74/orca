@@ -18,6 +18,7 @@ import { useAppStore } from '@/store'
 import { CompanionBrainSettingsSection } from './CompanionBrainSettingsSection'
 import { CompanionTtsSettingsSection } from './CompanionTtsSettingsSection'
 import { CompanionVoiceInteractionSettingsSection } from './CompanionVoiceInteractionSettingsSection'
+import { CompanionEndKeywordSettingsSection } from './CompanionEndKeywordSettingsSection'
 import { CompanionVoiceFocusSettingsSection } from './CompanionVoiceFocusSettingsSection'
 
 type CompanionPaneProps = {
@@ -238,6 +239,13 @@ export function CompanionPane({ settings, updateSettings }: CompanionPaneProps):
           onValueChange={([value]) => updateCompanionSettings({ endOfUtteranceSeconds: value })}
         />
       </div>
+
+      <Separator />
+
+      <CompanionEndKeywordSettingsSection
+        companionSettings={companionSettings}
+        updateCompanionSettings={updateCompanionSettings}
+      />
 
       <Separator />
 
