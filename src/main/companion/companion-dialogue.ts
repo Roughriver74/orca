@@ -11,10 +11,8 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { getAppEnvironment } from '../../shared/app-environment'
 import type {
-  CompanionAudioState,
   CompanionConversationState,
   CompanionSettings,
-  CompanionTtsVoice,
   CompanionVoiceActivityFrame
 } from '../../shared/companion-types'
 import { getDefaultCompanionSettings } from '../../shared/constants'
@@ -32,8 +30,14 @@ import { onAudioState } from './companion-audio-output'
 import { sendToCompanionWindow } from '../window/companion-window'
 import type { CompanionTtsService } from './tts/companion-tts-service'
 import { COMPANION_TTS_PRONUNCIATIONS_FILE_NAME } from './tts/companion-tts-pronunciation-dictionary'
-import { takePendingDiscussionContext } from './companion-agent-watch'
+import { takeCompanionAgentBriefing, takePendingDiscussionContext } from './companion-agent-watch'
 import { createCompanionVoiceBargeInDetector } from './companion-voice-barge-in'
+import type {
+  CompanionDialogue,
+  CompanionDialogueActiveTts,
+  CompanionDialogueDeps,
+  CompanionDialogueTtsOptions
+} from './companion-dialogue-contract'
 import {
   pickCompanionThinkingAckPhrase,
   scheduleCompanionThinkingAck
@@ -44,103 +48,12 @@ import {
 // reply. The full message still reaches the panel as text via `sendAssistantError`.
 const COMPANION_ERROR_SPOKEN_PHRASE = 'Извините, не получилось ответить.'
 
-export type CompanionDialogueConversation = {
-  getState(): CompanionConversationState
-  reportThinking(): void
-  reportListening(): void
-  reportSpeaking(): void
-  reportAssistantFinal(text: string): void
-}
-
-export type CompanionDialogueBrain = {
-  send(text: string, onEvent: (event: CompanionBrainEvent) => void): Promise<void>
-  reset(): void
-}
-
-export type CompanionDialogueTtsStream = {
-  pushDelta(text: string): void
-  finish(): void
-}
-
-export type CompanionDialogueTtsOptions = {
-  utteranceId: string
-  voice: CompanionTtsVoice
-  rate: number
-  /** User pronunciation dictionary for Latin words; absent = built-in rules only. */
-  pronunciationsPath?: string
-}
-
-export type CompanionDialogueTts = {
-  speakStream(options: CompanionDialogueTtsOptions): CompanionDialogueTtsStream
-  speak(text: string, options: CompanionDialogueTtsOptions): Promise<void>
-  stop(utteranceId?: string): void
-}
-
-/** Resolved TTS handle for one turn, or `null` when voice replies are unavailable/disabled —
- *  the orchestrator then finishes the turn text-only and returns straight to listening. */
-export type CompanionDialogueActiveTts = {
-  service: CompanionDialogueTts
-  voice: CompanionTtsVoice
-  rate: number
-  pronunciationsPath?: string
-}
-
-export type CompanionDiscussionContext = { text: string }
-
-export type CompanionDialogueDeps = {
-  conversation: CompanionDialogueConversation
-  onUtterance: (listener: (text: string) => void) => () => void
-  onStateChange: (listener: (state: CompanionConversationState) => void) => () => void
-  onAudioState: (listener: (state: CompanionAudioState) => void) => () => void
-  brain: CompanionDialogueBrain
-  getTts: () => CompanionDialogueActiveTts | null
-  sendAssistantDelta: (text: string) => void
-  sendAssistantFinal: (text: string) => void
-  sendAssistantError: (message: string) => void
-  sendStateChanged: (state: CompanionConversationState) => void
-  /** Read-once-and-clear context from an agent-status "Обсудить" action; `null` for an
-   *  ordinary hotkey-opened conversation. */
-  takeDiscussionContext: () => CompanionDiscussionContext | null
-  /** Read per frame so toggling the setting takes effect mid-conversation. Gates whether
-   *  `reportVoiceActivity` feeds the echo-margin detector at all (the `voiceBargeIn`
-   *  setting) — see `isWakeModeActive` for what feeding it then does. */
-  isVoiceBargeInEnabled: () => boolean
-  /** In wake mode, loudness alone must never interrupt a reply (a TV could trigger it) —
-   *  only an utterance naming Jarvis does, via companion-wake-listening.ts. So confirmed
-   *  frames there only mark `hasConfirmedRealSpeech()`; outside wake mode they barge in
-   *  immediately, as before. */
-  isWakeModeActive: () => boolean
-  /** One of a small fixed set so companion-tts-yandex-cache.ts caches it after first use. */
-  pickThinkingAckPhrase: () => string
-  randomUUID: () => string
-}
-
-export type CompanionDialogue = {
-  /** Hotkey pressed (or user speech detected) mid-reply: stop audio immediately and return
-   *  to listening without closing the conversation or touching the brain session. No-op
-   *  outside 'speaking'. */
-  bargeIn(): void
-  /** One mic frame from the panel while a reply plays. Outside wake mode, barges in once
-   *  user speech is confirmed over the companion's own echo and returns whether this frame
-   *  did. In wake mode it never barges in by itself (see `isWakeModeActive`) — it only
-   *  updates what `hasConfirmedRealSpeech()` reports, and always returns `false`. */
-  reportVoiceActivity(frame: CompanionVoiceActivityFrame): boolean
-  /** Whether this reply's playback has had mic speech confirmed as real (echo-margin +
-   *  sustain), not Jarvis's own voice coming back through the mic. Consulted by
-   *  companion-wake-listening.ts before honoring a wake-phrase interrupt while speaking —
-   *  text matching the wake phrase alone is not proof it was the user, since with no
-   *  headphones Jarvis can say his own name and hear himself. */
-  hasConfirmedRealSpeech(): boolean
-  /** Drops the brain session and any in-flight turn/audio; the next utterance starts fresh. */
-  resetConversation(): void
-  dispose(): void
-}
-
 export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionDialogue {
   // Bumped on every reset/new turn so a stale brain callback from a superseded turn
   // (reset mid-reply, barge-in) cannot resurrect state after the turn it belonged to.
   let turnGeneration = 0
   let activeUtteranceId: string | null = null
+  let announcementUtteranceId: string | null = null
   let previousState: CompanionConversationState = deps.conversation.getState()
   let firstTurnPending = false
   let realSpeechConfirmed = false
@@ -169,12 +82,22 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
     if (state === 'idle') {
       turnGeneration += 1
       activeUtteranceId = null
+      announcementUtteranceId = null
       deps.getTts()?.service.stop()
+    } else if (announcementUtteranceId) {
+      deps.getTts()?.service.stop(announcementUtteranceId)
+      announcementUtteranceId = null
     }
     previousState = state
   })
 
   const offAudio = deps.onAudioState((audio) => {
+    if (audio.utteranceId === announcementUtteranceId) {
+      if (audio.state !== 'playing') {
+        announcementUtteranceId = null
+      }
+      return
+    }
     if (audio.utteranceId !== activeUtteranceId) {
       return
     }
@@ -197,14 +120,19 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
     const generation = (turnGeneration += 1)
     deps.conversation.reportThinking()
 
-    let prompt = text
+    const preambles: string[] = []
     if (firstTurnPending) {
       firstTurnPending = false
       const context = deps.takeDiscussionContext()
       if (context) {
-        prompt = `${context.text}\n\n${text}`
+        preambles.push(context.text)
       }
     }
+    const briefing = deps.takeAgentBriefing()
+    if (briefing) {
+      preambles.push(briefing)
+    }
+    const prompt = [...preambles, text].join('\n\n')
 
     const tts = deps.getTts()
     const utteranceId = deps.randomUUID()
@@ -305,13 +233,38 @@ export function createCompanionDialogue(deps: CompanionDialogueDeps): CompanionD
     deps.brain.reset()
   }
 
+  function speakAnnouncement(text: string): void {
+    if (deps.conversation.getState() !== 'idle' || activeUtteranceId !== null) {
+      return
+    }
+    const tts = deps.getTts()
+    if (!tts) {
+      return
+    }
+    if (announcementUtteranceId) {
+      tts.service.stop(announcementUtteranceId)
+    }
+    const utteranceId = deps.randomUUID()
+    announcementUtteranceId = utteranceId
+    tts.service.speak(text, ttsOptions(tts, utteranceId)).catch((error: unknown) => {
+      console.error('[companion] notice announcement failed', error)
+    })
+  }
+
   function dispose(): void {
     offUtterance()
     offState()
     offAudio()
   }
 
-  return { bargeIn, reportVoiceActivity, hasConfirmedRealSpeech, resetConversation, dispose }
+  return {
+    bargeIn,
+    reportVoiceActivity,
+    hasConfirmedRealSpeech,
+    resetConversation,
+    speakAnnouncement,
+    dispose
+  }
 }
 
 type CompanionDialogueSettingsStore = {
@@ -374,6 +327,7 @@ export function initCompanionDialogue(
       const context = takePendingDiscussionContext()
       return context ? { text: context.notice.text } : null
     },
+    takeAgentBriefing: takeCompanionAgentBriefing,
     // Feeds the echo-margin detector whenever voice barge-in is on, wake mode included —
     // what a confirmed frame then does differs by mode (see isWakeModeActive/reportVoiceActivity).
     isVoiceBargeInEnabled: () => store.getSettings().companion?.voiceBargeIn === true,

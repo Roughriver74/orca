@@ -12,21 +12,21 @@ import type { CompanionAgentNotice, CompanionNotifySettings } from '../../shared
 import type { CompanionConversationState } from './companion-conversation'
 import {
   CompanionAgentWatch,
-  buildAgentNoticeSummary,
-  buildAgentNoticeText,
   isWithinQuietHours,
-  resetCompanionAgentWatchDiscussionContextForTests,
-  setPendingDiscussionContext,
-  takePendingDiscussionContext,
   type CompanionAgentWatchDeps,
   type CompanionWatchedStatusEvent
+} from './companion-agent-watch-policy'
+import {
+  resetCompanionAgentWatchDiscussionContextForTests,
+  setPendingDiscussionContext,
+  takePendingDiscussionContext
 } from './companion-agent-watch'
 
 const DEFAULT_NOTIFY_SETTINGS: CompanionNotifySettings = {
   enabled: true,
   quietFrom: '22:00',
   quietTo: '08:00',
-  speak: false
+  speakAloud: true
 }
 
 function doneEvent(
@@ -45,6 +45,7 @@ type Harness = {
   statusListener: (event: CompanionWatchedStatusEvent) => void
   conversationListener: (state: CompanionConversationState) => void
   delivered: CompanionAgentNotice[]
+  spoken: string[]
   setNotifySettings: (settings: Partial<CompanionNotifySettings>) => void
   setConversationState: (state: CompanionConversationState) => void
   setNow: (time: number) => void
@@ -58,6 +59,7 @@ function createHarness(overrides: Partial<CompanionAgentWatchDeps> = {}): Harnes
   let now = Date.parse('2026-10-18T12:00:00')
   let ownProviderSessionId: string | null = null
   const delivered: CompanionAgentNotice[] = []
+  const spoken: string[] = []
   let statusListener: (event: CompanionWatchedStatusEvent) => void = () => undefined
   let conversationListener: (state: CompanionConversationState) => void = () => undefined
   const resolveWorkspaceLabel = vi.fn((workspaceId: string) =>
@@ -78,6 +80,7 @@ function createHarness(overrides: Partial<CompanionAgentWatchDeps> = {}): Harnes
     resolveWorkspaceLabel,
     getCompanionProviderSessionId: () => ownProviderSessionId,
     deliverNotice: (notice) => delivered.push(notice),
+    speakNotice: (phrase) => spoken.push(phrase),
     now: () => now,
     ...overrides
   })
@@ -87,6 +90,7 @@ function createHarness(overrides: Partial<CompanionAgentWatchDeps> = {}): Harnes
     statusListener: (event) => statusListener(event),
     conversationListener: (state) => conversationListener(state),
     delivered,
+    spoken,
     setNotifySettings: (updates) => {
       notifySettings = { ...notifySettings, ...updates }
     },
@@ -120,48 +124,6 @@ describe('isWithinQuietHours', () => {
   it('is never quiet for an equal or malformed boundary', () => {
     expect(isWithinQuietHours(new Date(2026, 0, 1, 12, 0), '09:00', '09:00')).toBe(false)
     expect(isWithinQuietHours(new Date(2026, 0, 1, 12, 0), 'nope', '08:00')).toBe(false)
-  })
-})
-
-describe('buildAgentNoticeSummary', () => {
-  it('takes only the first line, trimmed', () => {
-    expect(buildAgentNoticeSummary('Есть вопросы — обсудим?\nвторая строка')).toBe(
-      'Есть вопросы — обсудим?'
-    )
-    expect(buildAgentNoticeSummary('  с пробелами  ')).toBe('с пробелами')
-    expect(buildAgentNoticeSummary(undefined)).toBe('')
-  })
-
-  it('caps an overlong line with an ellipsis', () => {
-    const long = 'a'.repeat(200)
-    const summary = buildAgentNoticeSummary(long)
-    expect(summary.length).toBe(140)
-    expect(summary.endsWith('…')).toBe(true)
-  })
-})
-
-describe('buildAgentNoticeText', () => {
-  it('builds the single-transition example format', () => {
-    expect(
-      buildAgentNoticeText([
-        { workspaceLabel: 'zveno', state: 'done', summary: 'Есть вопросы — обсудим?' }
-      ])
-    ).toBe('zveno: готово. Есть вопросы — обсудим?')
-  })
-
-  it('omits the trailing summary when there is none', () => {
-    expect(buildAgentNoticeText([{ workspaceLabel: 'zveno', state: 'waiting', summary: '' }])).toBe(
-      'zveno: ждёт решения.'
-    )
-  })
-
-  it('joins coalesced transitions from several workspaces', () => {
-    expect(
-      buildAgentNoticeText([
-        { workspaceLabel: 'zveno', state: 'done', summary: 'готово' },
-        { workspaceLabel: 'omp', state: 'blocked', summary: '' }
-      ])
-    ).toBe('zveno: готово; omp: застрял.')
   })
 })
 
@@ -280,6 +242,94 @@ describe('CompanionAgentWatch', () => {
     h.setConversationState('idle')
     h.conversationListener('idle')
     expect(h.delivered).toHaveLength(1)
+  })
+})
+
+describe('CompanionAgentWatch speaking aloud', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('says one line for a coalesced group, shortly after the toast', () => {
+    const h = createHarness()
+    h.statusListener(doneEvent({ paneKey: 'tab-1:leaf-1', worktreeId: 'repo-1::/repo/zveno' }))
+    h.statusListener(doneEvent({ paneKey: 'tab-2:leaf-1', worktreeId: 'repo-2::/repo/omp' }))
+    vi.advanceTimersByTime(20_000)
+    expect(h.delivered).toHaveLength(1)
+    expect(h.spoken).toEqual([])
+    vi.advanceTimersByTime(1_500)
+    expect(h.spoken).toEqual(['В проектах zveno и omp агенты закончили, ждут тебя.'])
+  })
+
+  it('stays silent within the per-project pause, like the toast', () => {
+    const h = createHarness()
+    h.statusListener(doneEvent())
+    vi.advanceTimersByTime(21_500)
+    h.statusListener({ ...doneEvent(), payload: { state: 'working' } })
+    h.statusListener({ ...doneEvent(), payload: { state: 'waiting' } })
+    vi.advanceTimersByTime(21_500)
+    expect(h.spoken).toHaveLength(1)
+  })
+
+  it('stays silent in quiet hours and speaks once they pass', () => {
+    const h = createHarness()
+    h.setNow(Date.parse('2026-10-18T23:30:00'))
+    h.statusListener(doneEvent())
+    vi.advanceTimersByTime(21_500)
+    expect(h.spoken).toEqual([])
+    h.setNow(Date.parse('2026-10-19T08:30:00'))
+    h.watch.checkPendingDeliveries()
+    vi.advanceTimersByTime(1_500)
+    expect(h.spoken).toEqual(['В проекте zveno агент закончил, ждёт тебя.'])
+  })
+
+  it('never speaks mid-conversation; speaks the held notice once the conversation ends unheard', () => {
+    const h = createHarness()
+    h.setConversationState('speaking')
+    h.statusListener(doneEvent())
+    vi.advanceTimersByTime(21_500)
+    expect(h.spoken).toEqual([])
+    h.setConversationState('idle')
+    h.conversationListener('idle')
+    vi.advanceTimersByTime(1_500)
+    expect(h.spoken).toEqual(['В проекте zveno агент закончил, ждёт тебя.'])
+  })
+
+  it('briefs the brain instead, once, and then does not repeat it aloud', () => {
+    const h = createHarness()
+    h.setConversationState('listening')
+    h.statusListener(doneEvent())
+    vi.advanceTimersByTime(20_000)
+    expect(h.watch.takeBrainBriefing()).toContain('- zveno: готово — Есть вопросы — обсудим?')
+    expect(h.watch.takeBrainBriefing()).toBeNull()
+    h.setConversationState('idle')
+    h.conversationListener('idle')
+    vi.advanceTimersByTime(1_500)
+    expect(h.delivered).toHaveLength(1)
+    expect(h.spoken).toEqual([])
+  })
+
+  it('drops the line if a conversation opens during the short delay', () => {
+    const h = createHarness()
+    h.statusListener(doneEvent())
+    vi.advanceTimersByTime(20_000)
+    h.setConversationState('listening')
+    vi.advanceTimersByTime(1_500)
+    expect(h.delivered).toHaveLength(1)
+    expect(h.spoken).toEqual([])
+  })
+
+  it('only shows the toast when speaking aloud is switched off', () => {
+    const h = createHarness()
+    h.setNotifySettings({ speakAloud: false })
+    h.statusListener(doneEvent())
+    vi.advanceTimersByTime(21_500)
+    expect(h.delivered).toHaveLength(1)
+    expect(h.spoken).toEqual([])
   })
 })
 

@@ -29,7 +29,7 @@ describe('normalizeCompanionSettings', () => {
         maxSpokenChars: 180,
         yandexMonthlyBudgetRub: 150
       },
-      notify: { enabled: false, quietFrom: '23:00', quietTo: '07:30', speak: true },
+      notify: { enabled: false, quietFrom: '23:00', quietTo: '07:30', speakAloud: false },
       wake: { enabled: true, phrases: ['джарвис', 'эй компьютер'], followUpMs: 5000 },
       endKeyword: { enabled: true, words: ['думай', 'на этом всё'], fallbackPauseSeconds: 6 },
       voiceFocus: {
@@ -55,7 +55,7 @@ describe('normalizeCompanionSettings', () => {
       launchAtLogin: 'yes',
       tts: { ttsEnabled: 'yes', ttsVoice: 'robot', ttsRate: 'fast' },
       voiceBargeIn: 'on',
-      notify: { enabled: 'yes', quietFrom: '25:99', quietTo: 42, speak: 'no' },
+      notify: { enabled: 'yes', quietFrom: '25:99', quietTo: 42, speakAloud: 'no' },
       wake: { enabled: 1, phrases: 'джарвис', followUpMs: 'long' }
     })
     expect(normalized).toEqual(getDefaultCompanionSettings())
@@ -124,10 +124,14 @@ describe('normalizeCompanionSettings', () => {
     )
   })
 
-  it('passes through notify.enabled and notify.speak booleans', () => {
-    const normalized = normalizeCompanionSettings({ notify: { enabled: false, speak: true } })
+  it('passes through notify.enabled and notify.speakAloud booleans', () => {
+    const normalized = normalizeCompanionSettings({ notify: { enabled: false, speakAloud: false } })
     expect(normalized.notify.enabled).toBe(false)
-    expect(normalized.notify.speak).toBe(true)
+    expect(normalized.notify.speakAloud).toBe(false)
+  })
+
+  it('ignores the retired notify.speak flag so speaking aloud stays on by default', () => {
+    expect(normalizeCompanionSettings({ notify: { speak: false } }).notify.speakAloud).toBe(true)
   })
 
   it('accepts a known brainModel and rejects an unknown one', () => {

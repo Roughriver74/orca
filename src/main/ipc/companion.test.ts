@@ -122,6 +122,7 @@ describe('registerCompanionHandlers', () => {
       reportVoiceActivity: vi.fn(() => false),
       hasConfirmedRealSpeech: vi.fn(() => false),
       resetConversation,
+      speakAnnouncement: vi.fn(),
       dispose: vi.fn()
     }
     getHandler('companion:resetConversation')({})
@@ -143,6 +144,7 @@ describe('registerCompanionHandlers', () => {
       reportVoiceActivity,
       hasConfirmedRealSpeech: vi.fn(() => false),
       resetConversation: vi.fn(),
+      speakAnnouncement: vi.fn(),
       dispose: vi.fn()
     }
     const frame = { micLevel: 0.3, playbackLevel: 0.1, durationMs: 43 }
@@ -158,6 +160,7 @@ describe('registerCompanionHandlers', () => {
       reportVoiceActivity,
       hasConfirmedRealSpeech: vi.fn(() => false),
       resetConversation: vi.fn(),
+      speakAnnouncement: vi.fn(),
       dispose: vi.fn()
     }
     expect(getHandler('companion:voiceActivity')({}, { micLevel: 'loud' })).toEqual({

@@ -272,6 +272,7 @@ describe('companion hotkey', () => {
       reportVoiceActivity: vi.fn(() => false),
       hasConfirmedRealSpeech: vi.fn(() => false),
       resetConversation: vi.fn(),
+      speakAnnouncement: vi.fn(),
       dispose: vi.fn()
     }
 

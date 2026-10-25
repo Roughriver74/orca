@@ -89,8 +89,10 @@ export type CompanionNotifySettings = {
   /** "HH:MM" (24h). Quiet window may wrap past midnight (e.g. 22:00\u201308:00). */
   quietFrom: string
   quietTo: string
-  /** Speak the notice aloud via TTS once delivered. Flag only \u2014 wiring lands with the brain integration. */
-  speak: boolean
+  /** Jarvis says one short line aloud when a notice is delivered (not mid-conversation, not in
+   *  quiet hours). Replaces the never-wired `speak` flag, whose persisted `false` must not
+   *  override this one's on-by-default. */
+  speakAloud: boolean
 }
 
 export type CompanionTtsVoice = 'eugene' | 'xenia' | 'baya' | 'kseniya' | 'aidar'

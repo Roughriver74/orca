@@ -28,7 +28,7 @@ export function getDefaultCompanionSettings(): CompanionSettings {
       enabled: true,
       quietFrom: '22:00',
       quietTo: '08:00',
-      speak: false
+      speakAloud: true
     },
     wake: {
       enabled: false,
