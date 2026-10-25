@@ -33,12 +33,12 @@ export class OfflineSpeechDenoiser {
     this.sampleRate = binding.offlineSpeechDenoiserGetSampleRateWrapper(this.handle)
   }
 
+  // Why no enableExternalBuffer: passing false here (alongside the VAD fix) crashed a
+  // live worker with a native SIGABRT in napi_is_detached_arraybuffer, unverified against
+  // real speech in a worker thread (#orca-build-local 2026-10-25). Default behavior is
+  // what shipped before and never crashed.
   run(samples: Float32Array, sampleRate: number): Float32Array {
-    // Electron's V8 sandbox rejects external ArrayBuffers; false makes the addon copy.
-    return this.binding.offlineSpeechDenoiserRunWrapper(this.handle, {
-      samples,
-      sampleRate,
-      enableExternalBuffer: false
-    }).samples
+    return this.binding.offlineSpeechDenoiserRunWrapper(this.handle, { samples, sampleRate })
+      .samples
   }
 }

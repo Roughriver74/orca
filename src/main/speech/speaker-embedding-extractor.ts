@@ -49,15 +49,22 @@ export class SpeakerEmbeddingExtractor {
     this.dim = binding.speakerEmbeddingExtractorDim(this.handle)
   }
 
-  /** Computes a speaker embedding for one utterance's worth of samples. */
-  computeEmbedding(samples: Float32Array, sampleRate: number): Float32Array {
+  /** Computes a speaker embedding for one utterance's worth of samples.
+   *  `copyBuffer`: false (default) matches what shipped before and what the live VAD
+   *  worker still uses — passing enableExternalBuffer=false there crashed a worker thread
+   *  with a native SIGABRT in napi_is_detached_arraybuffer, unverified against real speech
+   *  (#orca-build-local 2026-10-25). The one-shot main-thread enrollment call (`true`) was
+   *  verified fixed under Electron: without it, Electron's V8 sandbox rejects the addon's
+   *  external ArrayBuffer with "External buffers are not allowed". */
+  computeEmbedding(samples: Float32Array, sampleRate: number, copyBuffer = false): Float32Array {
     const stream = this.binding.speakerEmbeddingExtractorCreateStream(this.handle)
     this.binding.acceptWaveformOnline(stream, { samples, sampleRate })
     this.binding.inputFinished(stream)
     if (!this.binding.speakerEmbeddingExtractorIsReady(this.handle, stream)) {
       throw new Error('Speaker embedding extractor stream not ready after inputFinished')
     }
-    // Electron's V8 sandbox rejects external ArrayBuffers; false makes the addon copy.
-    return this.binding.speakerEmbeddingExtractorComputeEmbedding(this.handle, stream, false)
+    return copyBuffer
+      ? this.binding.speakerEmbeddingExtractorComputeEmbedding(this.handle, stream, false)
+      : this.binding.speakerEmbeddingExtractorComputeEmbedding(this.handle, stream)
   }
 }

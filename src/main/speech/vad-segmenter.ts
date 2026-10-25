@@ -86,8 +86,12 @@ export class VadSegmenter {
   private drainQueue(): VadSegment[] {
     const segments: VadSegment[] = []
     while (!this.binding.voiceActivityDetectorIsEmpty(this.handle)) {
-      // Electron's V8 sandbox rejects external ArrayBuffers; false makes the addon copy.
-      const front = this.binding.voiceActivityDetectorFront(this.handle, false)
+      // Why no enableExternalBuffer arg: passing false here crashed a live VAD worker
+      // with a native SIGABRT in napi_is_detached_arraybuffer (#orca-build-local 2026-10-25) —
+      // unlike the one-shot enrollment/denoiser calls, this one is unverified against real
+      // speech in a worker thread. Default behavior (no flag) is what shipped before and
+      // never crashed; revisit only with an in-process repro.
+      const front = this.binding.voiceActivityDetectorFront(this.handle)
       segments.push({ startSample: front.start, samples: front.samples })
       this.binding.voiceActivityDetectorPop(this.handle)
     }
