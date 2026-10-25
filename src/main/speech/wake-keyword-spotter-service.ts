@@ -1,6 +1,7 @@
 import { Worker } from 'node:worker_threads'
 import { currentWorkerEntryLayout, resolveWorkerThreadEntryPath } from '../worker-thread-entry-path'
 import { getSherpaModulePath } from './stt-worker-paths'
+import { stopSherpaWorker, workerExited } from './sherpa-worker-shutdown'
 import type { WakeKeywordWorkerMessage } from './wake-keyword-worker'
 
 type WorkerOutMessage =
@@ -20,6 +21,7 @@ export type WakeKeywordSpotterHandlers = {
  */
 export class WakeKeywordSpotterService {
   private readonly worker: Worker
+  private readonly exited: Promise<void>
   private ready = false
   private stopped = false
 
@@ -31,6 +33,7 @@ export class WakeKeywordSpotterService {
       resolveWorkerThreadEntryPath(currentWorkerEntryLayout(__dirname), 'wake-keyword-worker.js'),
       { workerData: { sherpaModulePath: getSherpaModulePath() } }
     )
+    this.exited = workerExited(this.worker)
     this.worker.on('message', (msg: WorkerOutMessage) => {
       if (msg.type === 'ready') {
         this.ready = true
@@ -73,6 +76,7 @@ export class WakeKeywordSpotterService {
       return
     }
     this.stopped = true
-    await this.worker.terminate()
+    const teardown: WakeKeywordWorkerMessage = { type: 'teardown' }
+    await stopSherpaWorker(this.worker, this.exited, teardown)
   }
 }

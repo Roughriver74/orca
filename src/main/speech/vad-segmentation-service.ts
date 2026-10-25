@@ -1,5 +1,6 @@
 import { Worker } from 'node:worker_threads'
 import { getSherpaModulePath, getVadWorkerPath } from './stt-worker-paths'
+import { stopSherpaWorker, workerExited } from './sherpa-worker-shutdown'
 
 export type VadSegmentationOptions = {
   vadModelPath: string
@@ -32,6 +33,7 @@ type WorkerOutMessage =
  */
 export class VadSegmentationService {
   private worker: Worker
+  private readonly exited: Promise<void>
   private isReady = false
   private stopped = false
   // Why queue instead of dropping pre-ready audio: VAD init (a tiny model) is fast but
@@ -46,6 +48,7 @@ export class VadSegmentationService {
     this.worker = new Worker(getVadWorkerPath(), {
       workerData: { sherpaModulePath: getSherpaModulePath() }
     })
+    this.exited = workerExited(this.worker)
 
     this.worker.on('message', (msg: WorkerOutMessage) => {
       switch (msg.type) {
@@ -105,6 +108,6 @@ export class VadSegmentationService {
     }
     this.stopped = true
     this.feedQueue = []
-    await this.worker.terminate()
+    await stopSherpaWorker(this.worker, this.exited, { type: 'teardown' })
   }
 }

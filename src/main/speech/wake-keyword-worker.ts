@@ -8,6 +8,7 @@ import { WakeKeywordDetector, type KeywordSpotterBinding } from './wake-keyword-
 export type WakeKeywordWorkerMessage =
   | { type: 'init'; modelDir: string; phrases: string[] }
   | { type: 'feed'; samples: Float32Array; sampleRate: number }
+  | { type: 'teardown' }
 
 let detector: WakeKeywordDetector | null = null
 
@@ -42,9 +43,15 @@ function handleFeed(msg: Extract<WakeKeywordWorkerMessage, { type: 'feed' }>): v
 }
 
 parentPort?.on('message', (msg: WakeKeywordWorkerMessage) => {
-  if (msg.type === 'init') {
-    handleInit(msg)
-  } else {
-    handleFeed(msg)
+  switch (msg.type) {
+    case 'init':
+      handleInit(msg)
+      break
+    case 'feed':
+      handleFeed(msg)
+      break
+    case 'teardown':
+      // Exits between messages, never inside a sherpa call (see sherpa-worker-shutdown.ts).
+      process.exit(0)
   }
 })
