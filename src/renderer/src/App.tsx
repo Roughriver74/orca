@@ -37,6 +37,7 @@ import { useRuntimeGraphSync } from './app-shell/use-runtime-graph-sync'
 import { useWindowVisibilityEffects } from './app-shell/use-window-visibility-effects'
 import { SpaceWindowStatePublisher } from './components/workspace-space/SpaceWindowStatePublisher'
 import { installActiveWorktreeRemovalSuccessor } from './lib/active-worktree-removal-successor'
+import { installWorkspaceAutoArchive } from './lib/workspace-auto-archive'
 import { useWorkspaceTimelineCapture } from './components/right-sidebar/workspace-timeline/use-workspace-timeline-capture'
 
 function App(): React.JSX.Element {
@@ -59,6 +60,7 @@ function App(): React.JSX.Element {
   useGlobalKeybindings({ layout, floatingWorkspace })
   // Why App, not store creation: the Space window mirrors this store's selection but owns none.
   useEffect(() => installActiveWorktreeRemovalSuccessor(), [])
+  useEffect(() => installWorkspaceAutoArchive(), [])
 
   // Why: the same vars are set inline on .app-layout below, but portaled surfaces
   // (sheets, dialogs) mount outside it and would otherwise fall back to 0px and

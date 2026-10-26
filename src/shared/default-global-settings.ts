@@ -19,6 +19,7 @@ import {
 } from './left-sidebar-appearance'
 import { DEFAULT_SOURCE_CONTROL_GROUP_ORDER } from './source-control-group-order'
 import { DESKTOP_TERMINAL_SCROLLBACK_ROWS_DEFAULT } from './terminal-scrollback-policy'
+import { WORKSPACE_AUTO_ARCHIVE_DAYS_DEFAULT } from './workspace-auto-archive'
 
 export function buildDefaultSettings(args: {
   workspaceDir: string
@@ -164,6 +165,7 @@ export function buildDefaultSettings(args: {
     artifactSharingEnabled: false,
     agentSkillSharingEnabled: false,
     nestedWorkerMaxDepth: 1,
+    autoArchiveInactiveWorkspacesDays: WORKSPACE_AUTO_ARCHIVE_DAYS_DEFAULT,
     showArtifactsButton: false,
     showSkillsButton: false,
     showMobileButton: true,

@@ -2,11 +2,16 @@ import type React from 'react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { OpenInMenuSetting } from './OpenInMenuSetting'
 import { SearchableSetting } from './SearchableSetting'
-import { SettingsSubsectionHeader, SettingsSwitchRow } from './SettingsFormControls'
+import { NumberField, SettingsSubsectionHeader, SettingsSwitchRow } from './SettingsFormControls'
 import { WorkspaceDirectorySetting } from './WorkspaceDirectorySetting'
 import { translate } from '@/i18n/i18n'
 import { GlobalWorktreeVisibilitySourcesSetting } from './GlobalWorktreeVisibilitySourcesSetting'
 import { GLOBAL_WORKTREE_VISIBILITY_SETTINGS_TARGET_ID } from '@/lib/settings-navigation-types'
+import {
+  resolveWorkspaceAutoArchiveDays,
+  WORKSPACE_AUTO_ARCHIVE_DAYS_DEFAULT,
+  WORKSPACE_AUTO_ARCHIVE_DAYS_MAX
+} from '../../../../shared/workspace-auto-archive'
 
 type GeneralWorkspaceSettingsSectionProps = {
   settings: GlobalSettings
@@ -98,6 +103,41 @@ export function GeneralWorkspaceSettingsSection({
           )}
           checked={settings.nestWorkspaces}
           onChange={() => updateSettings({ nestWorkspaces: !settings.nestWorkspaces })}
+        />
+      </SearchableSetting>
+
+      <SearchableSetting
+        title={translate(
+          'auto.components.settings.GeneralWorkspaceSettingsSection.autoArchiveTitle',
+          'Auto-Archive Inactive Workspaces'
+        )}
+        description={translate(
+          'auto.components.settings.GeneralWorkspaceSettingsSection.autoArchiveDescription',
+          'Archive workspaces with no activity for this many days. 0 turns it off.'
+        )}
+        keywords={['archive', 'inactive', 'idle', 'auto']}
+      >
+        <NumberField
+          label={translate(
+            'auto.components.settings.GeneralWorkspaceSettingsSection.autoArchiveTitle',
+            'Auto-Archive Inactive Workspaces'
+          )}
+          description={translate(
+            'auto.components.settings.GeneralWorkspaceSettingsSection.autoArchiveDescription',
+            'Archive workspaces with no activity for this many days. 0 turns it off.'
+          )}
+          value={resolveWorkspaceAutoArchiveDays(settings)}
+          defaultValue={WORKSPACE_AUTO_ARCHIVE_DAYS_DEFAULT}
+          min={0}
+          max={WORKSPACE_AUTO_ARCHIVE_DAYS_MAX}
+          integer
+          suffix={translate(
+            'auto.components.settings.GeneralWorkspaceSettingsSection.autoArchiveSuffix',
+            'days'
+          )}
+          onChange={(autoArchiveInactiveWorkspacesDays) =>
+            updateSettings({ autoArchiveInactiveWorkspacesDays })
+          }
         />
       </SearchableSetting>
 

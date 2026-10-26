@@ -5,7 +5,7 @@ import { translate } from '@/i18n/i18n'
 import { hasWorktreeSleepIntent } from '@/lib/worktree-sleep-intent'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
 import type { Worktree } from '../../../../shared/worktree/types'
-import { runSleepWorktrees } from './sleep-worktree-flow'
+import { runSleepWorktrees, sleepWorktreesReportingFailures } from './sleep-worktree-flow'
 
 // Why: multi-repo folder-workspace lanes do not filter archived rows yet, so hiding them
 // would misbehave. Primary checkouts are archivable: archiving one hides its whole project,
@@ -104,6 +104,59 @@ export async function runArchiveWorktrees(worktreeIds: readonly string[]): Promi
       description: translate(
         'auto.components.sidebar.archive.worktree.flow.restoreHint',
         'Restore it from Workspace options → Archived.'
+      ),
+      action: {
+        label: translate('auto.components.sidebar.archive.worktree.flow.undo', 'Undo'),
+        onClick: () => {
+          void undoArchiveWorktrees(archivedIds)
+        }
+      }
+    }
+  )
+}
+
+/**
+ * Background archive of idle workspaces. Failures only reach the console: the
+ * next sweep retries them, and a toast per sweep would nag about work nobody started.
+ */
+export async function runAutoArchiveWorktrees(
+  worktreeIds: readonly string[],
+  idleDays: number
+): Promise<void> {
+  if (worktreeIds.length === 0) {
+    return
+  }
+  const { errors } = await sleepWorktreesReportingFailures(worktreeIds, { markChatsAsleep: true })
+  if (errors.length > 0) {
+    console.warn('[auto-archive] sleep failed', errors)
+  }
+  // Why: a workspace the user opened mid-sweep lost its sleep intent; it stays visible.
+  const { succeededIds: archivedIds, failedIds } = await setWorktreesArchived(
+    worktreeIds.filter((id) => hasWorktreeSleepIntent(id)),
+    true
+  )
+  if (failedIds.length > 0) {
+    console.warn('[auto-archive] archive write failed', failedIds)
+  }
+  if (archivedIds.length === 0) {
+    return
+  }
+  toast.success(
+    archivedIds.length === 1
+      ? translate(
+          'auto.components.sidebar.archive.worktree.flow.autoArchivedOne',
+          'Inactive workspace archived'
+        )
+      : translate(
+          'auto.components.sidebar.archive.worktree.flow.autoArchivedMany',
+          '{{value0}} inactive workspaces archived',
+          { value0: archivedIds.length }
+        ),
+    {
+      description: translate(
+        'auto.components.sidebar.archive.worktree.flow.autoArchivedHint',
+        'No activity for {{value0}}+ days. Restore from Workspace options → Archived.',
+        { value0: idleDays }
       ),
       action: {
         label: translate('auto.components.sidebar.archive.worktree.flow.undo', 'Undo'),

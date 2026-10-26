@@ -56,6 +56,22 @@ export const getGeneralWorkspaceSearchEntries = createLocalizedCatalog(() => [
   },
   {
     title: translate(
+      'auto.components.settings.general.search.autoArchiveTitle',
+      'Auto-Archive Inactive Workspaces'
+    ),
+    description: translate(
+      'auto.components.settings.general.search.autoArchiveDescription',
+      'Archive workspaces with no activity for this many days. 0 turns it off.'
+    ),
+    keywords: [
+      ...translateSearchKeyword('auto.components.settings.general.search.archive', 'archive'),
+      ...translateSearchKeyword('auto.components.settings.general.search.inactive', 'inactive'),
+      ...translateSearchKeyword('auto.components.settings.general.search.idle', 'idle'),
+      ...translateSearchKeyword('auto.components.settings.general.search.df10666259', 'worktree')
+    ]
+  },
+  {
+    title: translate(
       'auto.components.settings.general.search.913242091d',
       'Ask Before Deleting Workspaces'
     ),

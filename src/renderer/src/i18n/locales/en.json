@@ -7021,7 +7021,10 @@
               "archivedMany": "{{value0}} workspaces archived",
               "restoreHint": "Restore it from Workspace options → Archived.",
               "undo": "Undo",
-              "restoreFailed": "Failed to restore workspace"
+              "restoreFailed": "Failed to restore workspace",
+              "autoArchivedOne": "Inactive workspace archived",
+              "autoArchivedMany": "{{value0}} inactive workspaces archived",
+              "autoArchivedHint": "No activity for {{value0}}+ days. Restore from Workspace options → Archived."
             }
           }
         },
@@ -8010,7 +8013,10 @@
           "externalWorktrees": "External worktrees",
           "externalWorktreesDescription": "Choose whether worktrees created outside Orca appear by default.",
           "show": "Show",
-          "hide": "Hide"
+          "hide": "Hide",
+          "autoArchiveTitle": "Auto-Archive Inactive Workspaces",
+          "autoArchiveDescription": "Archive workspaces with no activity for this many days. 0 turns it off.",
+          "autoArchiveSuffix": "days"
         },
         "GhosttyImportModal": {
           "9d3e56ca36": "Apply Changes",
@@ -10596,7 +10602,12 @@
             "command": "command",
             "confirm": "confirm",
             "close": "close",
-            "omp": "OMP"
+            "omp": "OMP",
+            "autoArchiveTitle": "Auto-Archive Inactive Workspaces",
+            "autoArchiveDescription": "Archive workspaces with no activity for this many days. 0 turns it off.",
+            "archive": "archive",
+            "inactive": "inactive",
+            "idle": "idle"
           }
         },
         "git": {
