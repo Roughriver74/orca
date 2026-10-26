@@ -75,5 +75,19 @@
     "text": "sidebar",
     "dynamic": false,
     "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/settings/CompanionYandexTtsSettingsSection.tsx",
+    "kind": "jsx-expression",
+    "text": "(v3)",
+    "dynamic": false,
+    "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/settings/CompanionYandexTtsSettingsSection.tsx",
+    "kind": "jsx-attribute:placeholder",
+    "text": "AQVN...",
+    "dynamic": false,
+    "count": 1
   }
 ]

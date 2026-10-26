@@ -1200,6 +1200,9 @@
         "CommitMessageAiPane": {
           "841ed9884a": "Used by repositories that have not customized Source Control AI."
         },
+        "CompanionPane": {
+          "seconds": "с"
+        },
         "ComputerUsePane": {
           "07bbe4c4cb": "Screenshots",
           "0c9a33f468": "Capture app windows so agents can inspect visual state.",
@@ -3375,6 +3378,9 @@
     }
   },
   "jira": {
+    "favourites": {
+      "siteMismatch": "Choose a project from the favourite's Jira site, or clear the project filter."
+    },
     "workspace": {
       "open": "Open workspace linked to {{key}}"
     }

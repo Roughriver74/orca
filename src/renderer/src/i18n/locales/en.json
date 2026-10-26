@@ -13420,7 +13420,10 @@
             "downloading": "Загрузка голоса…",
             "error": "Не удалось загрузить голос.",
             "ready": "Голос готов.",
-            "sileroUnsupported": "Локальный голос Silero работает только на Mac с Apple Silicon. Здесь озвучивает Яндекс SpeechKit."
+            "sileroUnsupported": "Локальный голос Silero работает только на Mac с Apple Silicon. Здесь озвучивает Яндекс SpeechKit.",
+            "qwen3Downloading": "Загрузка Qwen3-TTS (~3 ГБ), пока говорит Silero…",
+            "qwen3Error": "Qwen3-TTS не установился, говорит Silero.",
+            "qwen3Ready": "Голос Qwen3 готов."
           },
           "enable": "Включить Джарвиса",
           "enableDescription": "Голосовой помощник по горячей клавише, работает поверх всех приложений.",
@@ -13456,7 +13459,42 @@
           "showPanelOnAddress": "Показывать панель при обращении",
           "showPanelOnAddressDescription": "Открывать большую панель, когда к Джарвису обратились по имени. Выключено — ответ только голосом, панель окна не перекрывает.",
           "autoHidePanelAfterReply": "Прятать панель после ответа",
-          "autoHidePanelAfterReplyDescription": "Через несколько секунд после окончания ответа панель скрывается сама, если разговор не продолжается."
+          "autoHidePanelAfterReplyDescription": "Через несколько секунд после окончания ответа панель скрывается сама, если разговор не продолжается.",
+          "brainModel": "Модель мозга",
+          "brainModelDescription": "Какая модель Claude ведёт разговор.",
+          "launchAtLogin": "Запускать при входе в систему",
+          "launchAtLoginDescription": "Orca откроется в фоне при входе в macOS, чтобы Джарвис был готов сразу.",
+          "newConversation": "Новый разговор",
+          "newConversationDescription": "Забыть текущий разговор с Джарвисом и начать с чистого листа.",
+          "newConversationStarted": "Разговор сброшен",
+          "endKeywordEnable": "Слово-сигнал",
+          "endKeywordEnableDescription": "Паузы не обрывают реплику: всё сказанное копится, пока вы не закончите словом-сигналом. Само слово Джарвису не отправляется. Горячая клавиша отправляет сразу.",
+          "endKeywordWords": "Слова-сигналы",
+          "endKeywordWordsDescription": "Через запятую. Срабатывают, только когда стоят последними в реплике.",
+          "endKeywordFallbackPause": "Отправить без слова после паузы",
+          "endKeywordFallbackPauseDescription": "Если слово-сигнал не прозвучало — сколько молчать после последней фразы, чтобы реплика ушла сама.",
+          "qwenEmotion": "Интонация Qwen3",
+          "qwenEmotionHint": "Только для Apple Silicon. Пока модель не скачана или не запустилась, говорит Silero.",
+          "voiceEnrollTitle": "Голос владельца",
+          "voiceEnrollDescription": "Запишите 3 коротких фразы — Джарвис научится узнавать ваш голос и не будет реагировать на телевизор или чужую речь.",
+          "voiceEnrollModelDownloading": "Модель распознавания голоса ещё скачивается…",
+          "voiceEnrollPhrasePrompt": "Скажите: «{{phrase}}» ({{index}}/{{total}})",
+          "voiceEnrollStatusEnrolled": "Записано фраз: {{count}}",
+          "voiceEnrollStatusEmpty": "Голос ещё не записан",
+          "voiceEnrollReRecord": "Перезаписать",
+          "voiceEnrollRecord": "Записать голос",
+          "voiceEnrollClear": "Удалить запись",
+          "voiceFocusEnable": "Фокус на голосе",
+          "voiceFocusEnableDescription": "Определять конец фразы по голосу (а не по громкости) и отличать ваш голос от телевизора и чужой речи.",
+          "voiceFocusModelDownloading": "Скачивается модель определения конца фразы…",
+          "voiceFocusEndOfUtterance": "Пауза для завершения фразы",
+          "voiceFocusDenoiser": "Подавление шума",
+          "voiceFocusDenoiserDescription": "Очищать звук от фонового шума перед распознаванием (немного больше нагрузки на процессор).",
+          "voiceFocusStrictness": "Строгость",
+          "voiceFocusStrictnessDescription": "Насколько точно голос должен совпадать с записанным, чтобы Джарвис среагировал.",
+          "voiceFocusShowDropped": "Показывать отброшенное",
+          "voiceFocusShowDroppedDescription": "В чате появится приглушённая строка «не твой голос — пропущено» для каждой отброшенной фразы.",
+          "wakeListeningError": "Фоновое прослушивание не работает: {{error}}"
         },
         "CompanionYandexTts": {
           "provider": "Озвучка",
@@ -13480,7 +13518,8 @@
           "usageToday": "Сегодня: {{chars}} симв. ≈ {{cost}} · запросов: {{requests}}",
           "usage30d": "За 30 дней: {{chars}} симв. ≈ {{cost}} · сэкономлено кэшем: {{saved}}",
           "budgetExceeded": "Бюджет на этот месяц исчерпан — Джарвис временно говорит голосом Silero.",
-          "pricesApproximate": "Цены приблизительные — официальная страница тарифов Яндекса недоступна напрямую."
+          "pricesApproximate": "Цены приблизительные — официальная страница тарифов Яндекса недоступна напрямую.",
+          "providerQwen3": "Qwen3-TTS (локально, с эмоциями, ~3 ГБ)"
         },
         "companion": {
           "pane": {
@@ -13516,7 +13555,11 @@
               "panel": "big panel",
               "autoHidePanelAfterReplyTitle": "Прятать панель после ответа",
               "autoHidePanelAfterReplyTitleDescription": "Панель скрывается сама через несколько секунд после ответа.",
-              "autoHide": "auto hide"
+              "autoHide": "auto hide",
+              "endKeywordTitle": "Слово-сигнал",
+              "endKeywordTitleDescription": "Не отправлять реплику на паузе — только после слова «думай», «всё» и т. п.",
+              "endKeyword": "end keyword",
+              "pause": "pause"
             }
           }
         }
@@ -21216,7 +21259,14 @@
       "notice": {
         "discuss": "Обсудить",
         "later": "Позже"
-      }
+      },
+      "speaking": "Говорю…",
+      "newConversation": "Новый разговор",
+      "openMicSettings": "Открыть настройки",
+      "brainError": "Не получилось ответить: {{message}}",
+      "micPermissionDenied": "Нет доступа к микрофону — разреши в Системные настройки → Конфиденциальность → Микрофон",
+      "sttDownloading": "Модель распознавания ещё скачивается — нажми клавишу ещё раз через минуту",
+      "sttMissing": "Модель распознавания не установлена — выбери её в Настройки → Companion"
     },
     "indicator": {
       "listening": "Слушаю",
