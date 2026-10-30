@@ -1,0 +1,49 @@
+---
+title: TokenEconomizer
+---
+
+import { Callout } from '@/components/docs/prose'
+
+[TokenEconomizer](https://github.com/microsoft/TokenEconomizer) is a Microsoft plugin for agent CLIs that cuts token cost. It learns how each repository is used and trims what the agent sends. Orca can install it for you into Claude Code, Codex and omp with one setting.
+
+## Turn it on
+
+**Settings → Agents → TokenEconomizer.** The row shows progress and the result under the switch: installing, installed (with how many agent homes), or the reason it failed.
+
+## What Orca installs, and where
+
+- **Source.** Orca clones TokenEconomizer at one pinned commit into `{userData}/token-economizer/TokenEconomizer`. The installed plugin runs from that clone, so Orca keeps it in place. Orca never updates it on its own; a new version ships with a new Orca release.
+- **Claude Code.** In your default Claude home and in each Orca Claude account home, Orca runs Claude's own `claude plugin marketplace add` and `claude plugin install tokeneconomizer@tokeneconomizer`. It then runs TokenEconomizer's `toolprune refresh-catalog` once, so tool pruning knows which tools every Claude session loads. Orca re-runs it at each launch, which keeps the list current after Claude updates.
+- **Codex.** In `~/.codex`, in Orca's managed Codex home, and in each local Orca Codex account home (each only when it exists), Orca runs `codex plugin marketplace add` and `codex plugin add tokeneconomizer@tokeneconomizer`, then trusts the plugin's five hooks so Codex actually runs them.
+- **omp.** In the default omp profile only (an inherited `OMP_PROFILE` is ignored), Orca writes a small wrapper package to `{userData}/token-economizer/omp/` and runs `omp plugin install` on it. See [omp](#omp) below.
+
+An agent whose CLI is not on your `PATH` is skipped. Homes that already have the plugin are left alone. Orca re-checks on every launch while the setting is on, so a newly added account home picks it up at the next start.
+
+## Python requirement
+
+TokenEconomizer's hooks run on Python 3.10 or newer (`python3` or `python` on macOS and Linux, `python` on Windows, where TokenEconomizer's hooks start `python` directly and `py -3` is not enough). Set `TE_PYTHON` to point it at a specific interpreter. If none is found, Orca installs nothing and the row says Python is missing. Orca does not install Python for you.
+
+## Turn it off
+
+Turning the setting off runs the agents' own uninstall commands (`claude plugin uninstall`, `codex plugin remove` and `omp plugin uninstall`, then `marketplace remove` where the agent has one) in the same homes, but only where the plugin is installed. For omp, Orca also deletes `{userData}/token-economizer/omp/`. Orca does not remove anything at launch, only when you flip the switch.
+
+<Callout>
+  What TokenEconomizer learned stays in `~/.tokeneconomizer`. Turning the setting off does not
+  delete it, so turning it back on resumes where it left off.
+</Callout>
+
+## omp
+
+omp loads TokenEconomizer's Pi extension, but needs adapting, so Orca generates a wrapper package (rewritten on every enable, so paths stay current) with three files:
+
+- `package.json` and `tokeneconomizer-omp.ts` — the extension omp loads. It imports TokenEconomizer's Pi extension from the clone and translates omp's `before_agent_start` and `tool_result` events into the shapes TokenEconomizer expects.
+- `shim/pi` (macOS and Linux) — a script named `pi` that drops the Pi-only flags `--no-prompt-templates`, `--offline` and `--no-mcp` and runs your `omp`. TokenEconomizer's side-model calls hardcode the `pi` binary. The extension puts the shim directory at the front of `PATH`, so it shadows any real `pi` inside omp's own shell only, never in your terminals.
+
+Limits on omp:
+
+- TokenEconomizer's tool pruning does not apply.
+- On Windows there is no shim, so the loop-guard judge and the micro-skills proposer get no answer. TokenEconomizer records that in `~/.tokeneconomizer/errors.log`; the rest keeps working.
+
+## Scope
+
+Local machines only. Remote (SSH) workspaces and WSL distros are not touched; install TokenEconomizer there with the agent's own plugin commands.

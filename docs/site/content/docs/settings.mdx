@@ -62,6 +62,7 @@ Settings are grouped into panes. Everything here is searchable with `Cmd-,` then
 - Claude and Codex account lists.
 - Startup hooks per agent.
 - **Agent status hooks** — show working / waiting / done states in Orca. Toggle takes effect without restarting the app (including the Windows WSL hook relay). CLI: `orca agent hooks on|off|status`.
+- **TokenEconomizer** — installs Microsoft's token-saving plugin into local Claude Code, Codex and omp, and removes it when turned off. Needs Python 3.10+. See [TokenEconomizer](/docs/agents/token-economizer).
 - **Keep computer awake** — **On** (stay awake continuously), **Agent** (stay awake while an agent is working), or **Off**. The same control lives on the desktop status bar as **Caffeinate** (coffee icon). Hidden on paired web clients.
 - **Skill freshness** — the Agents pane and skill cards still show full status. Sidebar navigation only badges skills that need action (**Update available**, **Needs attention** / review); healthy, loading, and optional not-installed rows stay quiet. Use **Update** in the dialog to refresh global skills in the background (no terminal). Progress appears on the status bar; closing the dialog does not cancel the run. See [Orca skills](/docs/cli/skills#keep-skills-up-to-date).
 

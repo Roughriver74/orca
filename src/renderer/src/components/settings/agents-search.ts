@@ -19,6 +19,11 @@ import {
   getAgentWorkspaceTrustSearchKeywords,
   getAgentWorkspaceTrustTitle
 } from './agent-workspace-trust-copy'
+import {
+  getTokenEconomizerDescription,
+  getTokenEconomizerSearchKeywords,
+  getTokenEconomizerTitle
+} from './token-economizer-copy'
 import { getAgentCacheTimerSearchEntries } from './agent-cache-timer-search'
 import {
   getCodexTerminalServerIsolationDescription,
@@ -74,12 +79,14 @@ type AgentsPaneSearchOptions = {
   includeAgentRuntime?: boolean
   includeAgentWorkspaceTrust?: boolean
   includeCodexTerminalServerIsolation?: boolean
+  includeTokenEconomizer?: boolean
 }
 
 const AGENT_AWAKE_SEARCH_ENTRY_ID = 'agent-awake'
 const AGENT_WORKSPACE_TRUST_SEARCH_ENTRY_ID = 'agent-workspace-trust'
 const AGENT_RUNTIME_SEARCH_ENTRY_ID = 'agent-runtime'
 const CODEX_TERMINAL_SERVER_ISOLATION_SEARCH_ENTRY_ID = 'codex-terminal-server-isolation'
+const TOKEN_ECONOMIZER_SEARCH_ENTRY_ID = 'token-economizer'
 
 const getAllAgentsPaneSearchEntries = createLocalizedCatalog(() => [
   {
@@ -121,6 +128,12 @@ const getAllAgentsPaneSearchEntries = createLocalizedCatalog(() => [
     title: getAgentStatusHooksTitle(),
     description: getAgentStatusHooksDescription(),
     keywords: getAgentStatusHooksSearchKeywords()
+  },
+  {
+    title: getTokenEconomizerTitle(),
+    id: TOKEN_ECONOMIZER_SEARCH_ENTRY_ID,
+    description: getTokenEconomizerDescription(),
+    keywords: getTokenEconomizerSearchKeywords()
   },
   {
     title: getAgentWorkspaceTrustTitle(),
@@ -173,7 +186,8 @@ export function getAgentsPaneSearchEntries({
   includeAgentAwake = true,
   includeAgentRuntime = true,
   includeAgentWorkspaceTrust = true,
-  includeCodexTerminalServerIsolation = true
+  includeCodexTerminalServerIsolation = true,
+  includeTokenEconomizer = true
 }: AgentsPaneSearchOptions = {}) {
   const hiddenIds = new Set<string>()
   if (!includeAgentAwake) {
@@ -187,6 +201,9 @@ export function getAgentsPaneSearchEntries({
   }
   if (!includeCodexTerminalServerIsolation) {
     hiddenIds.add(CODEX_TERMINAL_SERVER_ISOLATION_SEARCH_ENTRY_ID)
+  }
+  if (!includeTokenEconomizer) {
+    hiddenIds.add(TOKEN_ECONOMIZER_SEARCH_ENTRY_ID)
   }
   return getAllAgentsPaneSearchEntries().filter(
     (entry) => !('id' in entry) || !hiddenIds.has(entry.id)

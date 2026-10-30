@@ -2,7 +2,6 @@ import { constants } from 'node:fs'
 import { access, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import type { AgentHookTarget } from '../../shared/agent-hook-types'
 import {
   extractExecutableToken,
   hasPathSeparatorToken,
@@ -13,9 +12,14 @@ import type { GlobalSettings } from '../../shared/global-settings-types'
 import { hydrateShellPath, mergePathSegments } from '../startup/hydrate-shell-path'
 
 export type LocalCliPresenceState = 'found' | 'missing' | 'unknown'
+// Keyed by plain string so integrations whose agent is not a hook target (omp) can reuse detection.
+export type LocalCliPresenceTarget = Pick<
+  ManagedAgentHookTarget,
+  'tuiAgent' | 'executableCandidates'
+> & { agent: string }
 export type LocalCliPresenceByAgent = Partial<
   Record<
-    AgentHookTarget,
+    string,
     { state: 'found'; executablePath: string } | { state: Exclude<LocalCliPresenceState, 'found'> }
   >
 >
@@ -94,7 +98,7 @@ function candidateFileNames(
 
 function overrideTokenForAgent(
   settings: CommandOverrideSettings,
-  target: ManagedAgentHookTarget,
+  target: LocalCliPresenceTarget,
   platform: NodeJS.Platform
 ): string | null {
   return extractExecutableToken(settings?.agentCmdOverrides?.[target.tuiAgent], { platform })
@@ -156,7 +160,7 @@ export async function hydrateAgentCliShellPath(
 }
 
 export async function detectLocalManagedAgentCliPresence(
-  targets: readonly ManagedAgentHookTarget[],
+  targets: readonly LocalCliPresenceTarget[],
   settings: CommandOverrideSettings,
   options: DetectOptions = {}
 ): Promise<LocalCliPresenceByAgent> {

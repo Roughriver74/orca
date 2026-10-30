@@ -17,6 +17,7 @@ import { startCodexHooks } from '../codex/codex-hook-reconcile'
 import { hydrateAgentCliShellPath } from '../agent-hooks/local-agent-cli-presence'
 import { isAgentStatusHooksEnabledForAgent } from '../agent-hooks/managed-agent-hook-controls'
 import { reconcileStartupManagedAgentHooks } from '../agent-hooks/managed-agent-hook-startup'
+import { reconcileStartupTokenEconomizer } from '../token-economizer/token-economizer-install'
 import { shouldInstallManagedHooks } from './configure-process'
 import { mainProcessState as state } from './main-process-state'
 import { initializeMainProcessObservers } from './main-process-observers'
@@ -116,6 +117,10 @@ export async function initializeReadyRuntimeServices(): Promise<void> {
     reconcileStartupManagedAgentHooks({
       getSettings: () => store.getSettings(),
       isQuitting: () => state.isQuitting,
+      shouldHydrateShellPath: app.isPackaged
+    })
+    reconcileStartupTokenEconomizer({
+      getSettings: () => store.getSettings(),
       shouldHydrateShellPath: app.isPackaged
     })
   }
