@@ -5,6 +5,7 @@ import { AgentAwakeSetting } from './AgentAwakeSetting'
 import { AgentCacheTimerSection } from './AgentCacheTimerSection'
 import { AgentRuntimeSetting } from './AgentRuntimeSetting'
 import { CodexTerminalServerIsolationSetting } from './CodexTerminalServerIsolationSetting'
+import { TokenEconomizerSetting } from './TokenEconomizerSetting'
 import {
   getAgentGeneratedTabTitlesDescription,
   getAgentGeneratedTabTitlesTitle
@@ -83,6 +84,7 @@ export function AgentsPane({
         <AgentStatusHooksSetting settings={settings} updateSettings={updateSettings} />
         {!isPairedWebClientWindow() ? (
           <>
+            <TokenEconomizerSetting settings={settings} updateSettings={updateSettings} />
             <AgentWorkspaceTrustSetting settings={settings} updateSettings={updateSettings} />
             <CodexTerminalServerIsolationSetting
               settings={settings}

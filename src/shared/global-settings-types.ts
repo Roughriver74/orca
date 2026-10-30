@@ -435,6 +435,8 @@ export type GlobalSettings = GlobalSettingsBase & CompanionGlobalSettings & {
   agentYoloDefaultsMigrated?: boolean
   /** Why: disabling must persist so startup doesn't reinstall global agent hook entries the user just removed. */
   agentStatusHooksEnabled: boolean
+  /** Installs the TokenEconomizer plugin into local Claude Code and Codex homes; off removes it. */
+  tokenEconomizerEnabled: boolean
   /** A local agent-state-rules.json that replaces downloaded and bundled rules, for testing a rule
    *  change. */
   agentStateRulesPath?: string | null

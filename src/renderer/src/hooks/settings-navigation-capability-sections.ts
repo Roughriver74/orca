@@ -46,7 +46,8 @@ export function buildCapabilitySettingsSections({
         includeAgentAwake: !isWebClient,
         includeAgentRuntime: isLocalWindowsHost,
         includeAgentWorkspaceTrust: !isWebClient,
-        includeCodexTerminalServerIsolation: !isWebClient
+        includeCodexTerminalServerIsolation: !isWebClient,
+        includeTokenEconomizer: !isWebClient
       }),
       group: 'capabilities'
     },

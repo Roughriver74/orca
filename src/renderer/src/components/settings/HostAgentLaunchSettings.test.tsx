@@ -38,6 +38,8 @@ vi.mock('@/hooks/useDetectedAgents', () => ({
     }
   }
 }))
+// Its status comes from the preload bridge, which happy-dom has no window.api for.
+vi.mock('./TokenEconomizerSetting', () => ({ TokenEconomizerSetting: () => null }))
 const host = () =>
   projectAgentLaunchSettings({
     agentDefaultArgs: { claude: '--host-marker' },

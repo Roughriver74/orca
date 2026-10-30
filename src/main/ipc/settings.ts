@@ -15,6 +15,7 @@ import { sanitizeFloatingWorkspaceDirectorySetting } from './floating-workspace-
 import { applyAgentStatusHooksEnabled } from '../agent-hooks/managed-agent-hook-controls'
 import { isAgentStatusHooksEnabledForAgent } from '../../shared/agent-status-hooks-setting'
 import { recordManagedHookInstallFailure } from '../agent-hooks/install-telemetry'
+import { tokenEconomizerIpc } from '../token-economizer/token-economizer-ipc'
 import { applyElectronProxySettings } from '../network/proxy-settings'
 import { applyBrowserSessionProxies } from '../browser/browser-session-proxy'
 import { browserSessionRegistry } from '../browser/browser-session-registry'
@@ -88,6 +89,7 @@ export function registerSettingsHandlers(
       }
     }
   })
+  tokenEconomizerIpc.register()
 
   store.onSettingsChanged((updates, _settings, originWebContentsId) => {
     for (const window of BrowserWindow.getAllWindows()) {
@@ -250,6 +252,7 @@ export function registerSettingsHandlers(
         console.warn('[settings] failed to reconcile managed agent hooks:', error)
       }
     }
+    tokenEconomizerIpc.onSettingsChange(before, result, app.isPackaged)
     if ('uiLanguage' in sanitizedArgs && before.uiLanguage !== result.uiLanguage) {
       await setMainUiLanguage(result.uiLanguage)
       rebuildAppMenu()

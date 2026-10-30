@@ -12,6 +12,7 @@
     "session-history",
     "hibernation",
     "usage-tracking",
-    "hooks-memory"
+    "hooks-memory",
+    "token-economizer"
   ]
 }
